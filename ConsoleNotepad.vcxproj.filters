@@ -19,6 +19,9 @@
     <Filter Include="头文件\UI">
       <UniqueIdentifier>{b67f62b8-10d6-4dec-adcc-ab351d057d5b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Filesystem">
+      <UniqueIdentifier>{0f56b09c-aa4e-4ab8-b0f7-cf308268abf1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -47,6 +50,12 @@
     </ClCompile>
     <ClCompile Include="InputHandler.ixx">
       <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FileReader.ixx">
+      <Filter>头文件\Filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="FileReaderWindows.ixx">
+      <Filter>头文件\Filesystem</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -5,7 +5,6 @@ import ConsoleHandler;
 import BasicColors;
 import UI;
 import InputHandler;
-import FileReader;
 
 using namespace std;
 
@@ -15,11 +14,15 @@ int main()
 {
 	ConsoleHandler console;
 
-	setlocale(LC_ALL, "chs");
+	//setlocale(LC_ALL, "Unicode");
 
-	FileReader file{ "testText.txt" };
+	wifstream file("testText.txt");
 
-	wstring str = file.ReadAll();
+	wstringstream ss;
+
+	ss << file.rdbuf();
+
+	wstring str = ss.str();
 	//string str = to_string(console.GetConsoleSize().height);
 
 	InputHandler inputHandler;
@@ -28,7 +31,7 @@ int main()
 
 	console.BeginMonitorInput(inputHandler);
 
-	this_thread::sleep_for(114514h);	// Ë¯ÃÀÈËËµÊÇ
+	this_thread::sleep_for(114514h);	// ç¡ç¾Žäººè¯´æ˜¯
 
 	return 0;
 }

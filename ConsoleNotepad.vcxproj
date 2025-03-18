@@ -144,6 +144,8 @@
     <ClCompile Include="ConsoleHandlerWindows.ixx" />
     <ClCompile Include="ConsoleTypedef.ixx" />
     <ClCompile Include="Editor.ixx" />
+    <ClCompile Include="FileReader.ixx" />
+    <ClCompile Include="FileReaderWindows.ixx" />
     <ClCompile Include="Formatter.ixx" />
     <ClCompile Include="InputHandler.ixx" />
     <ClCompile Include="main.cpp" />

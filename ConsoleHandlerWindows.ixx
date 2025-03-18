@@ -84,16 +84,17 @@ export namespace NylteJ
 			SetConsoleCursorPosition(consoleOutputHandle, { .X = static_cast<short>(pos.x),.Y = static_cast<short>(pos.y) });
 		}
 
-		void Print(string_view text) const
+		void Print(wstring_view text) const
 		{
-			print("{}", text);
+			WriteConsoleW(consoleOutputHandle, text.data(), text.size(), nullptr, nullptr);
+			//vprint_unicode(wcout,"{}", make_wformat_args(text));
 		}
-		void Print(string_view text, ConsolePosition pos) const
+		void Print(wstring_view text, ConsolePosition pos) const
 		{
 			SetCursorTo(pos);
 			Print(text);
 		}
-		void Print(string_view text, ConsolePosition pos, ConsoleColor textColor) const
+		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -106,7 +107,7 @@ export namespace NylteJ
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
 		}
-		void Print(string_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -125,13 +126,30 @@ export namespace NylteJ
 			system("cls");
 		}
 
+		void HideCursor() const
+		{
+			CONSOLE_CURSOR_INFO cur;
+
+			GetConsoleCursorInfo(consoleOutputHandle, &cur);
+			cur.bVisible = false;
+			SetConsoleCursorInfo(consoleOutputHandle, &cur);
+		}
+		void ShowCursor() const
+		{
+			CONSOLE_CURSOR_INFO cur;
+
+			GetConsoleCursorInfo(consoleOutputHandle, &cur);
+			cur.bVisible = true;
+			SetConsoleCursorInfo(consoleOutputHandle, &cur);
+		}
+
 		void SetConsoleMode(ConsoleMode mode) const
 		{
 			::SetConsoleMode(consoleOutputHandle, static_cast<DWORD>(mode) >> 16);
 			::SetConsoleMode(consoleInputHandle, static_cast<DWORD>(mode) & 0x0000FFFF);
 		}
 
-		void MonitorInput(InputHandler& inputHandler)
+		[[noreturn]] void MonitorInput(InputHandler& inputHandler)
 		{
 #pragma push_macro("SendMessage")	// 唉, 宏定义
 #undef SendMessage
@@ -141,26 +159,38 @@ export namespace NylteJ
 				INPUT_RECORD input;
 				DWORD inputNum;
 
-				ReadConsoleInput(consoleInputHandle, &input, 1, &inputNum);
+				bool sucess = ReadConsoleInput(consoleInputHandle, &input, 1, &inputNum);
 
-				if (inputNum > 0)
+				if (sucess && inputNum > 0)
 				{
 					switch (input.EventType)
 					{
-					case FOCUS_EVENT:break;
-					case KEY_EVENT: break;
+					case FOCUS_EVENT:
 					case MENU_EVENT:break;
+					case KEY_EVENT:
+						if (input.Event.KeyEvent.bKeyDown)
+						{
+							InputHandler::MessageKeyboard message;
+
+							message.key = static_cast<InputHandler::MessageKeyboard::Key>(input.Event.KeyEvent.wVirtualKeyCode);
+
+							message.extraKeys.RawData() = input.Event.KeyEvent.dwControlKeyState;
+
+							inputHandler.SendMessage(message, input.Event.KeyEvent.wRepeatCount);
+
+							input.Event.KeyEvent.wRepeatCount--;
+						}
+						break;
 					case MOUSE_EVENT: break;
 					case WINDOW_BUFFER_SIZE_EVENT:
-						inputHandler.SendMessage({ .newSize = {
-																static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
+						inputHandler.SendMessage({ .newSize = { static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
 																static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.Y)} });
 						break;
 					default:break;
 					}
 				}
 
-				WaitForSingleObject(consoleInputHandle, INFINITE);
+				//WaitForSingleObject(consoleInputHandle, INFINITE);	// 用不着等待, ReadConsoleInput 在读到足够的数据前不会返回
 
 #pragma pop_macro("SendMessage")
 			}

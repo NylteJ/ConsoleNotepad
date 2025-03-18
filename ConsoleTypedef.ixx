@@ -25,6 +25,21 @@ export namespace NylteJ
 		ConsoleXPos x;
 		ConsoleYPos y;
 	public:
+		ConsolePosition operator+(ConsolePosition right) const
+		{
+			right.x += x;
+			right.y += y;
+
+			return right;
+		}
+		ConsolePosition operator-(ConsolePosition right) const
+		{
+			right.x = x - right.x;
+			right.y = y - right.y;
+
+			return right;
+		}
+
 		ConsolePosition(auto&& x, auto&& y)
 			:x(x), y(y)
 		{
@@ -43,6 +58,11 @@ export namespace NylteJ
 		constexpr auto Height() const
 		{
 			return rightBottom.y - leftTop.y + 1;
+		}
+		constexpr auto Contain(ConsolePosition pos) const
+		{
+			return (pos.x >= leftTop.x && pos.x <= rightBottom.x)
+				&& (pos.y >= leftTop.y && pos.y <= rightBottom.y);
 		}
 
 		ConsoleRect(const ConsolePosition& leftTop, const ConsolePosition& rightBottom)

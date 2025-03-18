@@ -41,19 +41,19 @@ export namespace NylteJ
 			handler.SetCursorTo(pos);
 		}
 
-		void Print(string_view text) const
+		void Print(wstring_view text) const
 		{
 			handler.Print(text);
 		}
-		void Print(string_view text, ConsolePosition pos) const
+		void Print(wstring_view text, ConsolePosition pos) const
 		{
 			handler.Print(text, pos);
 		}
-		void Print(string_view text, ConsolePosition pos, ConsoleColor textColor) const
+		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor) const
 		{
 			handler.Print(text, pos, textColor);
 		}
-		void Print(string_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
 		{
 			handler.Print(text, pos, textColor, backgrondColor);
 		}
@@ -63,7 +63,16 @@ export namespace NylteJ
 			handler.ClearConsole();
 		}
 
-		void MonitorInput(InputHandler& inputHandler)
+		void HideCursor() const
+		{
+			handler.HideCursor();
+		}
+		void ShowCursor() const
+		{
+			handler.ShowCursor();
+		}
+
+		[[noreturn]] void MonitorInput(InputHandler& inputHandler)
 		{
 			handler.MonitorInput(inputHandler);
 		}

@@ -13,5 +13,40 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="头文件\ConsoleHandler">
+      <UniqueIdentifier>{da768b27-21b3-4074-9961-e9365a3201f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\UI">
+      <UniqueIdentifier>{b67f62b8-10d6-4dec-adcc-ab351d057d5b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleHandler.ixx">
+      <Filter>头文件\ConsoleHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleHandlerWindows.ixx">
+      <Filter>头文件\ConsoleHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleTypedef.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicColors.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UI.ixx">
+      <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Editor.ixx">
+      <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Formatter.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="InputHandler.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

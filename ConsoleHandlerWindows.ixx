@@ -176,6 +176,8 @@ export namespace NylteJ
 
 							message.extraKeys.RawData() = input.Event.KeyEvent.dwControlKeyState;
 
+							message.inputChar = input.Event.KeyEvent.uChar.UnicodeChar;
+
 							inputHandler.SendMessage(message, input.Event.KeyEvent.wRepeatCount);
 
 							input.Event.KeyEvent.wRepeatCount--;

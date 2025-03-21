@@ -51,10 +51,10 @@
     <ClCompile Include="InputHandler.ixx">
       <Filter>头文件</Filter>
     </ClCompile>
-    <ClCompile Include="FileReader.ixx">
+    <ClCompile Include="FileHandler.ixx">
       <Filter>头文件\Filesystem</Filter>
     </ClCompile>
-    <ClCompile Include="FileReaderWindows.ixx">
+    <ClCompile Include="FileHandlerWindows.ixx">
       <Filter>头文件\Filesystem</Filter>
     </ClCompile>
   </ItemGroup>

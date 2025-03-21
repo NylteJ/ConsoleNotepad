@@ -8,8 +8,8 @@ using namespace std;
 
 export namespace NylteJ
 {
-	using ConsoleWidth = unsigned short;
-	using ConsoleHeight = unsigned short;
+	using ConsoleWidth = int;
+	using ConsoleHeight = int;
 	class ConsoleSize
 	{
 	public:

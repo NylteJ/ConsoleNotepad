@@ -1,8 +1,8 @@
-// FileReaderWindows.ixx
+// FileHandlerWindows.ixx
 // Windows 平台的文件操作
 module;
 #include <Windows.h>
-export module FileReaderWindows;
+export module FileHandlerWindows;
 
 import std;
 
@@ -10,7 +10,7 @@ using namespace std;
 
 export namespace NylteJ
 {
-	class FileReaderWindows
+	class FileHandlerWindows
 	{
 	private:
 		HANDLE fileHandle = INVALID_HANDLE_VALUE;
@@ -78,6 +78,38 @@ export namespace NylteJ
 		{
 			CloseHandle(fileHandle);
 			fileHandle = INVALID_HANDLE_VALUE;
+		}
+
+		void Write(wstring_view data)
+		{
+			size_t bufSize = WideCharToMultiByte(CP_UTF8,
+				NULL,
+				data.data(),
+				data.size(),
+				nullptr,
+				0,
+				nullptr,
+				NULL);
+
+			vector<std::byte> buffer;
+
+			buffer.resize(bufSize);
+
+			WideCharToMultiByte(CP_UTF8,
+				NULL,
+				data.data(),
+				data.size(),
+				reinterpret_cast<LPSTR>(buffer.data()),
+				buffer.size(),
+				nullptr,
+				NULL);
+
+			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
+
+			DWORD temp;
+			WriteFile(fileHandle, buffer.data(), buffer.size(), &temp, NULL);
+
+			FlushFileBuffers(fileHandle);
 		}
 	};
 }

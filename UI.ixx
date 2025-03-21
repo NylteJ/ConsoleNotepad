@@ -7,6 +7,7 @@ import std;
 import ConsoleHandler;
 import BasicColors;
 import ConsoleTypedef;
+import FileHandler;
 
 import Editor;
 
@@ -21,6 +22,7 @@ export namespace NylteJ
 	private:
 		ConsoleHandler& console;
 		InputHandler& inputHandler;
+		FileHandler& fileHandler;
 		Editor editor;
 		
 		wstring title;
@@ -30,9 +32,14 @@ export namespace NylteJ
 			console.Print(title + (ranges::views::repeat(' ', console.GetConsoleSize().width - title.size()) | ranges::to<wstring>()), { 0,0 }, BasicColors::black, BasicColors::yellow);
 		}
 
-		UI(ConsoleHandler& consoleHandler, wstring& editorData, InputHandler& inputHandler, const wstring& title = L"ConsoleNotepad ver. 0.1     made by NylteJ"s)
+		UI(ConsoleHandler& consoleHandler,
+			wstring& editorData,
+			InputHandler& inputHandler,
+			FileHandler& fileHandler,
+			const wstring& title = L"ConsoleNotepad ver. 0.1     made by NylteJ"s)
 			:console(consoleHandler),
 			inputHandler(inputHandler),
+			fileHandler(fileHandler),
 			editor(	consoleHandler,
 					editorData,
 					{	{ 0,1 },
@@ -65,62 +72,50 @@ export namespace NylteJ
 							if (message.extraKeys.Ctrl() || message.extraKeys.Alt())
 								return false;
 
-							char key = static_cast<char>(message.key);
-
-							if (key >= static_cast<char>(A) && key <= static_cast<char>(Z))
-								return true;
-
-							if (key >= static_cast<char>(Num0) && key <= static_cast<char>(Num9))
-								return true;
-
-							if (message.extraKeys.NumLock()
-								&& key >= static_cast<char>(Numpad0) && key <= static_cast<char>(Numpad9))
-								return true;
-
-							if (message.key == Space && !message.extraKeys.Ctrl())
-								return true;
-
-							return false;
+							return message.inputChar != L'\0';
 						};
 
-					if (IsNormalInput())	// 正常输入
-					{
-						char keyChr = static_cast<char>(message.key);
-
-						if (keyChr >= static_cast<char>(A) && keyChr <= static_cast<char>(Z))
-						{
-							if (!(message.extraKeys.Shift() xor message.extraKeys.Caplock()))
-								keyChr = keyChr - 'A' + 'a';
-						}
-						else if (keyChr >= static_cast<char>(Numpad0) && keyChr <= static_cast<char>(Numpad9))
-							keyChr = keyChr - static_cast<char>(Numpad0) + '0';
-						else if (keyChr == static_cast<char>(Space))
-							keyChr = ' ';
-
-						editor.Insert(wstring{ static_cast<wchar_t>(keyChr) }, editor.GetCursorPos().x, editor.GetCursorPos().y);
-					}
-					else switch (message.key)
+					switch (message.key)
 					{
 					case Left:
 						editor.MoveCursor(-1, 0);
-						break;
+						return;
 					case Up:
 						editor.MoveCursor(0, -1);
-						break;
+						return;
 					case Right:
 						editor.MoveCursor(1, 0);
-						break;
+						return;
 					case Down:
 						editor.MoveCursor(0, 1);
-						break;
+						return;
 					case Backspace:
 						editor.Erase(editor.GetCursorPos().x, editor.GetCursorPos().y);
-						break;
+						return;
 					case Enter:
 						editor.Insert(L"\n", editor.GetCursorPos().x, editor.GetCursorPos().y);
-						break;
+						return;
+					case Esc:
+
+						return;
+					case Delete:
+						//editor.Erase(editor.GetCursorPos().x + 1, editor.GetCursorPos().y);
+						return;
 					default:
 						break;
+					}
+
+					if (IsNormalInput())	// 正常输入
+					{
+						editor.Insert(wstring{ message.inputChar }, editor.GetCursorPos().x, editor.GetCursorPos().y);
+						return;
+					}
+
+					if (message.extraKeys.Ctrl() && message.key == S)
+					{
+						wstring_view fileData = editor.GetFileData();
+
+						fileHandler.Write(fileData);
 					}
 				});
 

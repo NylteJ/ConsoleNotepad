@@ -5,7 +5,7 @@ import ConsoleHandler;
 import BasicColors;
 import UI;
 import InputHandler;
-import FileReader;
+import FileHandler;
 
 using namespace std;
 
@@ -17,14 +17,14 @@ int main()
 
 	setlocale(LC_ALL, "chs");
 
-	FileReader file{ "testText.txt" };
+	FileHandler file{ "testText.txt" };
 
 	wstring str = file.ReadAll();
 	//string str = to_string(console.GetConsoleSize().height);
 
 	InputHandler inputHandler;
 
-	UI ui{ console,str,inputHandler };
+	UI ui{ console,str,inputHandler,file };
 
 	console.BeginMonitorInput(inputHandler);
 

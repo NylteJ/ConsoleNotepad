@@ -19,6 +19,8 @@ export namespace NylteJ
 
 		wstring fileData;
 
+		size_t fileDataIndex = 0;	// 目前屏幕上显示的区域是从 fileData 的哪个下标开始的
+
 		ConsoleRect drawRange;
 
 		shared_ptr<FormatterBase> formatter;
@@ -33,7 +35,9 @@ export namespace NylteJ
 			auto nowCursorPos = drawRange.leftTop;
 
 			// TODO: 充分利用缓存, 不要每次都重新算
-			FormattedString formattedStrs = formatter->Format(fileData, drawRange.Width(), drawRange.Height());
+			FormattedString formattedStrs = formatter->Format(	wstring_view{ fileData.begin() + fileDataIndex,fileData.end() },
+																drawRange.Width(),
+																drawRange.Height());
 
 			for (auto& [index, str] : formattedStrs.datas)
 			{
@@ -97,67 +101,37 @@ export namespace NylteJ
 		// TODO: 用枚举, 好突出这个函数只能移动一格
 		void MoveCursor(int deltaX, int deltaY)
 		{
-			FormattedString formattedStrs = formatter->Format(fileData, drawRange.Width(), drawRange.Height());
+			using enum FormatterBase::MotivationDirection;
 
-			// 这部分代码应该挪到 Formatter 里面, 但是脑力要耗尽了, TODO
-			// 反正就是这部分代码需要重构
-			if (fileData[formatter->GetRawIndex(formattedStrs, fileData, cursorPos.x, cursorPos.y)] == '\t' && deltaX == 1)
-			{
-				cursorPos.x += 4 - cursorPos.x % 4;
-				SetCursorPos(cursorPos);
-				return;
-			}
-			if (cursorPos.x > 0 && fileData[formatter->GetRawIndex(formattedStrs, fileData, cursorPos.x, cursorPos.y)-1] == '\t' && deltaX == -1)
-			{
-				if (cursorPos.x % 4 != 0)
-					cursorPos.x -= cursorPos.x % 4;
-				else
-					cursorPos.x -= 4;
+			FormatterBase::MotivationDirection direction = None;
+			if (deltaX > 0)
+				direction = Right;
+			else if (deltaX < 0)
+				direction = Left;
+			else if (deltaY < 0)
+				direction = Up;
+			else
+				direction = Down;
 
-				SetCursorPos(cursorPos);
-				return;
-			}
+			if (cursorPos.y + 1 == drawRange.rightBottom.y && direction == Down)
+			{
+				fileDataIndex += formatter->Format(wstring_view{ fileData.begin() + fileDataIndex,fileData.end() },
+					drawRange.Width(), drawRange.Height())[1].indexInRaw;
 
-			if (cursorPos.x == 0 && deltaX == -1)
-			{
-				if (cursorPos.y > 0)
-					deltaY--;
-				else
-					deltaX = 0;
+				PrintData();
 			}
-			else if (cursorPos.x == formattedStrs[cursorPos.y].DisplaySize() && deltaX == 1)
+			if (cursorPos.y == 0 && direction == Up && fileDataIndex >= 2)
 			{
-				deltaY++;
-				cursorPos.x = 0;
-				deltaX = 0;
+				fileDataIndex = fileData.rfind('\n', fileDataIndex - 2) + 1;	// TODO: 优化
+
+				PrintData();
 			}
 
-			if (cursorPos.y == 0 && deltaY == -1)
-				deltaY = 0;
-
-			if (fileData[formatter->GetRawIndex(formattedStrs, fileData, cursorPos.x, cursorPos.y)] > 128 && deltaX == 1)
-				deltaX++;
-			if (cursorPos.x > 1 && fileData[formatter->GetRawIndex(formattedStrs, fileData, cursorPos.x, cursorPos.y) - 1] > 128 && deltaX == -1)
-				deltaX--;
-
-			ConsoleXPos newX = cursorPos.x + deltaX;
-			ConsoleYPos newY = cursorPos.y + deltaY;
-
-			if (newY >= formattedStrs.datas.size())
-				newY = formattedStrs.datas.size() - 1;
-
-			if (newX > formattedStrs.datas[newY].DisplaySize())
-				newX = formattedStrs.datas[newY].DisplaySize();
-
-			if (newX % 4 != 0 && fileData[formatter->GetRawIndex(formattedStrs, fileData, newX, newY) - 1] == '\t')
-			{
-				if (newX % 4 <= 1)
-					newX -= newX % 4;
-				else
-					newX += 4 - newX % 4;
-			}
-
-			SetCursorPos({ newX,newY });
+			SetCursorPos(formatter->RestrictPos(formatter->Format(wstring_view{ fileData.begin() + fileDataIndex,fileData.end() },
+				drawRange.Width(), drawRange.Height()),
+				wstring_view{ fileData.begin() + fileDataIndex,fileData.end() },
+				ConsolePosition{ cursorPos.x + deltaX,cursorPos.y + deltaY },
+				direction));
 		}
 
 		const ConsolePosition& GetCursorPos() const
@@ -167,9 +141,9 @@ export namespace NylteJ
 
 		void Insert(wstring_view str, size_t x, size_t y)
 		{
-			const FormattedString formattedStrs = formatter->Format(fileData, drawRange.Width(), drawRange.Height());
+			const FormattedString formattedStrs = formatter->Format(wstring_view{ fileData.begin() + fileDataIndex,fileData.end() }, drawRange.Width(), drawRange.Height());
 
-			const size_t index = formatter->GetRawIndex(formattedStrs, fileData, x, y);
+			const size_t index = formatter->GetRawIndex(formattedStrs, wstring_view{ fileData.begin() + fileDataIndex,fileData.end() }, { x,y })+ fileDataIndex;
 
 			fileData.insert_range(fileData.begin() + index, str);
 
@@ -184,16 +158,18 @@ export namespace NylteJ
 
 		void Erase(size_t x, size_t y)
 		{
-			const FormattedString formattedStrs = formatter->Format(fileData, drawRange.Width(), drawRange.Height());
+			const FormattedString formattedStrs = formatter->Format(wstring_view{ fileData.begin() + fileDataIndex,fileData.end() }, drawRange.Width(), drawRange.Height());
 
-			size_t index = formatter->GetRawIndex(formattedStrs, fileData, x, y);
+			size_t index = formatter->GetRawIndex(formattedStrs, wstring_view{ fileData.begin() + fileDataIndex,fileData.end() }, { x, y })+ fileDataIndex;
 
 			if (index == 0)
 				return;
 
 			index--;
 
-			wchar_t delChar = fileData[index];
+			console.HideCursor();
+
+			MoveCursor(-1, 0);
 
 			if (index > 0 && fileData[index - 1] == '\r')
 				fileData.erase(index - 1, 2);
@@ -202,12 +178,9 @@ export namespace NylteJ
 
 			PrintData();
 
-			if (delChar == '\t')
-				SetCursorPos(cursorPos - ConsolePosition{ 4,0 });	// TODO: 解耦这一块
-			else
-				MoveCursor(-1, 0);
-
 			FlushCursor();
+
+			console.ShowCursor();
 		}
 
 		const wstring& GetFileData() const

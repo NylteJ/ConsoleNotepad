@@ -1,10 +1,10 @@
-// FileReader.ixx
+// FileHandler.ixx
 // 与 ConsoleHandler 类似, 跨平台的接口封装, 封装尽可能快速的文件 I/O
-export module FileReader;
+export module FileHandler;
 
 import std;
 #ifdef _WIN32
-import FileReaderWindows;
+import FileHandlerWindows;
 #else
 static_assert(false, "Not implemented yet");
 #endif
@@ -13,11 +13,11 @@ using namespace std;
 
 export namespace NylteJ
 {
-	class FileReader
+	class FileHandler
 	{
 	private:
 #ifdef _WIN32
-		FileReaderWindows reader;
+		FileHandlerWindows reader;
 #endif
 	public:
 		void OpenFile(filesystem::path filePath)
@@ -35,12 +35,17 @@ export namespace NylteJ
 			reader.CloseFile();
 		}
 
-		FileReader(filesystem::path filePath)
+		void Write(wstring_view data)
+		{
+			reader.Write(data);
+		}
+
+		FileHandler(filesystem::path filePath)
 		{
 			OpenFile(filePath);
 		}
 
-		~FileReader()
+		~FileHandler()
 		{
 			CloseFile();
 		}

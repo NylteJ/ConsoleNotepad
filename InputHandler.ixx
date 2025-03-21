@@ -53,6 +53,8 @@ export namespace NylteJ
 				Space = 0x20,
 				Backspace = 0x08,
 				Enter = 0x0D,
+				Esc = 0x1B,
+				Delete = 0x2E,
 
 				Left = 0x25, Up, Right, Down
 			} key;
@@ -112,6 +114,7 @@ export namespace NylteJ
 					return data;
 				}
 			} extraKeys;
+			wchar_t inputChar = L'\0';
 		};
 	private:
 		MessageDatas<MessageWindowSizeChanged> windowSizeChangedMessages;

@@ -53,7 +53,7 @@ export namespace NylteJ
 		};
 	public:
 		vector<Line> datas;
-		wstring_view rawStr;
+		wstring_view rawStr;	// 务必注意, 原字符串发生扩容/析构等情况时, 该缓存即刻失效
 	public:
 		Line& operator[](size_t index)
 		{
@@ -77,6 +77,8 @@ export namespace NylteJ
 	class FormatterBase
 	{
 	public:
+		virtual size_t GetDisplaySize(wstring_view str) const = 0;
+
 		virtual FormattedString Format(wstring_view rawStr, size_t maxWidth, size_t maxHeight) = 0;
 
 		virtual size_t GetRawIndex(const FormattedString& formattedStr, ConsolePosition pos) const = 0;
@@ -88,10 +90,16 @@ export namespace NylteJ
 		virtual ConsolePosition RestrictPos(const FormattedString& formattedStr, ConsolePosition pos, Direction direction) const = 0;
 
 		virtual size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const = 0;
+		virtual size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const = 0;
 	};
 
 	class DefaultFormatter :public FormatterBase
 	{
+		size_t GetDisplaySize(wstring_view str) const
+		{
+			return str.size() + ranges::count_if(str, [](auto&& chr) {return chr > 128; });
+		}
+
 		// 没优化 (指所有地方都现场重新算 formattedString, 完全不缓存), 总之先跑起来再说
 		// 神奇的是, 测试了一下, 居然不会有什么性能瓶颈, 只在一行非常非常长 (KB 级) 的时候才会有明显卡顿
 		// 也就是说可以继续不优化, COOOOOOOL!
@@ -126,12 +134,30 @@ export namespace NylteJ
 				{
 					str.replace_with_range(	str.begin() + tabIndex,
 											str.begin() + tabIndex + 1,
-											ranges::views::repeat(' ', 4 - tabIndex % 4));
+											ranges::views::repeat(' ', 4 - GetDisplaySize({ str.begin(),str.begin() + tabIndex }) % 4));
 
 					tabIndex = str.find('\t', tabIndex);
 				}
 
-				str = str | ranges::views::take(maxWidth) | ranges::to<wstring>();
+				size_t nowDisplayLength = 0;
+				size_t nowIndex = 0;
+				while (nowDisplayLength < maxWidth && nowIndex < str.size())
+					if (str[nowIndex] > 128)
+					{
+						nowIndex++;
+						nowDisplayLength += 2;
+					}
+					else
+					{
+						nowIndex++;
+						nowDisplayLength++;
+					}
+
+				if (nowDisplayLength > maxWidth)
+					nowIndex--;
+
+				if (nowDisplayLength >= maxWidth)
+					str = str | ranges::views::take(nowIndex) | ranges::to<wstring>();
 			}
 
 			ret.rawStr = { rawStrView.begin(),lineEndIter };
@@ -235,20 +261,6 @@ export namespace NylteJ
 		{
 			using enum Direction;
 
-			// 换行
-			if (direction == Left && pos.x < 0 && pos.y > 0)
-			{
-				pos.y--;
-				pos.x = formattedStr[pos.y].DisplaySize();
-				direction = None;
-			}
-			if (direction == Right && pos.x > formattedStr[pos.y].DisplaySize() && pos.y + 1 < formattedStr.datas.size())
-			{
-				pos.y++;
-				pos.x = 0;
-				direction = None;
-			}
-
 			// 限制到有文字的区域
 			if (pos.y < 0)
 				pos.y = 0;
@@ -261,17 +273,26 @@ export namespace NylteJ
 
 			// 限制到与制表符对齐
 			if (pos.x % 4 != 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
-				if (direction == Left)
-					pos.x = pos.x / 4 * 4;
-				else if (direction == Right)
-					pos.x = pos.x / 4 * 4 + 4;
+			{
+				const auto nowRawIndex = GetRawIndex(formattedStr, pos);
+
+				if ((direction == Left || (direction == None && pos.x % 4 <= 1)) && nowRawIndex >= 2 && formattedStr.rawStr[nowRawIndex - 2] != '\t')
+					pos = GetFormattedPos(formattedStr, nowRawIndex - 1);
 				else
 				{
-					if (pos.x % 4 <= 1)
+					if (direction == Left)
 						pos.x = pos.x / 4 * 4;
-					else
+					else if (direction == Right)
 						pos.x = pos.x / 4 * 4 + 4;
+					else
+					{
+						if (pos.x % 4 <= 1)
+							pos.x = pos.x / 4 * 4;
+						else
+							pos.x = pos.x / 4 * 4 + 4;
+					}
 				}
+			}
 
 			// 限制到与双字节字符对齐
 			if (pos.x > 0)
@@ -290,6 +311,10 @@ export namespace NylteJ
 		size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const
 		{
 			return rawStr.rfind('\n', index) + 1;
+		}
+		size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const
+		{
+			return rawStr.find('\n', index);
 		}
 	};
 }

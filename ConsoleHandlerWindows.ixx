@@ -3,7 +3,6 @@
 // 一开始是想用虚拟终端序列实现的，但考虑到兼容性（Win10 以下的系统，以及传统 conhost 载体），最终还是使用了传统方案
 module;
 #include <Windows.h>
-#include <csignal>
 export module ConsoleHandlerWindows;
 
 import std;
@@ -240,15 +239,18 @@ export namespace NylteJ
 							break;
 						case MOUSE_WHEELED:
 							message.type = VWheeled;
-							message.wheelMove = input.Event.MouseEvent.dwButtonState >> 8;
+							message.wheelMove = (input.Event.MouseEvent.dwButtonState & 0x80000000) ? 1 : -1;
 							break;
 						case MOUSE_HWHEELED:
 							message.type = HWheeled;
-							message.wheelMove = input.Event.MouseEvent.dwButtonState >> 8;
+							message.wheelMove = (input.Event.MouseEvent.dwButtonState & 0x80000000) ? 1 : -1;
 							break;
 						}
 
 						lastButtonStatus = input.Event.MouseEvent.dwButtonState;
+
+						if (message.wheelMove != 0 && !(input.Event.MouseEvent.dwControlKeyState & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)))
+							message.wheelMove *= 3;
 
 						inputHandler.SendMessage(message);
 					}

@@ -57,6 +57,14 @@ export namespace NylteJ
 		{
 			handler.Print(text, pos, textColor, backgrondColor);
 		}
+		void Print(wstring_view text, ConsoleColor textColor) const
+		{
+			handler.Print(text, textColor);
+		}
+		void Print(wstring_view text, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		{
+			handler.Print(text, textColor, backgrondColor);
+		}
 
 		void ClearConsole() const
 		{
@@ -81,9 +89,19 @@ export namespace NylteJ
 			thread{ bind(&ConsoleHandler::MonitorInput,this,ref(inputHandler)) } .detach();
 		}
 
+		auto& GetReadHandler()
+		{
+			return handler;
+		}
+
 		ConsoleHandler()
 		{
 			handler.SetConsoleMode(decltype(handler)::ConsoleMode::Insert);
+		}
+
+		~ConsoleHandler()
+		{
+			handler.SetConsoleMode(decltype(handler)::ConsoleMode::Default);
 		}
 	};
 }

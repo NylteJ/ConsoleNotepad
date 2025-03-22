@@ -8,6 +8,7 @@ import ConsoleHandler;
 import BasicColors;
 import ConsoleTypedef;
 import FileHandler;
+import ClipboardHandler;
 
 import Editor;
 
@@ -23,23 +24,47 @@ export namespace NylteJ
 		ConsoleHandler& console;
 		InputHandler& inputHandler;
 		FileHandler& fileHandler;
+		ClipboardHandler& clipboardHandler;
 		Editor editor;
 		
 		wstring title;
 	public:
-		void PrintTitle()
+		void PrintTitle(wstring extraText = L""s)
 		{
-			console.Print(title + (ranges::views::repeat(' ', console.GetConsoleSize().width - title.size()) | ranges::to<wstring>()), { 0,0 }, BasicColors::black, BasicColors::yellow);
+			size_t titleDisplayLength = 0;
+
+			for (auto chr : title)
+				if (chr == '\t')
+					titleDisplayLength = titleDisplayLength / 4 * 4 + 4;
+				else if (chr > 128)
+					titleDisplayLength += 2;
+				else
+					titleDisplayLength++;
+			for (auto chr : extraText)
+				if (chr == '\t')
+					titleDisplayLength = titleDisplayLength / 4 * 4 + 4;
+				else if (chr > 128)
+					titleDisplayLength += 2;
+				else
+					titleDisplayLength++;
+
+			console.HideCursor();
+			console.Print(title + extraText + (ranges::views::repeat(' ', console.GetConsoleSize().width - titleDisplayLength) | ranges::to<wstring>()), {0,0}, BasicColors::black, BasicColors::yellow);
+			console.ShowCursor();
+
+			editor.FlushCursor();
 		}
 
 		UI(ConsoleHandler& consoleHandler,
 			wstring& editorData,
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
+			ClipboardHandler& clipboardHandler,
 			const wstring& title = L"ConsoleNotepad ver. 0.1     made by NylteJ"s)
 			:console(consoleHandler),
 			inputHandler(inputHandler),
 			fileHandler(fileHandler),
+			clipboardHandler(clipboardHandler),
 			editor(	consoleHandler,
 					editorData,
 					{	{ 0,1 },
@@ -63,6 +88,7 @@ export namespace NylteJ
 					editor.FlushCursor();
 				});
 
+			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message)
 				{
 					using enum InputHandler::MessageKeyboard::Key;
@@ -75,48 +101,95 @@ export namespace NylteJ
 							return message.inputChar != L'\0';
 						};
 
+					//static bool lastIsEsc = false;	// 把前面那个 lastIsEsc 挪到这里, 就能见识到 “‘CL.exe’已退出，代码为 -1073741819” 的奇观了
+
+					if (message.key != Esc)
+					{
+						lastIsEsc = false;
+						PrintTitle();
+						goto wtf;
+					}
+					if (lastIsEsc)
+					{
+						console.ClearConsole();		// 如果是通过命令行运行的, 那退出时还是有必要清屏的
+						console.~ConsoleHandler();	// exit 不会调用该析构函数, 但目前的程序架构下这个函数需要被调用 (虽然我感觉这种架构不太合理, 不过可以临时先顶着)
+						exit(0);
+					}
+					lastIsEsc = true;
+					PrintTitle(L"              再按一次 Esc 以退出"s);
+					return;
+				wtf:	// 我完全搞不清是为什么, 但是上面那个 PrintTitle 不能塞进下面的 switch, 甚至不能做成 else, 不然就会报 this 为 0xFFFFFFFFFFFFFFFF (甚至都还没进 PrintTitle 函数体, 在字面量构造阶段就爆了)
+						// TODO: 搞清这到底是什么问题, 这是真 wtf (把字面量换成外部变量甚至全局变量都没用, 我感觉这也实在不能有 UB 啊, 不会是 MSVC 的神必 bug 吧)
+
+					
 					switch (message.key)
 					{
 					case Left:
-						editor.MoveCursor(-1, 0);
+						editor.MoveCursor(Direction::Left, message.extraKeys.Shift());
 						return;
 					case Up:
-						editor.MoveCursor(0, -1);
+						editor.MoveCursor(Direction::Up, message.extraKeys.Shift());
 						return;
 					case Right:
-						editor.MoveCursor(1, 0);
+						editor.MoveCursor(Direction::Right, message.extraKeys.Shift());
 						return;
 					case Down:
-						editor.MoveCursor(0, 1);
+						editor.MoveCursor(Direction::Down, message.extraKeys.Shift());
 						return;
 					case Backspace:
-						editor.Erase(editor.GetCursorPos().x, editor.GetCursorPos().y);
+						editor.Erase();
 						return;
 					case Enter:
-						editor.Insert(L"\n", editor.GetCursorPos().x, editor.GetCursorPos().y);
+						editor.Insert(L"\n");
 						return;
-					case Esc:
+					case Delete:	// 姑且也是曲线救国了
+					{
+						auto nowCursorPos = editor.GetCursorPos();
 
-						return;
-					case Delete:
-						//editor.Erase(editor.GetCursorPos().x + 1, editor.GetCursorPos().y);
+						console.HideCursor();
+						editor.MoveCursor(Direction::Right);
+						if (nowCursorPos != editor.GetCursorPos())	// 用这种方式来并不优雅地判断是否到达末尾, 到达末尾时按 del 应该删不掉东西
+							editor.Erase();
+						console.ShowCursor();
+					}
 						return;
 					default:
 						break;
 					}
-
+					
 					if (IsNormalInput())	// 正常输入
 					{
-						editor.Insert(wstring{ message.inputChar }, editor.GetCursorPos().x, editor.GetCursorPos().y);
+						editor.Insert(wstring{ message.inputChar });
 						return;
 					}
 
-					if (message.extraKeys.Ctrl() && message.key == S)
-					{
-						wstring_view fileData = editor.GetFileData();
+					if (message.extraKeys.Ctrl())
+						switch (message.key)
+						{
+						case S:
+							fileHandler.Write(editor.GetFileData());
+							break;
+						case A:
+							editor.SelectAll();
+							break;
+						case C:
+							clipboardHandler.Write(editor.GetSelectedStr());
+							break;
+						case X:
+							clipboardHandler.Write(editor.GetSelectedStr());
+							editor.Erase();
+							break;
+						}
+				});
 
-						fileHandler.Write(fileData);
-					}
+			inputHandler.SubscribeMessage([&](const InputHandler::MessageMouse& message)
+				{
+					using enum InputHandler::MessageMouse::Type;
+
+					if (message.LeftClick())
+						editor.RestrictedAndSetCursorPos(message.position - editor.GetDrawRange().leftTop);
+					if (message.type == Moved && message.LeftHold())
+						editor.RestrictedAndSetCursorPos(message.position - editor.GetDrawRange().leftTop, true);
 				});
 
 			editor.FlushCursor();

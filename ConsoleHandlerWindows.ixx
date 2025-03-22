@@ -22,7 +22,9 @@ export namespace NylteJ
 		enum class ConsoleMode : DWORD
 		{
 			Insert = (ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS)
-			| ((0) << 16)
+			| ((0) << 16),
+			Default = (ENABLE_ECHO_INPUT | ENABLE_INSERT_MODE | ENABLE_LINE_INPUT | ENABLE_MOUSE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_QUICK_EDIT_MODE)
+			| ((ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT) << 16)		// TODO: 把这一项改为真正的 “默认” 选项 (比如改成在程序启动时的控制台模式)
 		};
 	private:
 		HANDLE consoleOutputHandle;
@@ -31,8 +33,10 @@ export namespace NylteJ
 		// 特殊约定：RGB 分量都为 -1 时代表保持不变
 		WORD ColorConvert(ConsoleColor color, WORD originalAttributes, WORD red, WORD green, WORD blue, WORD intensity) const
 		{
-			//if (color == BasicColors::stayOldColor)	// 这里 IntelliSense 会出问题, 直接先注释掉好了, 反正暂时也没用上
-				//return originalAttributes;
+			if (color == BasicColors::stayOldColor)
+				return originalAttributes;
+			if (color == BasicColors::inverseColor)
+				return originalAttributes xor (blue | green | red);
 
 			WORD newAttributes = originalAttributes
 				& (~(blue | green | red | intensity));
@@ -84,10 +88,10 @@ export namespace NylteJ
 			SetConsoleCursorPosition(consoleOutputHandle, { .X = static_cast<short>(pos.x),.Y = static_cast<short>(pos.y) });
 		}
 
+		// 复制粘贴领域大神
 		void Print(wstring_view text) const
 		{
 			WriteConsoleW(consoleOutputHandle, text.data(), text.size(), nullptr, nullptr);
-			//vprint_unicode(wcout,"{}", make_wformat_args(text));
 		}
 		void Print(wstring_view text, ConsolePosition pos) const
 		{
@@ -117,6 +121,32 @@ export namespace NylteJ
 
 			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgrondColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
 			Print(text, pos, textColor);
+
+			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+		}
+		void Print(wstring_view text, ConsoleColor textColor) const
+		{
+			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
+
+			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
+
+			auto originalAttributes = consoleBufferInfo.wAttributes;
+
+			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(textColor, originalAttributes, FOREGROUND_RED, FOREGROUND_GREEN, FOREGROUND_BLUE, FOREGROUND_INTENSITY));
+			Print(text);
+
+			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+		}
+		void Print(wstring_view text, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		{
+			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
+
+			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
+
+			auto originalAttributes = consoleBufferInfo.wAttributes;
+
+			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgrondColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
+			Print(text, textColor);
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
 		}
@@ -183,7 +213,46 @@ export namespace NylteJ
 							input.Event.KeyEvent.wRepeatCount--;
 						}
 						break;
-					case MOUSE_EVENT: break;
+					case MOUSE_EVENT:
+					{
+						static bitset<2> lastButtonStatus;
+
+						InputHandler::MessageMouse message{ .position = {	input.Event.MouseEvent.dwMousePosition.X,
+																			input.Event.MouseEvent.dwMousePosition.Y} };
+
+						message.buttonStatus = input.Event.MouseEvent.dwButtonState;
+
+						switch (input.Event.MouseEvent.dwEventFlags)
+						{
+							using enum InputHandler::MessageMouse::Type;
+						case 0:
+							if (lastButtonStatus.count() < message.buttonStatus.count())
+								message.type = Clicked;
+							else
+								message.type = Released;
+							message.buttonStatus = lastButtonStatus xor message.buttonStatus;
+							break;
+						case MOUSE_MOVED:
+							message.type = Moved;
+							break;
+						case DOUBLE_CLICK:
+							message.type = DoubleClicked;
+							break;
+						case MOUSE_WHEELED:
+							message.type = VWheeled;
+							message.wheelMove = input.Event.MouseEvent.dwButtonState >> 8;
+							break;
+						case MOUSE_HWHEELED:
+							message.type = HWheeled;
+							message.wheelMove = input.Event.MouseEvent.dwButtonState >> 8;
+							break;
+						}
+
+						lastButtonStatus = input.Event.MouseEvent.dwButtonState;
+
+						inputHandler.SendMessage(message);
+					}
+						break;
 					case WINDOW_BUFFER_SIZE_EVENT:
 						inputHandler.SendMessage({ .newSize = { static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
 																static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.Y)} });
@@ -196,6 +265,11 @@ export namespace NylteJ
 
 #pragma pop_macro("SendMessage")
 			}
+		}
+
+		auto& GetRealHandler()
+		{
+			return consoleOutputHandle;
 		}
 
 		ConsoleHandlerWindows()

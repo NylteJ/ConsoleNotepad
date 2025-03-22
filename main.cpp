@@ -6,6 +6,7 @@ import BasicColors;
 import UI;
 import InputHandler;
 import FileHandler;
+import ClipboardHandler;
 
 using namespace std;
 
@@ -20,15 +21,16 @@ int main()
 	FileHandler file{ "testText.txt" };
 
 	wstring str = file.ReadAll();
-	//string str = to_string(console.GetConsoleSize().height);
 
 	InputHandler inputHandler;
 
-	UI ui{ console,str,inputHandler,file };
+	ClipboardHandler clipboardHandler;
+
+	UI ui{ console,str,inputHandler,file,clipboardHandler };
 
 	console.BeginMonitorInput(inputHandler);
 
 	this_thread::sleep_for(114514h);	// 睡美人说是
-
+	
 	return 0;
 }

@@ -37,6 +37,15 @@ export namespace NylteJ
 				return lineData[index];
 			}
 
+			operator wstring_view() const
+			{
+				return lineData;
+			}
+			operator wstring() const
+			{
+				return lineData;
+			}
+
 			Line(size_t indexInRaw, const wstring& lineData)
 				:indexInRaw(indexInRaw), lineData(lineData)
 			{
@@ -44,6 +53,7 @@ export namespace NylteJ
 		};
 	public:
 		vector<Line> datas;
+		wstring_view rawStr;
 	public:
 		Line& operator[](size_t index)
 		{
@@ -67,21 +77,24 @@ export namespace NylteJ
 	class FormatterBase
 	{
 	public:
-		enum MotivationDirection
-		{
-			Left, Right, Up, Down, None
-		};
-	public:
 		virtual FormattedString Format(wstring_view rawStr, size_t maxWidth, size_t maxHeight) = 0;
 
-		virtual size_t GetRawIndex(const FormattedString& formattedStr, wstring_view rawStr, ConsolePosition pos) const = 0;
+		virtual size_t GetRawIndex(const FormattedString& formattedStr, ConsolePosition pos) const = 0;
 
-		virtual ConsolePosition RestrictPos(const FormattedString& formattedStr, wstring_view rawStr, ConsolePosition pos, MotivationDirection direction) const = 0;
+		virtual size_t GetFormattedIndex(wstring_view formattedStr, ConsolePosition pos) const = 0;
+
+		virtual ConsolePosition GetFormattedPos(const FormattedString& formattedStr, size_t index) const = 0;
+
+		virtual ConsolePosition RestrictPos(const FormattedString& formattedStr, ConsolePosition pos, Direction direction) const = 0;
+
+		virtual size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const = 0;
 	};
 
 	class DefaultFormatter :public FormatterBase
 	{
-		// 没优化, 总之先跑起来再说
+		// 没优化 (指所有地方都现场重新算 formattedString, 完全不缓存), 总之先跑起来再说
+		// 神奇的是, 测试了一下, 居然不会有什么性能瓶颈, 只在一行非常非常长 (KB 级) 的时候才会有明显卡顿
+		// 也就是说可以继续不优化, COOOOOOOL!
 		FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight)
 		{
 			FormattedString ret;
@@ -121,22 +134,67 @@ export namespace NylteJ
 				str = str | ranges::views::take(maxWidth) | ranges::to<wstring>();
 			}
 
+			ret.rawStr = { rawStrView.begin(),lineEndIter };
+
 			return ret;
 		}
 
-		size_t GetRawIndex(const FormattedString& formattedStr, wstring_view rawStr, ConsolePosition pos) const
+		ConsolePosition GetFormattedPos(const FormattedString& formattedStr, size_t index) const
+		{
+			if (formattedStr.datas.empty())
+				return { 0,0 };
+
+			for (auto iter = formattedStr.datas.begin(); iter != formattedStr.datas.end(); ++iter)
+				if (iter->indexInRaw <= index
+					&& ((iter + 1 != formattedStr.datas.end() && (iter + 1)->indexInRaw > index)
+						|| iter + 1 == formattedStr.datas.end()))
+				{
+					ConsolePosition pos{ 0,iter - formattedStr.datas.begin() };
+
+					size_t nowRawIndex = iter->indexInRaw;
+
+					while (nowRawIndex < index)
+					{
+						if (formattedStr.rawStr[nowRawIndex] == '\t')
+						{
+							nowRawIndex++;
+							pos.x += 4 - pos.x % 4;
+						}
+						else if (formattedStr.rawStr[nowRawIndex] > 128)
+						{
+							nowRawIndex++;
+							pos.x += 2;
+						}
+						else if (formattedStr.rawStr[nowRawIndex] == '\n' || formattedStr.rawStr[nowRawIndex] == '\r')	// 这俩在 formattedStr 里并不存储
+						{
+							nowRawIndex++;
+						}
+						else
+						{
+							nowRawIndex++;
+							pos.x++;
+						}
+					}
+
+					return pos;
+				}
+
+			unreachable();
+		}
+
+		size_t GetRawIndex(const FormattedString& formattedStr, ConsolePosition pos) const
 		{
 			size_t nowRawIndex = formattedStr.datas[pos.y].indexInRaw;
 			size_t nowX = 0;
 
 			while (nowX < pos.x)
 			{
-				if (rawStr[nowRawIndex] == '\t')
+				if (formattedStr.rawStr[nowRawIndex] == '\t')
 				{
 					nowRawIndex++;
 					nowX += 4 - nowX % 4;
 				}
-				else if (rawStr[nowRawIndex] > 128)
+				else if (formattedStr.rawStr[nowRawIndex] > 128)
 				{
 					nowRawIndex++;
 					nowX += 2;
@@ -151,8 +209,32 @@ export namespace NylteJ
 			return nowRawIndex;
 		}
 
-		ConsolePosition RestrictPos(const FormattedString& formattedStr, wstring_view rawStr, ConsolePosition pos, MotivationDirection direction) const
+		size_t GetFormattedIndex(wstring_view formattedStr, ConsolePosition pos) const
 		{
+			size_t nowX = 0;
+			size_t nowFormattedIndex = 0;
+
+			while (nowX < pos.x)
+			{
+				if (formattedStr[nowFormattedIndex] > 128)
+				{
+					nowFormattedIndex++;
+					nowX += 2;
+				}
+				else
+				{
+					nowFormattedIndex++;
+					nowX++;
+				}
+			}
+
+			return nowFormattedIndex;
+		}
+
+		ConsolePosition RestrictPos(const FormattedString& formattedStr, ConsolePosition pos, Direction direction) const
+		{
+			using enum Direction;
+
 			// 换行
 			if (direction == Left && pos.x < 0 && pos.y > 0)
 			{
@@ -178,7 +260,7 @@ export namespace NylteJ
 				pos.x = formattedStr[pos.y].DisplaySize();
 
 			// 限制到与制表符对齐
-			if (pos.x % 4 != 0 && rawStr[GetRawIndex(formattedStr, rawStr, pos) - 1] == '\t')
+			if (pos.x % 4 != 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
 				if (direction == Left)
 					pos.x = pos.x / 4 * 4;
 				else if (direction == Right)
@@ -194,8 +276,8 @@ export namespace NylteJ
 			// 限制到与双字节字符对齐
 			if (pos.x > 0)
 			{
-				auto nowRawIndex = GetRawIndex(formattedStr, rawStr, pos);
-				if (rawStr[nowRawIndex - 1] > 128 && nowRawIndex == GetRawIndex(formattedStr, rawStr, pos + ConsolePosition{ 1, 0 }))
+				auto nowRawIndex = GetRawIndex(formattedStr, pos);
+				if (formattedStr.rawStr[nowRawIndex - 1] > 128 && nowRawIndex == GetRawIndex(formattedStr, pos + ConsolePosition{ 1, 0 }))
 					if (direction == Right)
 						pos.x++;
 					else
@@ -203,6 +285,11 @@ export namespace NylteJ
 			}
 
 			return pos;
+		}
+
+		size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const
+		{
+			return rawStr.rfind('\n', index) + 1;
 		}
 	};
 }

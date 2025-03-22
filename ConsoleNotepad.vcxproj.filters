@@ -19,7 +19,10 @@
     <Filter Include="头文件\UI">
       <UniqueIdentifier>{b67f62b8-10d6-4dec-adcc-ab351d057d5b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\Filesystem">
+    <Filter Include="头文件\ClipboardHandler">
+      <UniqueIdentifier>{86057d83-bd10-483d-bfcc-8a0978cda307}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\FileHandler">
       <UniqueIdentifier>{0f56b09c-aa4e-4ab8-b0f7-cf308268abf1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -52,10 +55,16 @@
       <Filter>头文件</Filter>
     </ClCompile>
     <ClCompile Include="FileHandler.ixx">
-      <Filter>头文件\Filesystem</Filter>
+      <Filter>头文件\FileHandler</Filter>
     </ClCompile>
     <ClCompile Include="FileHandlerWindows.ixx">
-      <Filter>头文件\Filesystem</Filter>
+      <Filter>头文件\FileHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="ClipboardHandler.ixx">
+      <Filter>头文件\ClipboardHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="ClipboardHandlerWindows.ixx">
+      <Filter>头文件\ClipboardHandler</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -44,7 +44,7 @@ export namespace NylteJ
 
 			vector<std::byte> buffer;
 
-			if (fileSizeByte >= 1048576LL)
+			if (fileSizeByte >= 1024LL * 1024LL * 1024LL)	// 1GB
 				throw "TODO: Large File Input";
 
 			buffer.resize(fileSizeByte);
@@ -108,6 +108,8 @@ export namespace NylteJ
 
 			DWORD temp;
 			WriteFile(fileHandle, buffer.data(), buffer.size(), &temp, NULL);
+
+			SetEndOfFile(fileHandle);	// 以上只是单纯的覆写, 如果新文件长度短于原文件长度, 后面的部分会保留, 所以要截断
 
 			FlushFileBuffers(fileHandle);
 		}

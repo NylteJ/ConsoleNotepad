@@ -34,5 +34,9 @@ export namespace NylteJ
 		constexpr ConsoleColor stayOldColor		{ static_cast<unsigned short>(-1),
 												  static_cast<unsigned short>(-1),
 											      static_cast<unsigned short>(-1) };
+
+		constexpr ConsoleColor inverseColor		{ static_cast<unsigned short>(-2),
+												  static_cast<unsigned short>(-2),
+												  static_cast<unsigned short>(-2) };
 	}
 }

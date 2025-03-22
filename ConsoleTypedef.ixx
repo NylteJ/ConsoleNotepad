@@ -40,6 +40,8 @@ export namespace NylteJ
 			return right;
 		}
 
+		bool operator==(const ConsolePosition& right) const = default;
+
 		ConsolePosition(auto&& x, auto&& y)
 			:x(x), y(y)
 		{
@@ -82,5 +84,10 @@ export namespace NylteJ
 			:R(R), G(G), B(B)
 		{
 		}
+	};
+
+	enum class Direction
+	{
+		Left, Right, Up, Down, None
 	};
 }

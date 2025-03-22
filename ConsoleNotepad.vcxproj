@@ -140,6 +140,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BasicColors.ixx" />
+    <ClCompile Include="ClipboardHandler.ixx" />
+    <ClCompile Include="ClipboardHandlerWindows.ixx" />
     <ClCompile Include="ConsoleHandler.ixx" />
     <ClCompile Include="ConsoleHandlerWindows.ixx" />
     <ClCompile Include="ConsoleTypedef.ixx" />

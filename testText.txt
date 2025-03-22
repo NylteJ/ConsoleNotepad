@@ -28,11 +28,6 @@ int main()
 
 	console.BeginMonitorInput(inputHandler);
 
-	this_thread::sleep_for(114514h);	// 睡asd美asd人asd说asd是asdadsasdsasdasdasdasdaasdasdffASDASDASDASDASDASD
-
-	return 0;
-}Input(inputHandler);
-
 	this_thread::sleep_for(114514h);	// 睡美人说是
 
 	return 0;

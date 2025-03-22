@@ -116,9 +116,44 @@ export namespace NylteJ
 			} extraKeys;
 			wchar_t inputChar = L'\0';
 		};
+		class MessageMouse
+		{
+		public:
+			enum class Type
+			{
+				VWheeled, HWheeled,
+				Clicked, DoubleClicked,
+				Moved,
+				Released
+			};
+		public:
+			Type type;
+			bitset<2> buttonStatus;
+			int wheelMove = 0;
+			ConsolePosition position;
+		public:
+			bool LeftHold() const
+			{
+				return buttonStatus[0];
+			}
+			bool LeftClick() const
+			{
+				return buttonStatus[0] && type == Type::Clicked;
+			}
+			bool RightClick() const
+			{
+				return buttonStatus[1] && type == Type::Clicked;
+			}
+
+			int WheelMove() const
+			{
+				return wheelMove;
+			}
+		};
 	private:
 		MessageDatas<MessageWindowSizeChanged> windowSizeChangedMessages;
 		MessageDatas<MessageKeyboard> keyboardMessages;
+		MessageDatas<MessageMouse> mouseMessages;
 	private:
 		[[noreturn]] void DistributeMessages()
 		{
@@ -146,6 +181,17 @@ export namespace NylteJ
 						keyboardMessages.messagesQueue.pop();
 					}
 				}
+				{
+					lock_guard messagesLock{ mouseMessages.messagesMutex }, CallbacksLock{ mouseMessages.callbacksMutex };
+
+					while (!mouseMessages.messagesQueue.empty())
+					{
+						for (auto& func : mouseMessages.callbacks)
+							func(mouseMessages.messagesQueue.front());
+
+						mouseMessages.messagesQueue.pop();
+					}
+				}
 			}
 		}
 	public:
@@ -160,6 +206,11 @@ export namespace NylteJ
 			lock_guard callbackLock{ keyboardMessages.callbacksMutex };
 			keyboardMessages.callbacks.emplace_back(callback);
 		}
+		void SubscribeMessage(function<void(const MessageMouse&)> callback)
+		{
+			lock_guard callbackLock{ mouseMessages.callbacksMutex };
+			mouseMessages.callbacks.emplace_back(callback);
+		}
 
 		void SendMessage(const MessageWindowSizeChanged& message)
 		{
@@ -172,6 +223,11 @@ export namespace NylteJ
 
 			for (size_t i = 0; i < count; i++)
 				keyboardMessages.messagesQueue.emplace(message);
+		}
+		void SendMessage(const MessageMouse& message)
+		{
+			lock_guard messagesLock{ mouseMessages.messagesMutex };
+			mouseMessages.messagesQueue.emplace(message);
 		}
 
 		InputHandler()

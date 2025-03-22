@@ -50,7 +50,6 @@ export namespace NylteJ
 
 			console.HideCursor();
 			console.Print(title + extraText + (ranges::views::repeat(' ', console.GetConsoleSize().width - titleDisplayLength) | ranges::to<wstring>()), {0,0}, BasicColors::black, BasicColors::yellow);
-			console.ShowCursor();
 
 			editor.FlushCursor();
 		}
@@ -75,11 +74,15 @@ export namespace NylteJ
 		{
 			PrintTitle();
 
+			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
+
 			// 我们姑且认为用户不会同时输入多个信息, 这样可以强行当串行代码写 (不然真写不完了:(  )
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message)
 				{
 					editor.ChangeDrawRange({ {0,1},{message.newSize.width - 1,message.newSize.height - 1} });
+
+					lastIsEsc = false;
 
 					PrintTitle();
 
@@ -88,7 +91,6 @@ export namespace NylteJ
 					editor.FlushCursor();
 				});
 
-			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message)
 				{
 					using enum InputHandler::MessageKeyboard::Key;
@@ -116,7 +118,7 @@ export namespace NylteJ
 						exit(0);
 					}
 					lastIsEsc = true;
-					PrintTitle(L"              再按一次 Esc 以退出"s);
+					PrintTitle(L"    再按一次 Esc 以退出 (不会保存!!! 请使用 Ctrl + S 手动保存)"s);
 					return;
 				wtf:	// 我完全搞不清是为什么, 但是上面那个 PrintTitle 不能塞进下面的 switch, 甚至不能做成 else, 不然就会报 this 为 0xFFFFFFFFFFFFFFFF (甚至都还没进 PrintTitle 函数体, 在字面量构造阶段就爆了)
 						// TODO: 搞清这到底是什么问题, 这是真 wtf (把字面量换成外部变量甚至全局变量都没用, 我感觉这也实在不能有 UB 啊, 不会是 MSVC 的神必 bug 吧)
@@ -186,10 +188,19 @@ export namespace NylteJ
 				{
 					using enum InputHandler::MessageMouse::Type;
 
+					if (lastIsEsc && (message.buttonStatus.any() || message.WheelMove() != 0))
+					{
+						lastIsEsc = false;
+						PrintTitle();
+					}
+
 					if (message.LeftClick())
 						editor.RestrictedAndSetCursorPos(message.position - editor.GetDrawRange().leftTop);
 					if (message.type == Moved && message.LeftHold())
 						editor.RestrictedAndSetCursorPos(message.position - editor.GetDrawRange().leftTop, true);
+
+					if (message.type == VWheeled)
+						editor.ScrollScreen(message.WheelMove());
 				});
 
 			editor.FlushCursor();

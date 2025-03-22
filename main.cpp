@@ -1,4 +1,3 @@
-#include <locale>
 import std;
 
 import ConsoleHandler;
@@ -15,8 +14,6 @@ using namespace NylteJ;
 int main()
 {
 	ConsoleHandler console;
-
-	setlocale(LC_ALL, "chs");
 
 	FileHandler file{ "testText.txt" };
 

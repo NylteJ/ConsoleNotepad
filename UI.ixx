@@ -181,6 +181,21 @@ export namespace NylteJ
 							clipboardHandler.Write(editor.GetSelectedStr());
 							editor.Erase();
 							break;
+						case V:		// TODO: 使用 Win11 的新终端时, 需要拦截掉终端自带的 Ctrl + V, 否则此处不生效
+							editor.Insert(clipboardHandler.Read());
+							break;
+						case Special1:	// Ctrl + [{	(这里的 "[{" 指键盘上的这个键, 下同)
+							if (message.extraKeys.Alt())
+								editor.HScrollScreen(-1);
+							else
+								editor.HScrollScreen(-3);
+							break;
+						case Special2:	// Ctrl + ]}
+							if (message.extraKeys.Alt())
+								editor.HScrollScreen(1);
+							else
+								editor.HScrollScreen(3);
+							break;
 						}
 				});
 

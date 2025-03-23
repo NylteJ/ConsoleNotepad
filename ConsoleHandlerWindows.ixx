@@ -29,7 +29,7 @@ export namespace NylteJ
 		HANDLE consoleOutputHandle;
 		HANDLE consoleInputHandle;
 	private:
-		// 特殊约定：RGB 分量都为 -1 时代表保持不变
+		// 特殊约定：RGB 分量都为 -1 时代表保持不变, 都为 -2 时代表反色, 具体的写在 BasicColors.ixx 里了
 		WORD ColorConvert(ConsoleColor color, WORD originalAttributes, WORD red, WORD green, WORD blue, WORD intensity) const
 		{
 			if (color == BasicColors::stayOldColor)

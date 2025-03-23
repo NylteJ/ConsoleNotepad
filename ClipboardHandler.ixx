@@ -27,5 +27,10 @@ export namespace NylteJ
 		{
 			handler.Write(source);
 		}
+
+		wstring Read()
+		{
+			return handler.Read();
+		}
 	};
 }

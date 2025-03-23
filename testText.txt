@@ -1,34 +1,28 @@
-#include <locale>
-import std;
+也许可以算作单元测试？
+实际上这个文件就是用 ConsoleNotepad 自己写的，毕竟基本的功能都有了
 
-import ConsoleHandler;
-import BasicColors;
-import UI;
-import InputHandler;
-import FileHandler;
+1. 光标错位与 Tab 不对齐问题
+	1. 同屏
+		1. 纯英文：esrtuygiehfegvfnhauoiwsebgryhuyfyi544ue984wfty9w8734u0ufr9t89(ek0ruk98fj0uwvn8hcermouirfu85w489t(*&^
+		2. 中+英：古法语二年恢复viu额外回复i没外侧如果你爱国i如一封匿名信会失望的女孩fix目录为案号为u英雄爱马仕的呃eas
+		3. 英+Tab：ayeguinychiyu	giuygmoiuhnuy	yuigh	mui			guiyoih				guy	h	kk	u  	i	kmia
+		4. 中+英+Tab：被奴化uwv而我会从，减肥		会让	一	看	吗		lll安	守本l	k分有黑i会让你率	京东方
 
-using namespace std;
+	2. 非同屏（实际上把窗口拉小点就行了）（顺便测了一下复制粘贴，似乎没什么问题）
+		1. 纯英文：esrtuygiehfegvfnhauoiwsebgryhuyfyi544ue984wfty9w8734u0ufr9t89(ek0ruk98fj0uwvn8hcermouirfu85w489t(*&^ebyurigywrahouhDRVTFYUBGNI&(*^%$#%^&*(Y&*GBY8765789796756EV%R&^T*&YBVF^R%G&^TH*Y&J(*UHNBGVFYCD%$^F%RG&^TH*YJ(U(H&YGT^%RFERG&TH*Y(UJ765%$#E^^&*()*Y&BV^CV%RF&^BGT*Y&NH(*UMJNHY&BGTVFRCDE^5r78976545e^%RVFBT&G^NHY*&MUJ(*I)(<)(U*MNHYIBGUTYFVTDYVRFTUGYHUJ^$%RF&GT^*HY&(U*J
+		2. 中+英：古法语二年恢复viu额外回复i没外侧如果你爱国i如一封匿名信会失望的女孩fix目录为案号为u英雄爱马仕的呃eas安文丰vu天涯版规非常浓未必够发出和fgfdg法国预热i给v愤怒要说的话翡翠额个案ui恶意发你还没修好iu看v计划为菊科分解吸收度后附IC案号为哦是u的节奏i阿卡无阿就会发出无从可都是就会覅u无奈和v覅u调查hi请问玉米增加dusk就hi放醋业务i后句iu是挨个无语哦覅可真是就非常认为哦vui未成年啊各位如v哟i视频节目迅速额外i会让你
+		3. 英+Tab：ayeguinychiyu	giuygmoiuhnuy	yuigh	mui			guiyoih				guy	h	kk	u  	i	kmia	tfgyiuh	omnbuyf	gui	gy	gug	bftuygiuh	iyg	ihuy	tfyghu	vgf	hunbgyvfu	tgyhu	nbgvftrd	tygit6rf57	6879	8g6t57f5r6e4	75rf68gbtfbvf6d	c5s6dv5rf7	b5r6vd4e5	f57g68tn	f5b6rvdb	f75g68nt7	fb5r6vdb7f5	g68nt7b5rf6v	rf6t8g	6e7r5ft	g867d	eer5c7tv8yb	6x	cr7vt8yb	64d5r7f	t6g8y7	6der5ftg	y8
+		4. 中+英+Tab：被奴化uwv而我会从，减肥		会让	一	看	吗		lll安	守本l	k分有黑i会让你率	京东方发放表故意我而后吵闹iu阿文和我佛啊uiv的		发有个i哦夫反推ugoi			分一天奴工		服兵役奴工哟			iu故意弄混猫扑几乎不viu			非同步与i咕哝hi评价哦		犹太人的v负样本闺女后	有人天赋衣柜后面		他依然分布于给你后面就	有人的头发不过你还墨迹，怕	投入费用不给你还墨迹，怕asd		s
 
-using namespace NylteJ;
+2. 复制粘贴
+复制以下内容：
+安抚v			u恶意滨海v哦缪的方法			进行			而我iv哦个人苏黄米			就fox手册我iv		发安慰			补充富含为奴蜂蜜			哦就送杜甫此后
+为u访问u一些			模糊无法v
+到以下空白处：
 
-int main()
-{
-	ConsoleHandler console;
 
-	setlocale(LC_ALL, "chs");
 
-	FileHandler file{ "testText.txt" };
+检验无误即可。（检查完记得删掉）
 
-	wstring str = file.ReadAll();
-	//string str = to_string(console.GetConsoleSize().height);
-
-	InputHandler inputHandler;
-
-	UI ui{ console,str,inputHandler,file };
-
-	console.BeginMonitorInput(inputHandler);
-
-	this_thread::sleep_for(114514h);	// 睡美人说是
-
-	return 0;
-}
+3. 行尾回车（空行结尾）
+下面这个就是，用光标等检测即可						（这是为了把这句话拉长从而测出更多 bug 而写的废话 blahblahblahblahblahblahblahblahblahblahblahblahblahblahblah）

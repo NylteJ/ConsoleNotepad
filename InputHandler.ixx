@@ -56,7 +56,10 @@ export namespace NylteJ
 				Esc = 0x1B,
 				Delete = 0x2E,
 
-				Left = 0x25, Up, Right, Down
+				Left = 0x25, Up, Right, Down,
+
+				Special1 = 0xDB, 	// [{
+				Special2 = 0xDD		// ]}
 			} key;
 			class ExtraKeys
 			{

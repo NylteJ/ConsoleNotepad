@@ -158,43 +158,27 @@ export namespace NylteJ
 		MessageDatas<MessageKeyboard> keyboardMessages;
 		MessageDatas<MessageMouse> mouseMessages;
 	private:
+		template<typename MessageType>
+		void DoDistuibute(MessageDatas<MessageType>& messageDatas)
+		{
+			lock_guard messagesLock{ messageDatas.messagesMutex }, CallbacksLock{ messageDatas.callbacksMutex };
+
+			while (!messageDatas.messagesQueue.empty())
+			{
+				for (auto& func : messageDatas.callbacks)
+					func(messageDatas.messagesQueue.front());
+
+				messageDatas.messagesQueue.pop();
+			}
+		}
+
 		[[noreturn]] void DistributeMessages()
 		{
 			while (true)
 			{
-				{
-					lock_guard messagesLock{ windowSizeChangedMessages.messagesMutex }, CallbacksLock{ windowSizeChangedMessages.callbacksMutex };
-
-					while (!windowSizeChangedMessages.messagesQueue.empty())
-					{
-						for (auto& func : windowSizeChangedMessages.callbacks)
-							func(windowSizeChangedMessages.messagesQueue.front());
-
-						windowSizeChangedMessages.messagesQueue.pop();
-					}
-				}
-				{
-					lock_guard messagesLock{ keyboardMessages.messagesMutex }, CallbacksLock{ keyboardMessages.callbacksMutex };
-
-					while (!keyboardMessages.messagesQueue.empty())
-					{
-						for (auto& func : keyboardMessages.callbacks)
-							func(keyboardMessages.messagesQueue.front());
-
-						keyboardMessages.messagesQueue.pop();
-					}
-				}
-				{
-					lock_guard messagesLock{ mouseMessages.messagesMutex }, CallbacksLock{ mouseMessages.callbacksMutex };
-
-					while (!mouseMessages.messagesQueue.empty())
-					{
-						for (auto& func : mouseMessages.callbacks)
-							func(mouseMessages.messagesQueue.front());
-
-						mouseMessages.messagesQueue.pop();
-					}
-				}
+				DoDistuibute(windowSizeChangedMessages);
+				DoDistuibute(keyboardMessages);
+				DoDistuibute(mouseMessages);
 			}
 		}
 	public:

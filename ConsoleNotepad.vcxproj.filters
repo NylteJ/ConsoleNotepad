@@ -13,16 +13,25 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="头文件\ConsoleHandler">
-      <UniqueIdentifier>{da768b27-21b3-4074-9961-e9365a3201f6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="头文件\UI">
       <UniqueIdentifier>{b67f62b8-10d6-4dec-adcc-ab351d057d5b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\ClipboardHandler">
+    <Filter Include="头文件\Utils">
+      <UniqueIdentifier>{857d4ae3-6622-4560-aad8-81c1d2e51dba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Interfaces">
+      <UniqueIdentifier>{c34ab2ab-0e66-4134-9578-c8ba541a08f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\PlatformRelated">
+      <UniqueIdentifier>{aba1c57d-9c47-4f77-8fef-1aa279f70224}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\PlatformRelated\ClipboardHandler">
       <UniqueIdentifier>{86057d83-bd10-483d-bfcc-8a0978cda307}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\FileHandler">
+    <Filter Include="头文件\PlatformRelated\ConsoleHandler">
+      <UniqueIdentifier>{da768b27-21b3-4074-9961-e9365a3201f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\PlatformRelated\FileHandler">
       <UniqueIdentifier>{0f56b09c-aa4e-4ab8-b0f7-cf308268abf1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -31,10 +40,10 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ConsoleHandler.ixx">
-      <Filter>头文件\ConsoleHandler</Filter>
+      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
     </ClCompile>
     <ClCompile Include="ConsoleHandlerWindows.ixx">
-      <Filter>头文件\ConsoleHandler</Filter>
+      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
     </ClCompile>
     <ClCompile Include="ConsoleTypedef.ixx">
       <Filter>头文件</Filter>
@@ -55,16 +64,31 @@
       <Filter>头文件</Filter>
     </ClCompile>
     <ClCompile Include="FileHandler.ixx">
-      <Filter>头文件\FileHandler</Filter>
+      <Filter>头文件\PlatformRelated\FileHandler</Filter>
     </ClCompile>
     <ClCompile Include="FileHandlerWindows.ixx">
-      <Filter>头文件\FileHandler</Filter>
+      <Filter>头文件\PlatformRelated\FileHandler</Filter>
     </ClCompile>
     <ClCompile Include="ClipboardHandler.ixx">
-      <Filter>头文件\ClipboardHandler</Filter>
+      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
     </ClCompile>
     <ClCompile Include="ClipboardHandlerWindows.ixx">
-      <Filter>头文件\ClipboardHandler</Filter>
+      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UIComponent.ixx">
+      <Filter>头文件\Interfaces</Filter>
+    </ClCompile>
+    <ClCompile Include="UnionHandler.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="UIHandler.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="StringEncoder.ixx">
+      <Filter>头文件\PlatformRelated</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

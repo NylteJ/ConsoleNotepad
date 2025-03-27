@@ -32,7 +32,7 @@ export namespace NylteJ
 				NULL);
 
 			if (fileHandle == INVALID_HANDLE_VALUE)		// 文件没能打开, 继续运行下去也没意义, 直接 throw
-				throw runtime_error("Failed to open file!");
+				throw L"文件打开失败! 请检查文件名和访问权限!"s;
 		}
 
 		wstring ReadAll() const
@@ -76,8 +76,11 @@ export namespace NylteJ
 
 		void CloseFile()
 		{
-			CloseHandle(fileHandle);
-			fileHandle = INVALID_HANDLE_VALUE;
+			if (fileHandle != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle(fileHandle);
+				fileHandle = INVALID_HANDLE_VALUE;
+			}
 		}
 
 		void Write(wstring_view data)

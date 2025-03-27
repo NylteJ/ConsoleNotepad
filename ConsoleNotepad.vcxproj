@@ -149,9 +149,14 @@
     <ClCompile Include="FileHandler.ixx" />
     <ClCompile Include="FileHandlerWindows.ixx" />
     <ClCompile Include="Formatter.ixx" />
+    <ClCompile Include="StringEncoder.ixx" />
+    <ClCompile Include="UIComponent.ixx" />
     <ClCompile Include="InputHandler.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="UI.ixx" />
+    <ClCompile Include="UIHandler.ixx" />
+    <ClCompile Include="UnionHandler.ixx" />
+    <ClCompile Include="Windows.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

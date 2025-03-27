@@ -1,5 +1,6 @@
 // FileHandler.ixx
 // 与 ConsoleHandler 类似, 跨平台的接口封装, 封装尽可能快速的文件 I/O
+// 与 ConsoleHandler 不太一样的是会有更多的实际逻辑
 export module FileHandler;
 
 import std;
@@ -22,6 +23,7 @@ export namespace NylteJ
 	public:
 		void OpenFile(filesystem::path filePath)
 		{
+			reader.CloseFile();
 			reader.OpenFile(filePath);
 		}
 

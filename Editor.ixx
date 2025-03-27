@@ -1,5 +1,9 @@
 // Editor.ixx
 // 编辑器 UI 组件, 毫无疑问的核心部分
+// 但需要注意的是不只有 UI 的核心模块用到了它
+// 得益于模块化的代码, 任何需要输入文本的地方都能用它 (yysy, 虽然内部非常屎山, 但几乎不用怎么改代码就能直接拿来到处用, 只能说 OOP 赛高)
+// 当然大部分地方用不到其全部的功能, 但 Editor 自身不对此做处理, 须由调用方自行阻拦换行、滚屏等操作 (原因无他, 实在不想改屎山了)
+// 保存等与 “输入文本” 不直接相关的代码被移出去了
 export module Editor;
 
 import std;
@@ -8,12 +12,13 @@ import ConsoleHandler;
 import ConsoleTypedef;
 import Formatter;
 import BasicColors;
+import UIComponent;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	class Editor
+	class Editor :public UIComponent
 	{
 	private:
 		ConsoleHandler& console;
@@ -182,6 +187,10 @@ export namespace NylteJ
 		wstring_view GetData() const
 		{
 			return fileData;
+		}
+		void SetData(wstring_view newData)
+		{
+			fileData = newData;
 		}
 
 		// 激活 “这个编辑器” 的光标
@@ -424,11 +433,6 @@ export namespace NylteJ
 			}
 		}
 
-		const wstring& GetFileData() const
-		{
-			return fileData;
-		}
-
 		void SelectAll()
 		{
 			selectBeginIndex = 0;
@@ -499,10 +503,124 @@ export namespace NylteJ
 			PrintData();
 		}
 
-		Editor(ConsoleHandler& console, wstring& fileData, const ConsoleRect& drawRange, shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
+		// 完全重置光标到初始位置
+		void ResetCursor()
+		{
+			beginX = 0;
+			cursorIndex = 0;
+			cursorPos = { 0,0 };
+			fileDataIndex = 0;
+		}
+
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
+		{
+			using enum InputHandler::MessageKeyboard::Key;
+
+			auto IsNormalInput = [&]()
+				{
+					if (message.extraKeys.Ctrl() || message.extraKeys.Alt())
+						return false;
+
+					return message.inputChar != L'\0';
+				};
+
+			switch (message.key)
+			{
+			case Left:
+				MoveCursor(Direction::Left, message.extraKeys.Shift());
+				return;
+			case Up:
+				MoveCursor(Direction::Up, message.extraKeys.Shift());
+				return;
+			case Right:
+				MoveCursor(Direction::Right, message.extraKeys.Shift());
+				return;
+			case Down:
+				MoveCursor(Direction::Down, message.extraKeys.Shift());
+				return;
+			case Backspace:
+				Erase();
+				return;
+			case Enter:
+				Insert(L"\n");
+				return;
+			case Delete:	// 姑且也是曲线救国了
+			{
+				auto nowCursorPos = GetCursorPos();
+
+				console.HideCursor();
+				MoveCursor(Direction::Right);
+				if (nowCursorPos != GetCursorPos())	// 用这种方式来并不优雅地判断是否到达末尾, 到达末尾时按 del 应该删不掉东西
+					Erase();
+				console.ShowCursor();
+			}
+			case Esc:
+				return;
+			default:
+				break;
+			}
+
+			if (IsNormalInput())	// 正常输入
+			{
+				Insert(wstring{ message.inputChar });
+				return;
+			}
+
+			if (message.extraKeys.Ctrl())
+				switch (message.key)
+				{
+				case A:
+					SelectAll();
+					break;
+				case C:
+					handlers.clipboard.Write(GetSelectedStr());
+					break;
+				case X:
+					handlers.clipboard.Write(GetSelectedStr());
+					Erase();
+					break;
+				case V:		// TODO: 使用 Win11 的新终端时, 需要拦截掉终端自带的 Ctrl + V, 否则此处不生效
+					Insert(handlers.clipboard.Read());
+					break;
+				case Special1:	// Ctrl + [{	(这里的 "[{" 指键盘上的这个键, 下同)
+					if (message.extraKeys.Alt())
+						HScrollScreen(-1);
+					else
+						HScrollScreen(-3);
+					break;
+				case Special2:	// Ctrl + ]}
+					if (message.extraKeys.Alt())
+						HScrollScreen(1);
+					else
+						HScrollScreen(3);
+					break;
+				}
+		}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
+		{
+			using enum InputHandler::MessageMouse::Type;
+
+			if (message.LeftClick())
+				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop);
+			if (message.type == Moved && message.LeftHold())
+				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop, true);
+
+			if (message.type == VWheeled)
+				ScrollScreen(message.WheelMove());
+			if (message.type == HWheeled)
+				HScrollScreen(-message.WheelMove());
+		}
+
+		void WhenFocused() override
+		{
+			PrintData();
+		}
+
+		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
 			:console(console), fileData(fileData), drawRange(drawRange), formatter(formatter)
 		{
 			PrintData();
 		}
-	};
+};
 }

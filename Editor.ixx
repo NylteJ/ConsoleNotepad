@@ -137,9 +137,9 @@ export namespace NylteJ
 				{
 					size_t secondBegin = 0, secondEnd = formattedStrs[y].lineData.size();
 
-					if (selectEnd.y == y)
+					if (selectEnd.y == y && selectEnd.x >= 0 && selectEnd.x < formattedStrs[y].DisplaySize())
 						secondEnd = formatter->GetFormattedIndex(formattedStrs[y], selectEnd);
-					if (selectBegin.y == y)
+					if (selectBegin.y == y && selectBegin.x >= 0 && selectBegin.x < formattedStrs[y].DisplaySize())
 						secondBegin = formatter->GetFormattedIndex(formattedStrs[y], selectBegin);
 
 					console.Print(wstring_view{ formattedStrs[y].lineData.begin(),formattedStrs[y].lineData.begin() + secondBegin }, nowCursorPos);
@@ -233,6 +233,7 @@ export namespace NylteJ
 				pos,
 				Direction::None),
 				selectMode);
+			MoveCursor(Direction::None, selectMode);
 		}
 
 		// 是的, 这一块的函数在几次迭代后已经变成屎山了
@@ -327,8 +328,6 @@ export namespace NylteJ
 
 			if(delayToChangeBeginX)
 			{
-				auto nowBeginX = beginX;
-
 				needReprintData |= ChangeBeginX(formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos)));
 
 				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);

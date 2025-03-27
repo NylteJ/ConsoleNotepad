@@ -29,27 +29,35 @@ export namespace NylteJ
 		
 		wstring title;
 	public:
-		void PrintTitle(wstring extraText = L""s)
+		void PrintTitle(wstring_view extraText = L""sv)
 		{
-			size_t titleDisplayLength = 0;
-
-			for (auto chr : title)
-				if (chr == '\t')
-					titleDisplayLength = titleDisplayLength / 4 * 4 + 4;
-				else if (chr > 128)
-					titleDisplayLength += 2;
-				else
-					titleDisplayLength++;
-			for (auto chr : extraText)
-				if (chr == '\t')
-					titleDisplayLength = titleDisplayLength / 4 * 4 + 4;
-				else if (chr > 128)
-					titleDisplayLength += 2;
-				else
-					titleDisplayLength++;
-
 			console.HideCursor();
-			console.Print(title + extraText + (ranges::views::repeat(' ', console.GetConsoleSize().width - titleDisplayLength) | ranges::to<wstring>()), {0,0}, BasicColors::black, BasicColors::yellow);
+
+			console.Print(ranges::views::repeat(' ', console.GetConsoleSize().width) | ranges::to<wstring>(), { 0,0 }, BasicColors::black, BasicColors::yellow);
+
+			console.Print(title, { 0,0 }, BasicColors::black, BasicColors::yellow);
+
+			size_t extraTextDisplayLength = 0;
+
+			for (auto chr : extraText)
+				if (chr > 128)
+					extraTextDisplayLength += 2;
+				else
+					extraTextDisplayLength++;
+
+			if (console.GetConsoleSize().width >= extraTextDisplayLength)
+				console.Print(extraText, { console.GetConsoleSize().width - extraTextDisplayLength,0 }, BasicColors::black, BasicColors::yellow);
+
+			editor.FlushCursor();
+		}
+
+		void PrintFooter(wstring_view extraText = L""sv)
+		{
+			console.HideCursor();
+
+			console.Print(ranges::views::repeat(' ', console.GetConsoleSize().width) | ranges::to<wstring>(), { 0,console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
+
+			console.Print(extraText, { 0,console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
 
 			editor.FlushCursor();
 		}
@@ -68,23 +76,23 @@ export namespace NylteJ
 					editorData,
 					{	{ 0,1 },
 						{	console.GetConsoleSize().width - 1,
-							console.GetConsoleSize().height - 1 } }),
+							console.GetConsoleSize().height - 2 } }),
 			// 这里的变量实在写不开, 试过把类型显式地写出来, 但可读性好像还不如这个
 			title(title)
 		{
 			PrintTitle();
+			PrintFooter();
 
 			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 
-			// 我们姑且认为用户不会同时输入多个信息, 这样可以强行当串行代码写 (不然真写不完了:(  )
-
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message)
 				{
-					editor.ChangeDrawRange({ {0,1},{message.newSize.width - 1,message.newSize.height - 1} });
+					editor.ChangeDrawRange({ {0,1},{message.newSize.width - 1,message.newSize.height - 2} });
 
 					lastIsEsc = false;
 
 					PrintTitle();
+					PrintFooter();
 
 					editor.PrintData();
 
@@ -103,6 +111,8 @@ export namespace NylteJ
 							return message.inputChar != L'\0';
 						};
 
+					PrintFooter();
+
 					//static bool lastIsEsc = false;	// 把前面那个 lastIsEsc 挪到这里, 就能见识到 “‘CL.exe’已退出，代码为 -1073741819” 的奇观了
 
 					if (message.key != Esc)
@@ -118,7 +128,7 @@ export namespace NylteJ
 						exit(0);
 					}
 					lastIsEsc = true;
-					PrintTitle(L"    再按一次 Esc 以退出 (不会保存!!! 请使用 Ctrl + S 手动保存)"s);
+					PrintTitle(L"再按一次 Esc 以退出 (不会保存!!! 请使用 Ctrl + S 手动保存)"s);
 					return;
 				wtf:	// 我完全搞不清是为什么, 但是上面那个 PrintTitle 不能塞进下面的 switch, 甚至不能做成 else, 不然就会报 this 为 0xFFFFFFFFFFFFFFFF (甚至都还没进 PrintTitle 函数体, 在字面量构造阶段就爆了)
 						// TODO: 搞清这到底是什么问题, 这是真 wtf (把字面量换成外部变量甚至全局变量都没用, 我感觉这也实在不能有 UB 啊, 不会是 MSVC 的神必 bug 吧)
@@ -170,6 +180,7 @@ export namespace NylteJ
 						{
 						case S:
 							fileHandler.Write(editor.GetFileData());
+							PrintFooter(L"已保存！"s);
 							break;
 						case A:
 							editor.SelectAll();
@@ -203,10 +214,16 @@ export namespace NylteJ
 				{
 					using enum InputHandler::MessageMouse::Type;
 
-					if (lastIsEsc && (message.buttonStatus.any() || message.WheelMove() != 0))
+
+					if (message.buttonStatus.any() || message.WheelMove() != 0)
 					{
-						lastIsEsc = false;
-						PrintTitle();
+						PrintFooter();
+
+						if (lastIsEsc)
+						{
+							lastIsEsc = false;
+							PrintTitle();
+						}
 					}
 
 					if (message.LeftClick())

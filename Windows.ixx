@@ -195,7 +195,7 @@ export namespace NylteJ
 							wstring nowFilename = iter->path().filename().wstring();
 							wstring inputFilename = nowPath.filename().wstring();
 
-							if (nowFilename.find(inputFilename) == 0)
+							if (nowFilename.starts_with(inputFilename))
 							{
 								editor.SetData((prevPath / iter->path().filename()).wstring());
 								editor.PrintData();

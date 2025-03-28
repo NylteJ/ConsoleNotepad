@@ -14,8 +14,8 @@ export namespace NylteJ
 	{
 	private:
 		HANDLE fileHandle = INVALID_HANDLE_VALUE;
-	public:
-		void OpenFile(filesystem::path filePath)
+	private:
+		void OpenFileReal(filesystem::path filePath, DWORD mode)
 		{
 			SECURITY_ATTRIBUTES securityAtt;
 
@@ -27,16 +27,41 @@ export namespace NylteJ
 				GENERIC_READ | GENERIC_WRITE,
 				FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
 				&securityAtt,
-				OPEN_EXISTING,
+				mode,
 				FILE_ATTRIBUTE_NORMAL,
 				NULL);
+		}
+	public:
+		bool Valid() const
+		{
+			return fileHandle != INVALID_HANDLE_VALUE;
+		}
 
-			if (fileHandle == INVALID_HANDLE_VALUE)		// 文件没能打开, 继续运行下去也没意义, 直接 throw
+		void OpenFile(filesystem::path filePath)
+		{
+			OpenFileReal(filePath, OPEN_EXISTING);
+
+			if (!Valid())		// 文件没能打开, 继续运行下去也没意义, 直接 throw
 				throw L"文件打开失败! 请检查文件名和访问权限!"s;
 		}
 
+#pragma push_macro("CreateFile")
+#undef CreateFile
+		// 实际上做的还是 OpenFile 的活, 只是会在文件不存在时创建、在文件存在时报错
+		void CreateFile(filesystem::path filePath)
+		{
+			OpenFileReal(filePath, CREATE_NEW);
+
+			if (!Valid())
+				throw L"文件创建失败! 请检查文件是否已存在、路径是否合法以及有无访问权限!"s;
+		}
+#pragma pop_macro("CreateFile")
+
 		wstring ReadAll() const
 		{
+			if (!Valid())
+				return L""s;
+
 			LARGE_INTEGER fileSize;
 			GetFileSizeEx(fileHandle, &fileSize);
 
@@ -76,7 +101,7 @@ export namespace NylteJ
 
 		void CloseFile()
 		{
-			if (fileHandle != INVALID_HANDLE_VALUE)
+			if (Valid())
 			{
 				CloseHandle(fileHandle);
 				fileHandle = INVALID_HANDLE_VALUE;
@@ -85,6 +110,9 @@ export namespace NylteJ
 
 		void Write(wstring_view data)
 		{
+			if (!Valid())
+				return;
+
 			size_t bufSize = WideCharToMultiByte(CP_UTF8,
 				NULL,
 				data.data(),

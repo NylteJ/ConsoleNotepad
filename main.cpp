@@ -15,9 +15,9 @@ int main()
 {
 	ConsoleHandler console;
 
-	FileHandler file{ "testText.txt" };
+	FileHandler file;
 
-	wstring str = file.ReadAll();
+	wstring str;
 
 	InputHandler inputHandler;
 

@@ -29,6 +29,30 @@ export namespace NylteJ
 		UIHandler<shared_ptr<UIComponent>> uiHandler;
 
 		wstring title;
+		
+		size_t lastSaveDataHash = hash<wstring_view>{}(L""sv);	// 只存 Hash
+	private:
+		void WhenFileSaved()
+		{
+			size_t nowDataHash = hash<wstring_view>{}(editor->GetData());
+
+			if (nowDataHash != lastSaveDataHash)
+			{
+				PrintFooter(L"已保存! "sv);
+				lastSaveDataHash = nowDataHash;
+			}
+		}
+		void WhenFileOpened()
+		{
+			lastSaveDataHash = hash<wstring_view>{}(editor->GetData());
+
+			PrintFooter(L"已打开! "sv);
+		}
+
+		bool IsFileSaved()
+		{
+			return hash<wstring_view>{}(editor->GetData()) == lastSaveDataHash;
+		}
 	public:
 		void PrintTitle(wstring_view extraText = L""sv)
 		{
@@ -70,7 +94,7 @@ export namespace NylteJ
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
-			const wstring& title = L"ConsoleNotepad ver. 0.5     made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.6     made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler),
 			title(title),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
@@ -124,7 +148,11 @@ export namespace NylteJ
 								exit(0);
 							}
 							lastIsEsc = true;
-							PrintTitle(L"再按一次 Esc 以退出 (不会保存!!! 请使用 Ctrl + S 手动保存)"s);
+
+							if (IsFileSaved())
+								PrintTitle(L"再按一次 Esc 以退出 (当前内容已保存)"s);
+							else
+								PrintTitle(L"再按一次 Esc 以退出 (当前内容未保存!!! 请使用 Ctrl + S 手动保存)"s);
 						}
 
 						if (uiHandler.nowFocus == editor)
@@ -133,22 +161,63 @@ export namespace NylteJ
 							{
 								if (message.key == S)
 								{
-									handlers.file.Write(editor->GetData());
-									PrintFooter(L"已保存! "sv);
+									if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S 或是新文件
+									{
+										PrintFooter(L"选择保存路径......"sv);
+										auto window = make_shared<SaveFileWindow>(handlers.console,
+											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+											bind(&UI::WhenFileSaved, this));
+										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+										uiHandler.GiveFocusTo(window);
+									}
+									else
+									{
+										handlers.file.Write(editor->GetData());
+										WhenFileSaved();
+									}
 								}
 								else if (message.key == O)
 								{
+									if (!IsFileSaved())
+									{
+										PrintFooter(L"当前文件未保存, 请先保存 (未来会支持自主选择不保存退出的, 咕咕咕)"sv);
+										return;		// TODO
+									}
+
 									PrintFooter(L"打开文件......"sv);
-									auto window = make_shared<WindowWithEditor>(handlers.console,
-										ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} });
-									uiHandler.GiveFocusTo(window);
+									auto window = make_shared<OpenFileWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+										bind(&UI::WhenFileOpened, this));
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+									uiHandler.GiveFocusTo(window);
 								}
+								else if (message.key == N)
+								{
+									if (!IsFileSaved())
+									{
+										PrintFooter(L"当前文件未保存, 请先保存 (未来会支持自主选择不保存退出的, 咕咕咕)"sv);
+										return;		// TODO
+									}
+
+									editor->SetData(L""sv);
+									editor->ResetCursor();
+
+									fileHandler.CloseFile();
+
+									lastSaveDataHash = hash<wstring_view>{}(L""sv);
+
+									PrintFooter(L"已新建文件!"sv);
+								}
+								else
+									PrintFooter();
 							}
+							else
+								PrintFooter();
 						}
 						else
-							PrintFooter();
+							/*PrintFooter()*/;
 
 						uiHandler.nowFocus->ManageInput(message, handlers);
 					}

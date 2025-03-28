@@ -21,10 +21,21 @@ export namespace NylteJ
 		FileHandlerWindows reader;
 #endif
 	public:
+		bool Valid() const
+		{
+			return reader.Valid();
+		}
+
 		void OpenFile(filesystem::path filePath)
 		{
 			reader.CloseFile();
 			reader.OpenFile(filePath);
+		}
+
+		void CreateFile(filesystem::path filePath)
+		{
+			reader.CloseFile();
+			reader.CreateFile(filePath);
 		}
 
 		wstring ReadAll() const
@@ -46,6 +57,7 @@ export namespace NylteJ
 		{
 			OpenFile(filePath);
 		}
+		FileHandler() {}
 
 		~FileHandler()
 		{

@@ -510,6 +510,8 @@ export namespace NylteJ
 			cursorIndex = 0;
 			cursorPos = { 0,0 };
 			fileDataIndex = 0;
+			selectBeginIndex = 0;
+			selectEndIndex = 0;
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理

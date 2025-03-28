@@ -58,6 +58,9 @@ export namespace NylteJ
 
 				Left = 0x25, Up, Right, Down,
 
+				Home = 0x24,
+				End = 0x23,
+
 				Special1 = 0xDB, 	// [{
 				Special2 = 0xDD		// ]}
 			} key;

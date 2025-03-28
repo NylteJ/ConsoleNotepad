@@ -21,6 +21,80 @@ export namespace NylteJ
 	class Editor :public UIComponent
 	{
 	private:
+		// 用于 Ctrl + Z / Y
+		// 存储一 / 多步操作 (比如相邻的插入 / 删除会被算在一起, 不然挨字符 Ctrl + Z 实在是痛苦)
+		class EditOperation
+		{
+		public:
+			enum class Type
+			{
+				Insert, Erase	// 选择不算操作
+			};
+			using enum Type;
+		public:
+			Type type;
+
+			size_t index;
+
+			shared_ptr<wstring> data;	// 用于 Insert, 考虑到 Ctrl + Z / Y 的互换, Erase 也不得不保存, 不过二者共享一份就可以了
+		public:
+			void ReserveOperation()	// 逆过程, 用来交换 Ctrl + Z / Y 的
+			{
+				switch (type)
+				{
+				case Insert:
+					type = Erase;
+					return;
+				case Erase:
+					type = Insert;
+					return;
+				default:
+					unreachable();
+				}
+			}
+			EditOperation GetReverseOperation() const
+			{
+				EditOperation ret = *this;
+
+				ret.ReserveOperation();
+
+				return ret;
+			}
+
+			void DoOperation(Editor& editor)
+			{
+				// 这里无需调用 SetCursorPos 或 ScrollToIndex 等, 后面 Erase / Insert 会调用的
+
+				switch (type)
+				{
+				case Insert:
+					editor.cursorIndex = index;
+					editor.selectBeginIndex = editor.selectEndIndex = index;	// Ctrl + Z 时如果还选中着东西就需要取消选中
+
+					editor.Insert(*data, false);
+					if (data->size() > 1)		// 只有一个字符时还选中会看起来很奇怪
+					{
+						editor.selectBeginIndex = index;
+						editor.selectEndIndex = index + data->size();
+					}
+					editor.PrintData();
+					return;
+				case Erase:
+					editor.selectBeginIndex = index;
+					editor.selectEndIndex = index + data->size();
+					editor.Erase(false);
+					return;
+				default:
+					unreachable();
+				}
+			}
+		};
+	private:
+		constexpr static size_t maxUndoStep = 50;
+		constexpr static size_t maxRedoStep = 50;
+
+		constexpr static size_t maxMergeOperationStrLen = 16;	// 最多把多少个字符的变动融合到一步
+	private:
 		ConsoleHandler& console;
 
 		wstring fileData;
@@ -38,6 +112,10 @@ export namespace NylteJ
 				selectEndIndex = selectBeginIndex;		// 所以 Begin 甚至可以大于 End (通过 Shift + 左方向键即可实现)
 
 		ConsoleXPos beginX = 0;		// 用于横向滚屏
+
+		deque<EditOperation> undoDeque;	// Ctrl + Z
+		deque<EditOperation> redoDeque;	// Ctrl + Y
+		// 为什么要用 deque 呢? 因为 stack 不能 pop 栈底的元素, 无法控制 stack 大小
 	private:
 		constexpr size_t MinSelectIndex() const
 		{
@@ -68,8 +146,11 @@ export namespace NylteJ
 			{
 				auto nowIndex = formatter->SearchLineBeginIndex(fileData, index);
 
-				for (int lineCount = 1; lineCount < drawRange.Height() && nowIndex >= 2; lineCount++)	// TODO: 这部分最好也能适配不同行尾
-					nowIndex = formatter->SearchLineBeginIndex(fileData, nowIndex - 2);
+				for (int lineCount = 1; lineCount < drawRange.Height() && nowIndex >= 1; lineCount++)
+					if (nowIndex < 2 || fileData[nowIndex - 2] != '\r')
+						nowIndex = formatter->SearchLineBeginIndex(fileData, nowIndex - 1);
+					else if (nowIndex >= 2 && fileData[nowIndex - 2] == '\r')
+						nowIndex = formatter->SearchLineBeginIndex(fileData, nowIndex - 2);
 
 				fileDataIndex = nowIndex;
 
@@ -94,6 +175,44 @@ export namespace NylteJ
 				return true;
 			}
 			return false;
+		}
+
+		// 只有正常进行的操作才应当调用这个函数来记录, 通过 Ctrl + Z 等进行的操作不应当通过这个记录, 直接放到 redoDeque 里即可
+		// (这个函数会清除 redoDeque)
+		void LogOperation(EditOperation::Type type, size_t index, wstring_view data)
+		{
+			redoDeque.clear();
+
+			if (!undoDeque.empty()
+				&& undoDeque.front().type == EditOperation::Type::Erase && type == EditOperation::Type::Insert
+				&& undoDeque.front().index + undoDeque.front().data->size() == index
+				&& undoDeque.front().data->size() + data.size() <= maxMergeOperationStrLen)	// 都是插入时, 融合!
+			{
+				*(undoDeque.front().data) += data;
+			}
+			else if (!undoDeque.empty()
+				&& undoDeque.front().type == EditOperation::Type::Insert && type == EditOperation::Type::Erase
+				&& index + data.size() == undoDeque.front().index
+				&& undoDeque.front().data->size() + data.size() <= maxMergeOperationStrLen)	// 都是删除时, 融合!
+			{
+				undoDeque.front().index = index;
+				undoDeque.front().data->insert_range(undoDeque.front().data->begin(), data);
+			}
+			else
+			{
+				EditOperation operation;
+
+				operation.type = type;
+				operation.index = index;
+				operation.data = make_shared<wstring>(data.begin(), data.end());
+
+				operation.ReserveOperation();
+
+				undoDeque.emplace_front(operation);
+
+				if (undoDeque.size() > maxUndoStep)
+					undoDeque.pop_back();
+			}
 		}
 	public:
 		// 输出内容的同时会覆盖背景
@@ -142,9 +261,9 @@ export namespace NylteJ
 				{
 					size_t secondBegin = 0, secondEnd = formattedStrs[y].lineData.size();
 
-					if (selectEnd.y == y && selectEnd.x >= 0 && selectEnd.x < formattedStrs[y].DisplaySize())
+					if (selectEnd.y == y && selectEnd.x >= 0 && selectEnd.x <= formattedStrs[y].DisplaySize())
 						secondEnd = formatter->GetFormattedIndex(formattedStrs[y], selectEnd);
-					if (selectBegin.y == y && selectBegin.x >= 0 && selectBegin.x < formattedStrs[y].DisplaySize())
+					if (selectBegin.y == y && selectBegin.x >= 0 && selectBegin.x <= formattedStrs[y].DisplaySize())
 						secondBegin = formatter->GetFormattedIndex(formattedStrs[y], selectBegin);
 
 					console.Print(wstring_view{ formattedStrs[y].lineData.begin(),formattedStrs[y].lineData.begin() + secondBegin }, nowCursorPos);
@@ -190,6 +309,12 @@ export namespace NylteJ
 		}
 		void SetData(wstring_view newData)
 		{
+			// 显然这会彻底地破坏 Ctrl + Z 等
+			// 因为逻辑上这并不是用户的操作, 而是其它代码的操作, 此时本来也不应该保留
+			// 所以直接全删掉
+			undoDeque.clear();
+			redoDeque.clear();
+
 			fileData = newData;
 		}
 
@@ -305,11 +430,12 @@ export namespace NylteJ
 				// 实际上最后一个条件隐含了倒数第二个, 但考虑到开销以及常用程度, 还是不删掉倒数第二个了
 			{
 				newPos.y++;
-				newPos.x = 0;
 				direction = Down;
 
-				if (beginX > 0)
+				if (beginX > 0)		// 此时没法轻易判断是不是已经到文件尾了, 所以直接延后 (但是 y 可以且必须直接加, 下面的逻辑乱成依托时了所以我不是很想解释但基本就是这样)
 					delayToChangeBeginX = true;
+				else
+					newPos.x = 0;
 			}
 
 			if (newPos.y == drawRange.rightBottom.y && direction == Down)
@@ -335,8 +461,10 @@ export namespace NylteJ
 				newPos.y++;
 			}
 
-			if(delayToChangeBeginX)
+			if (delayToChangeBeginX && newPos.y < formattedStr.datas.size())
 			{
+				newPos.x = 0;
+
 				needReprintData |= ChangeBeginX(formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos)));
 
 				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
@@ -362,26 +490,20 @@ export namespace NylteJ
 		}
 
 		// 基于当前光标/选区位置插入
-		void Insert(wstring_view str)
+		void Insert(wstring_view str, bool log = true)
 		{
-			if (selectBeginIndex == selectEndIndex)
-			{
-				ScrollToIndex(cursorIndex);
-				ChangeBeginX(cursorIndex);
+			if (selectBeginIndex != selectEndIndex)
+				Erase();	// 便于 Ctrl + Z, 把 “替换” 操作改成删除 + 插入
 
-				fileData.insert_range(fileData.begin() + cursorIndex, str);
+			ScrollToIndex(cursorIndex);
+			ChangeBeginX(cursorIndex);
 
-				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), cursorIndex - fileDataIndex));
-			}
-			else
-			{
-				ScrollToIndex(MinSelectIndex());
-				ChangeBeginX(MinSelectIndex());
+			if (log)
+				LogOperation(EditOperation::Insert, cursorIndex, str);
 
-				fileData.replace_with_range(fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex(), str);
-				
-				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), MinSelectIndex() - fileDataIndex));
-			}
+			fileData.insert_range(fileData.begin() + cursorIndex, str);
+
+			SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), cursorIndex - fileDataIndex));
 
 			PrintData();
 
@@ -393,7 +515,7 @@ export namespace NylteJ
 		}
 
 		// 基于当前光标/选区位置删除 (等价于按一下 Backspace)
-		void Erase()
+		void Erase(bool log = true)
 		{
 			if (selectBeginIndex == selectEndIndex)
 			{
@@ -414,9 +536,19 @@ export namespace NylteJ
 				MoveCursor(Direction::Left);
 
 				if (index > 0 && fileData[index - 1] == '\r')
+				{
+					if (log)
+						LogOperation(EditOperation::Erase, index, wstring_view{ fileData.begin() + index - 1,fileData.begin() + index + 1 });
+
 					fileData.erase(index - 1, 2);
+				}
 				else
+				{
+					if (log)
+						LogOperation(EditOperation::Erase, index, wstring_view{ fileData.begin() + index,fileData.begin() + index + 1 });
+
 					fileData.erase(fileData.begin() + index);	// 这里只传 index 就会把后面的全删掉
+				}
 
 				PrintData();
 
@@ -426,6 +558,9 @@ export namespace NylteJ
 			{
 				ScrollToIndex(MinSelectIndex());
 				ChangeBeginX(MinSelectIndex());
+
+				if (log)
+					LogOperation(EditOperation::Erase, MinSelectIndex(), wstring_view{ fileData.begin() + MinSelectIndex(),fileData.begin() + MaxSelectIndex() });
 
 				fileData.erase(fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex());
 
@@ -514,7 +649,10 @@ export namespace NylteJ
 
 		void MoveCursorToEnd()
 		{
-			selectBeginIndex = selectEndIndex = cursorIndex = fileData.size() - 1;
+			if (fileData.empty())
+				return;
+
+			selectBeginIndex = selectEndIndex = cursorIndex = fileData.size();
 
 			ChangeBeginX(cursorIndex);
 			ScrollToIndex(cursorIndex);
@@ -523,6 +661,35 @@ export namespace NylteJ
 				drawRange.rightBottom, None));
 
 			PrintData();
+		}
+
+		void Undo()
+		{
+			if (undoDeque.empty())
+				return;
+
+			undoDeque.front().DoOperation(*this);
+
+			redoDeque.emplace_front(undoDeque.front().GetReverseOperation());
+
+			undoDeque.pop_front();
+
+			if (redoDeque.size() > maxRedoStep)
+				redoDeque.pop_back();
+		}
+		void Redo()
+		{
+			if (redoDeque.empty())
+				return;
+
+			redoDeque.front().DoOperation(*this);
+
+			undoDeque.emplace_front(redoDeque.front().GetReverseOperation());
+
+			redoDeque.pop_front();
+
+			if (undoDeque.size() > maxUndoStep)
+				undoDeque.pop_back();
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
@@ -617,6 +784,12 @@ export namespace NylteJ
 						HScrollScreen(1);
 					else
 						HScrollScreen(3);
+					break;
+				case Z:
+					Undo();
+					break;
+				case Y:
+					Redo();
 					break;
 				}
 		}

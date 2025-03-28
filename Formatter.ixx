@@ -270,11 +270,8 @@ export namespace NylteJ
 			size_t nowRawIndex = formattedStr.datas[pos.y].indexInRaw;
 			size_t nowX = 0;
 
-			while (nowX < pos.x)
+			while (nowX < pos.x && nowRawIndex < formattedStr.rawStr.size())
 			{
-				if (nowRawIndex >= formattedStr.rawStr.size())
-					return formattedStr.rawStr.size() - 1;
-
 				if (formattedStr.rawStr[nowRawIndex] == '\t')
 				{
 					nowRawIndex++;
@@ -382,8 +379,12 @@ export namespace NylteJ
 		{
 			if (index == 0 || rawStr.size() == 0)
 				return 0;
-			if (index >= rawStr.size())
-				return SearchLineBeginIndex(rawStr, rawStr.size() - 1);
+			if (index >= rawStr.size())		// 临时救一下, 真不想改屎山了
+			{
+				if (rawStr.size() >= 1 && rawStr.back() == '\n')
+					return rawStr.size() - 1;
+				return SearchLineBeginIndex(rawStr, index - 1);
+			}
 
 			if (rawStr[index] == '\n')
 			{

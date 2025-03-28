@@ -94,6 +94,23 @@ export namespace NylteJ
 		Editor editor;
 
 		wstring_view tipText;
+	private:
+		wstring GetNowPath() const
+		{
+			// 顺便做个防呆设计, 防止有大聪明给路径加引号和双反斜杠
+			wstring ret=editor.GetData()
+				| ranges::views::filter([](auto&& chr) {return chr != L'\"'; })
+				| ranges::to<wstring>();
+
+			size_t pos = 0;
+			while ((pos = ret.find(L"\\\\"sv, pos)) != string::npos)
+			{
+				ret.replace(pos, L"\\\\"sv.size(), L"\\"sv);
+				pos += L"\\"sv.size();
+			}
+
+			return ret;
+		}
 	public:
 		// 处理收到的路径
 		virtual void ManagePath(wstring_view path, UnionHandler& handlers) = 0;
@@ -113,23 +130,85 @@ export namespace NylteJ
 
 			if (message.key == Enter)
 			{
-				// 顺便做个防呆设计, 防止有大聪明给路径加引号和双反斜杠
-				wstring filePath = editor.GetData()
-					| ranges::views::filter([](auto&& chr) {return chr != L'\"'; })
-					| ranges::to<wstring>();
-				{
-					size_t pos = 0;
-					while ((pos = filePath.find(L"\\\\"sv, pos)) != string::npos)
-					{
-						filePath.replace(pos, L"\\\\"sv.size(), L"\\"sv);
-						pos += L"\\"sv.size();
-					}
-				}
-
-				ManagePath(filePath, handlers);
+				ManagePath(GetNowPath(), handlers);
 
 				EraseThis(handlers);
 				return;
+			}
+			else if (message.key == Tab)	// 自动补全
+			{
+				using namespace filesystem;
+
+				path nowPath = GetNowPath();
+
+				if (exists(nowPath))
+				{
+					if (is_directory(nowPath) && nowPath.wstring().back() == L'\\')
+					{
+						auto iter = directory_iterator{ nowPath,directory_options::skip_permission_denied };
+
+						if (iter != end(iter))
+						{
+							editor.SetData((nowPath / iter->path().filename()).wstring());
+							editor.PrintData();
+							editor.MoveCursorToEnd();
+						}
+					}
+					else if (is_directory(nowPath) || is_regular_file(nowPath))
+					{
+						auto prevPath = nowPath.parent_path();
+
+						if (prevPath.empty())
+							prevPath = L".";
+
+						if (!equivalent(prevPath, nowPath))	// 比如 "C:\." 的 parent_path 是 "C:", 总之还是有可能二者完全相等的
+						{
+							auto iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
+
+							while (!equivalent(iter->path(), nowPath))
+								++iter;
+
+							++iter;
+
+							if (iter == end(iter))
+								iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
+
+							editor.SetData((prevPath / iter->path().filename()).wstring());
+							editor.PrintData();
+							editor.MoveCursorToEnd();
+						}
+					}
+				}
+				else
+				{
+					auto prevPath = nowPath.parent_path();
+
+					if (prevPath.empty())
+						prevPath = L".";
+
+					if (exists(prevPath) && is_directory(prevPath))
+					{
+						auto iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
+
+						while (iter != end(iter))
+						{
+							wstring nowFilename = iter->path().filename().wstring();
+							wstring inputFilename = nowPath.filename().wstring();
+
+							if (nowFilename.find(inputFilename) == 0)
+							{
+								editor.SetData((prevPath / iter->path().filename()).wstring());
+								editor.PrintData();
+								editor.MoveCursorToEnd();
+								break;
+							}
+
+							++iter;
+						}
+					}
+				}
+
+				return;		// 不发送到 Editor: 文件名正常应该也不会含有 Tab
 			}
 
 			editor.ManageInput(message, handlers);
@@ -156,7 +235,7 @@ export namespace NylteJ
 			editor.WhenFocused();
 		}
 
-		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring_view tipText = L"输入路径: "sv)
+		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring_view tipText = L"输入路径 (按 Tab 自动补全, 按回车确认): "sv)
 			:BasicWindow(console, drawRange),
 			editor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 1},
 									{drawRange.rightBottom.x - 1,drawRange.rightBottom.y - 1} }),
@@ -184,7 +263,7 @@ export namespace NylteJ
 		}
 
 		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, L"打开文件: 请输入路径 (相对 / 绝对均可) 并按下回车: "sv),
+			:FilePathWindow(console, drawRange, L"打开文件: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
 			callback(callback)
 		{
 		}
@@ -204,7 +283,7 @@ export namespace NylteJ
 		}
 
 		SaveFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, L"保存到: 请输入路径 (相对 / 绝对均可) 并按下回车: "sv),
+			:FilePathWindow(console, drawRange, L"保存到: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
 			callback(callback)
 		{
 		}

@@ -94,7 +94,7 @@ export namespace NylteJ
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
-			const wstring& title = L"ConsoleNotepad ver. 0.6     made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.7     made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler),
 			title(title),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },

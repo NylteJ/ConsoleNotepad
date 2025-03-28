@@ -332,7 +332,7 @@ export namespace NylteJ
 				pos.y = 0;
 			if (pos.y >= formattedStr.datas.size())
 				pos.y = formattedStr.datas.size() - 1;
-			if ((allowFlow && pos.x + formattedStr.beginX < 0)
+			if ((allowFlow && pos.x + static_cast<long long>(formattedStr.beginX) < 0)
 				|| (!allowFlow && pos.x < 0))
 				pos.x = 0;
 			if (pos.x >= 0 && pos.x > formattedStr[pos.y].DisplaySize()
@@ -380,7 +380,7 @@ export namespace NylteJ
 
 		size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const
 		{
-			if (index == 0)
+			if (index == 0 || rawStr.size() == 0)
 				return 0;
 			if (index >= rawStr.size())
 				return SearchLineBeginIndex(rawStr, rawStr.size() - 1);

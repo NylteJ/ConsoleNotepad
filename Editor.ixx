@@ -506,12 +506,23 @@ export namespace NylteJ
 		// 完全重置光标到初始位置
 		void ResetCursor()
 		{
-			beginX = 0;
-			cursorIndex = 0;
+			beginX = cursorIndex = fileDataIndex = selectBeginIndex = selectEndIndex = 0;
 			cursorPos = { 0,0 };
-			fileDataIndex = 0;
-			selectBeginIndex = 0;
-			selectEndIndex = 0;
+
+			PrintData();
+		}
+
+		void MoveCursorToEnd()
+		{
+			selectBeginIndex = selectEndIndex = cursorIndex = fileData.size() - 1;
+
+			ChangeBeginX(cursorIndex);
+			ScrollToIndex(cursorIndex);
+
+			SetCursorPos(formatter->RestrictPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX),
+				drawRange.rightBottom, None));
+
+			PrintData();
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
@@ -559,6 +570,12 @@ export namespace NylteJ
 			}
 			case Esc:
 				return;
+			case Home:
+				ResetCursor();
+				return;
+			case End:
+				MoveCursorToEnd();
+				return;
 			default:
 				break;
 			}
@@ -576,11 +593,15 @@ export namespace NylteJ
 					SelectAll();
 					break;
 				case C:
-					handlers.clipboard.Write(GetSelectedStr());
+					if (selectBeginIndex != selectEndIndex)
+						handlers.clipboard.Write(GetSelectedStr());
 					break;
 				case X:
-					handlers.clipboard.Write(GetSelectedStr());
-					Erase();
+					if (selectBeginIndex != selectEndIndex)
+					{
+						handlers.clipboard.Write(GetSelectedStr());
+						Erase();
+					}
 					break;
 				case V:		// TODO: 使用 Win11 的新终端时, 需要拦截掉终端自带的 Ctrl + V, 否则此处不生效
 					Insert(handlers.clipboard.Read());

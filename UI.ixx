@@ -10,6 +10,8 @@ import ConsoleTypedef;
 import UnionHandler;
 import UIHandler;
 import StringEncoder;
+import Exceptions;
+import Utils;
 
 import UIComponent;
 import Editor;
@@ -54,12 +56,13 @@ export namespace NylteJ
 			return hash<wstring_view>{}(editor->GetData()) == lastSaveDataHash;
 		}
 
-		void OpenFile()
+		void OpenFile(Encoding encoding = Encoding::UTF8)
 		{
 			PrintFooter(L"打开文件......"sv);
 			auto window = make_shared<OpenFileWindow>(handlers.console,
-				ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				encoding,
 				bind(&UI::WhenFileOpened, this));
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
@@ -86,10 +89,6 @@ export namespace NylteJ
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
 		}
-		void AskIfSave()
-		{
-			AskIfSave([](size_t) {});	// 不能写成默认参数, 鬼知道为什么, 这就是我们神奇的 MSVC
-		}
 
 		void Exit()
 		{
@@ -109,7 +108,7 @@ export namespace NylteJ
 			size_t extraTextDisplayLength = 0;
 
 			for (auto chr : extraText)
-				if (chr > 128)
+				if (IsWideChar(chr))
 					extraTextDisplayLength += 2;
 				else
 					extraTextDisplayLength++;
@@ -262,10 +261,9 @@ export namespace NylteJ
 
 						uiHandler.nowFocus->ManageInput(message, handlers);
 					}
-					catch (wstring e)
+					catch (Exception& e)
 					{
-						// TODO: 加一系列异常类, 而不是直接 throw wstring
-						PrintFooter(L"发生异常: "s + e);
+						PrintFooter(L"发生异常: "s + e.What());
 					}
 				});
 

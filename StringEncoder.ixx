@@ -12,16 +12,59 @@ export module StringEncoder;
 
 import std;
 
+import Exceptions;
+
 using namespace std;
 
 export namespace NylteJ
 {
-	wstring StrToWStr(string_view str)
+	enum class Encoding
+	{
+		UTF8,
+		GB2312,
+
+		FORCE = 0x114514
+	};
+
+	Encoding GetEncoding(UINT encoding)
+	{
+		using enum Encoding;
+
+		switch (encoding)
+		{
+		case CP_UTF8:
+			return UTF8;
+		case 10008:
+			return GB2312;
+		default:
+			unreachable();
+		}
+	}
+	UINT GetEncoding(Encoding encoding)
+	{
+		using enum Encoding;
+
+		switch (encoding)
+		{
+		case UTF8:
+			return CP_UTF8;
+		case GB2312:
+			return 10008;
+		default:
+			unreachable();
+		}
+	}
+
+	wstring StrToWStr(string_view str, Encoding encoding = Encoding::UTF8, bool force = false)
 	{
 		wstring ret;
 
-		size_t retSize = MultiByteToWideChar(CP_UTF8,
-			NULL,
+		auto encodingUINT = GetEncoding(encoding);
+
+		auto flag = force ? NULL : MB_ERR_INVALID_CHARS;
+
+		size_t retSize = MultiByteToWideChar(encodingUINT,
+			flag,
 			reinterpret_cast<LPCCH>(str.data()),
 			str.size(),
 			nullptr,
@@ -29,12 +72,51 @@ export namespace NylteJ
 
 		ret.resize(retSize);
 
-		MultiByteToWideChar(CP_UTF8,
-			NULL,
+		bool success = MultiByteToWideChar(encodingUINT,
+			flag,
 			reinterpret_cast<LPCCH>(str.data()),
 			str.size(),
 			ret.data(),
 			retSize);
+
+		if (!success && GetLastError() == ERROR_NO_UNICODE_TRANSLATION)
+			throw WrongEncodingException{ L"错误的文件编码!"s };
+
+		return ret;
+	}
+	string WStrToStr(wstring_view str, Encoding encoding = Encoding::UTF8)
+	{
+		string ret;
+
+		auto encodingUINT = GetEncoding(encoding);
+
+		auto flag = WC_ERR_INVALID_CHARS;
+
+		if (encoding == Encoding::GB2312)	// 不然会报 ERROR_INVALID_FLAGS
+			flag = NULL;
+
+		size_t retSize = WideCharToMultiByte(encodingUINT,
+			flag,
+			str.data(),
+			str.size(),
+			nullptr,
+			0,
+			nullptr,
+			NULL);
+
+		ret.resize(retSize);
+
+		bool success = WideCharToMultiByte(encodingUINT,
+			flag,
+			str.data(),
+			str.size(),
+			reinterpret_cast<LPSTR>(ret.data()),
+			ret.size(),
+			nullptr,
+			NULL);
+
+		if (!success && GetLastError() == ERROR_NO_UNICODE_TRANSLATION)
+			throw WrongEncodingException{ L"错误的文件编码!"s };
 
 		return ret;
 	}

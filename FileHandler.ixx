@@ -20,6 +20,7 @@ export namespace NylteJ
 #ifdef _WIN32
 		FileHandlerWindows reader;
 #endif
+		Encoding nowEncoding;
 	public:
 		bool Valid() const
 		{
@@ -38,9 +39,16 @@ export namespace NylteJ
 			reader.CreateFile(filePath);
 		}
 
-		wstring ReadAll() const
+		wstring ReadAll(bool force = false) const
 		{
-			return reader.ReadAll();
+			return reader.ReadAll(nowEncoding, force);
+		}
+		wstring ReadAll(Encoding encoding)
+		{
+			if (encoding != FORCE)
+				nowEncoding = encoding;
+
+			return ReadAll(encoding == FORCE);
 		}
 
 		void CloseFile()
@@ -50,7 +58,14 @@ export namespace NylteJ
 
 		void Write(wstring_view data)
 		{
-			reader.Write(data);
+			reader.Write(data, nowEncoding);
+		}
+		void Write(wstring_view data, Encoding encoding)
+		{
+			if (encoding != FORCE)
+				nowEncoding = encoding;
+
+			Write(data);
 		}
 
 		FileHandler(filesystem::path filePath)

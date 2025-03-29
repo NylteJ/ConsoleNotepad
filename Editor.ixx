@@ -90,10 +90,11 @@ export namespace NylteJ
 			}
 		};
 	private:
-		constexpr static size_t maxUndoStep = 50;
-		constexpr static size_t maxRedoStep = 50;
+		// 撤销 / 重做的步数上限，干脆拉大一点得了
+		constexpr static size_t maxUndoStep = 1024;
+		constexpr static size_t maxRedoStep = 1024;
 
-		constexpr static size_t maxMergeOperationStrLen = 16;	// 最多把多少个字符的变动融合到一步
+		constexpr static size_t maxMergeOperationStrLen = 16;	// 最多把多少个字符的变动融合到一步, 这个其实不适合设太大, 会让手感变得极其难受
 	private:
 		ConsoleHandler& console;
 

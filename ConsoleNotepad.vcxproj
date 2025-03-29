@@ -146,6 +146,7 @@
     <ClCompile Include="ConsoleHandlerWindows.ixx" />
     <ClCompile Include="ConsoleTypedef.ixx" />
     <ClCompile Include="Editor.ixx" />
+    <ClCompile Include="Exceptions.ixx" />
     <ClCompile Include="FileHandler.ixx" />
     <ClCompile Include="FileHandlerWindows.ixx" />
     <ClCompile Include="Formatter.ixx" />
@@ -156,6 +157,7 @@
     <ClCompile Include="UI.ixx" />
     <ClCompile Include="UIHandler.ixx" />
     <ClCompile Include="UnionHandler.ixx" />
+    <ClCompile Include="Utils.ixx" />
     <ClCompile Include="Windows.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

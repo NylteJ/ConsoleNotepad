@@ -288,4 +288,177 @@ export namespace NylteJ
 		{
 		}
 	};
+
+	// 有两个或更多个选项的窗口
+	// 其实还有挺多地方能用上的, 一些技术也能复用到查找 / 替换窗口里
+	// 同样并不能实例化
+	class SelectWindow :public BasicWindow
+	{
+	protected:
+		vector<wstring> choices;
+
+		size_t nowChoose = 0;
+		size_t beginChoice = 0;		// 当窗口太小、选项太多时用来滚动
+
+		wstring_view tipText;
+	private:
+		void PrintChoices()
+		{
+			if (drawRange.Height() < 4)
+				throw invalid_argument{ "窗口太小了! "s };
+
+			for (size_t i = beginChoice; i < choices.size() && (i - beginChoice) + 4 <= drawRange.Height(); i++)
+			{
+				if (i != nowChoose)
+				{
+					console.Print(choices[i], { drawRange.leftTop.x + 1 ,drawRange.leftTop.y + 2 + (i - beginChoice) });
+
+					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
+					if (restLength > 0)
+						console.Print(ranges::views::repeat(L' ', restLength) | ranges::to<wstring>());
+				}
+				else
+				{
+					console.Print(choices[i], { drawRange.leftTop.x + 1 ,drawRange.leftTop.y + 2 + (i - beginChoice) }, BasicColors::inverseColor, BasicColors::inverseColor);
+
+					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
+					if (restLength > 0)
+						console.Print(ranges::views::repeat(L' ', restLength) | ranges::to<wstring>(), BasicColors::inverseColor, BasicColors::inverseColor);
+				}
+			}
+		}
+
+		void ChangeChoose(size_t newChoose)
+		{
+			if (newChoose + 4 > beginChoice + drawRange.Height())
+				beginChoice = newChoose + 4 - drawRange.Height();
+
+			if (newChoose < beginChoice)
+				beginChoice = newChoose;
+
+			nowChoose = newChoose;
+		}
+	public:
+		virtual void ManageChoice(size_t choiceIndex, UnionHandler& handlers) = 0;
+
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			using enum InputHandler::MessageKeyboard::Key;
+
+			switch (message.key)
+			{
+			case Up:
+				if (nowChoose == 0)
+					ChangeChoose(choices.size() - 1);
+				else
+					ChangeChoose(nowChoose - 1);
+
+				PrintChoices();
+				break;
+			case Down:
+				if (nowChoose + 1 == choices.size())
+					ChangeChoose(0);
+				else
+					ChangeChoose(nowChoose + 1);
+
+				PrintChoices();
+				break;
+			case Enter:
+				ManageChoice(nowChoose, handlers);
+				EraseThis(handlers);
+				return;
+			default:
+				return;
+			}
+		}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			if (message.LeftClick() && drawRange.Contain(message.position))
+			{
+				const auto lineIndex = (message.position - drawRange.leftTop).y - 2;	// 前两行分别是边框和提示词
+
+				if (lineIndex >= 0 && lineIndex + beginChoice < choices.size())
+					if (nowChoose != lineIndex + beginChoice)	// 本来就选中了就直接选择了, 否则仅仅只是选中. 换言之鼠标要双击才有用
+						nowChoose = lineIndex + beginChoice;
+					else
+					{
+						ManageChoice(nowChoose, handlers);
+
+						EraseThis(handlers);
+						return;
+					}
+			}
+		}
+
+		void WhenFocused() override
+		{
+			BasicWindow::WhenFocused();
+
+			console.HideCursor();
+
+			console.Print(tipText, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+
+			PrintChoices();
+		}
+
+		SelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const vector<wstring>& choices = {}, wstring_view tipText = L"选择: "sv)
+			:BasicWindow(console, drawRange),
+			choices(choices),
+			tipText(tipText)
+		{
+		}
+	};
+
+	class SaveOrNotWindow :public SelectWindow
+	{
+	private:
+		function<void(size_t)> callback;
+	public:
+		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
+		{
+			if (choiceIndex == 0)	// 保存
+			{
+				if (handlers.file.Valid())
+				{
+					handlers.file.Write(handlers.ui.mainEditor.GetData());
+					callback(choiceIndex);
+				}
+				else
+				{
+					// TODO: 未来再考虑统一吧
+					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange,
+						[callback = this->callback, choiceIndex] {callback(choiceIndex); });
+					// 注意这里只能传值, 因为 callback 被调用时这个 Window 很可能已经被销毁了
+					// 而且必须这样指定, 否则 lambda 只会捕获 this, callback 还是无效, 得这样才会让他复制一份
+
+					handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
+					handlers.ui.GiveFocusTo(window);
+				}
+			}
+			else if (choiceIndex == 1)	// 不保存
+				callback(choiceIndex);
+			else	// 取消, 此时不调用 callback, 效果和按 Esc 应该是一样的
+				return;
+		}
+
+		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
+			:SelectWindow(console, drawRange, {L"保存"s, L"不保存"s, L"取消"s}, L"当前更改未保存. 是否先保存? "sv),
+			callback(callback)
+		{
+		}
+	};
 }

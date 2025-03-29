@@ -53,6 +53,50 @@ export namespace NylteJ
 		{
 			return hash<wstring_view>{}(editor->GetData()) == lastSaveDataHash;
 		}
+
+		void OpenFile()
+		{
+			PrintFooter(L"打开文件......"sv);
+			auto window = make_shared<OpenFileWindow>(handlers.console,
+				ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				bind(&UI::WhenFileOpened, this));
+			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+			uiHandler.GiveFocusTo(window);
+		}
+
+		void NewFile()
+		{
+			editor->SetData(L""sv);
+			editor->ResetCursor();
+
+			handlers.file.CloseFile();
+
+			lastSaveDataHash = hash<wstring_view>{}(L""sv);
+
+			PrintFooter(L"已新建文件!"sv);
+		}
+
+		void AskIfSave(function<void(size_t)> callback)
+		{
+			auto window = make_shared<SaveOrNotWindow>(handlers.console,
+				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				callback);
+			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+			uiHandler.GiveFocusTo(window);
+		}
+		void AskIfSave()
+		{
+			AskIfSave([](size_t) {});	// 不能写成默认参数, 鬼知道为什么, 这就是我们神奇的 MSVC
+		}
+
+		void Exit()
+		{
+			handlers.console.ClearConsole();		// 如果是通过命令行运行的, 那退出时还是有必要清屏的
+			handlers.console.~ConsoleHandler();		// exit 不会调用该析构函数, 但目前的程序架构下这个函数需要被调用 (虽然我感觉这种架构不太合理, 不过可以临时先顶着)
+			exit(0);
+		}
 	public:
 		void PrintTitle(wstring_view extraText = L""sv)
 		{
@@ -133,30 +177,34 @@ export namespace NylteJ
 
 					try
 					{
-						// 先把 Esc 处理掉, 这一步是全局的, 这样就无论如何都不会退不出去了
-						if (message.key != Esc)
-						{
-							lastIsEsc = false;
-							PrintTitle();
-						}
-						else
-						{
-							if (lastIsEsc)
+						if (lastIsEsc)
+							if (message.key != Esc)
 							{
-								handlers.console.ClearConsole();		// 如果是通过命令行运行的, 那退出时还是有必要清屏的
-								handlers.console.~ConsoleHandler();		// exit 不会调用该析构函数, 但目前的程序架构下这个函数需要被调用 (虽然我感觉这种架构不太合理, 不过可以临时先顶着)
-								exit(0);
+								lastIsEsc = false;
+								PrintTitle();
 							}
-							lastIsEsc = true;
-
-							if (IsFileSaved())
-								PrintTitle(L"再按一次 Esc 以退出 (当前内容已保存)"s);
 							else
-								PrintTitle(L"再按一次 Esc 以退出 (当前内容未保存!!! 请使用 Ctrl + S 手动保存)"s);
-						}
+								Exit();
 
 						if (uiHandler.nowFocus == editor)
 						{
+
+							if (message.key == Esc)
+							{
+								lastIsEsc = true;
+
+								if (IsFileSaved())
+									PrintTitle(L"再按一次 Esc 以退出 (当前内容已保存)"s);
+								else
+								{
+									PrintTitle(L"再按一次 Esc 以强制退出 (当前内容未保存!!!)"s);
+
+									AskIfSave([&](size_t) {Exit(); });
+
+									return;		// 拦截掉此次 Esc, 不然弹出的窗口会直接趋势
+								}
+							}
+
 							if (message.extraKeys.Ctrl())
 							{
 								if (message.key == S)
@@ -181,34 +229,19 @@ export namespace NylteJ
 								{
 									if (!IsFileSaved())
 									{
-										PrintFooter(L"当前文件未保存, 请先保存 (未来会支持自主选择不保存退出的, 咕咕咕)"sv);
-										return;		// TODO
+										AskIfSave([&](size_t index){OpenFile();});
+										return;
 									}
-
-									PrintFooter(L"打开文件......"sv);
-									auto window = make_shared<OpenFileWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
-										bind(&UI::WhenFileOpened, this));
-									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
-									uiHandler.GiveFocusTo(window);
+									OpenFile();
 								}
 								else if (message.key == N)
 								{
 									if (!IsFileSaved())
 									{
-										PrintFooter(L"当前文件未保存, 请先保存 (未来会支持自主选择不保存退出的, 咕咕咕)"sv);
-										return;		// TODO
+										AskIfSave([&](size_t index) {NewFile(); });
+										return;
 									}
-
-									editor->SetData(L""sv);
-									editor->ResetCursor();
-
-									fileHandler.CloseFile();
-
-									lastSaveDataHash = hash<wstring_view>{}(L""sv);
-
-									PrintFooter(L"已新建文件!"sv);
+									NewFile();
 								}
 								else
 									PrintFooter();

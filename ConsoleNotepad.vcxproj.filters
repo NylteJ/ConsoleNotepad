@@ -75,9 +75,6 @@
     <ClCompile Include="ClipboardHandlerWindows.ixx">
       <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
     </ClCompile>
-    <ClCompile Include="Windows.ixx">
-      <Filter>头文件</Filter>
-    </ClCompile>
     <ClCompile Include="UIComponent.ixx">
       <Filter>头文件\Interfaces</Filter>
     </ClCompile>
@@ -89,6 +86,9 @@
     </ClCompile>
     <ClCompile Include="StringEncoder.ixx">
       <Filter>头文件\PlatformRelated</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows.ixx">
+      <Filter>头文件\UI</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

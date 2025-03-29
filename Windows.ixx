@@ -12,6 +12,9 @@ import BasicColors;
 import InputHandler;
 import UIComponent;
 
+import StringEncoder;
+import Exceptions;
+
 import Editor;
 
 using namespace std;
@@ -258,20 +261,15 @@ export namespace NylteJ
 	class OpenFileWindow :public FilePathWindow
 	{
 	private:
+		Encoding encoding;
+
 		function<void()> callback;
 	public:
-		void ManagePath(wstring_view path, UnionHandler& handlers) override
-		{
-			handlers.file.OpenFile(path);
+		void ManagePath(wstring_view path, UnionHandler& handlers) override;	// 要用到后面的 EncodingSelectWindow, 没办法
 
-			handlers.ui.mainEditor.SetData(handlers.file.ReadAll());
-			handlers.ui.mainEditor.ResetCursor();
-
-			callback();
-		}
-
-		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void()> callback = [] {})
+		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, Encoding encoding, function<void()> callback = [] {})
 			:FilePathWindow(console, drawRange, L"打开文件: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
+			encoding(encoding),
 			callback(callback)
 		{
 		}
@@ -469,6 +467,79 @@ export namespace NylteJ
 		{
 		}
 	};
+
+	class EncodingSelectWindow :public SelectWindow
+	{
+	private:
+		function<void(Encoding)> callback;
+	public:
+		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
+		{
+			if (choiceIndex + 1 == choices.size())	// 取消
+				return;
+			if (choiceIndex + 2 == choices.size())	// 强制打开
+			{
+				callback(FORCE);
+				return;
+			}
+
+			using enum Encoding;
+
+			switch (choiceIndex)
+			{
+			case 0:		// UTF-8
+				callback(UTF8);
+				return;
+			case 1:		// GB 2312
+				callback(GB2312);
+				return;
+			default:
+				unreachable();
+			}
+		}
+
+		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, wstring_view tip = L"手动选择文件编码: "sv)
+			:SelectWindow(console, drawRange, { L"UTF-8 (默认)"s, L"GB 2312"s, L"强制打开 (极易出 bug)"s,L"取消"s}, tip),
+			callback(callback)
+		{
+		}
+	};
+
+	void OpenFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
+	{
+		try
+		{
+			handlers.file.OpenFile(path);
+
+			handlers.ui.mainEditor.SetData(handlers.file.ReadAll(encoding));
+			handlers.ui.mainEditor.ResetCursor();
+
+			callback();
+		}
+		catch (WrongEncodingException&)
+		{
+			auto window = make_shared<EncodingSelectWindow>(handlers.console,
+				ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				[path = ranges::to<wstring>(path),
+				callback = this->callback,
+				&file = handlers.file,
+				&mainEditor = handlers.ui.mainEditor]
+				(Encoding x) mutable
+				{
+					file.OpenFile(path);
+
+					mainEditor.SetData(file.ReadAll(x));
+					mainEditor.ResetCursor();
+
+					callback();
+				},
+				L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "sv);
+			handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
+			handlers.ui.GiveFocusTo(window);
+		}
+	}
+
 
 	class FindWindow :public BasicWindow
 	{

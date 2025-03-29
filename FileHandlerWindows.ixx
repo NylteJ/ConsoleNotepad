@@ -6,6 +6,9 @@ export module FileHandlerWindows;
 
 import std;
 
+import StringEncoder;
+import Exceptions;
+
 using namespace std;
 
 export namespace NylteJ
@@ -42,7 +45,7 @@ export namespace NylteJ
 			OpenFileReal(filePath, OPEN_EXISTING);
 
 			if (!Valid())		// 文件没能打开, 继续运行下去也没意义, 直接 throw
-				throw L"文件打开失败! 请检查文件名和访问权限!"s;
+				throw FileOpenFailedException{ L"文件打开失败! 请检查文件名和访问权限!"s };
 		}
 
 #pragma push_macro("CreateFile")
@@ -53,11 +56,11 @@ export namespace NylteJ
 			OpenFileReal(filePath, CREATE_NEW);
 
 			if (!Valid())
-				throw L"文件创建失败! 请检查文件是否已存在、路径是否合法以及有无访问权限!"s;
+				throw FileOpenFailedException{ L"文件创建失败! 请检查文件是否已存在、路径是否合法以及有无访问权限!"s };
 		}
 #pragma pop_macro("CreateFile")
 
-		wstring ReadAll() const
+		wstring ReadAll(Encoding encoding, bool force = false) const
 		{
 			if (!Valid())
 				return L""s;
@@ -67,7 +70,7 @@ export namespace NylteJ
 
 			long long fileSizeByte = fileSize.QuadPart;
 
-			vector<std::byte> buffer;
+			string buffer;
 
 			if (fileSizeByte >= 1024LL * 1024LL * 1024LL)	// 1GB
 				throw "TODO: Large File Input";
@@ -76,27 +79,9 @@ export namespace NylteJ
 
 			DWORD temp;
 
-			ReadFile(fileHandle, buffer.data(), buffer.size(), &temp, NULL);
+			ReadFile(fileHandle, buffer.data(), buffer.size() * sizeof(buffer[0]), &temp, NULL);
 
-			wstring ret;
-
-			size_t retSize = MultiByteToWideChar(CP_UTF8,
-				NULL,
-				reinterpret_cast<LPCCH>(buffer.data()),
-				buffer.size(),
-				nullptr,
-				0);
-
-			ret.resize(retSize);
-
-			MultiByteToWideChar(CP_UTF8,
-				NULL,
-				reinterpret_cast<LPCCH>(buffer.data()),
-				buffer.size(),
-				ret.data(),
-				retSize);
-
-			return ret;
+			return StrToWStr(buffer, encoding, force);
 		}
 
 		void CloseFile()
@@ -108,37 +93,17 @@ export namespace NylteJ
 			}
 		}
 
-		void Write(wstring_view data)
+		void Write(wstring_view data, Encoding encoding)
 		{
 			if (!Valid())
 				return;
 
-			size_t bufSize = WideCharToMultiByte(CP_UTF8,
-				NULL,
-				data.data(),
-				data.size(),
-				nullptr,
-				0,
-				nullptr,
-				NULL);
-
-			vector<std::byte> buffer;
-
-			buffer.resize(bufSize);
-
-			WideCharToMultiByte(CP_UTF8,
-				NULL,
-				data.data(),
-				data.size(),
-				reinterpret_cast<LPSTR>(buffer.data()),
-				buffer.size(),
-				nullptr,
-				NULL);
-
 			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
 
+			string buffer = WStrToStr(data, encoding);
+
 			DWORD temp;
-			WriteFile(fileHandle, buffer.data(), buffer.size(), &temp, NULL);
+			WriteFile(fileHandle, buffer.data(), buffer.size()*sizeof(buffer[0]), &temp, NULL);
 
 			SetEndOfFile(fileHandle);	// 以上只是单纯的覆写, 如果新文件长度短于原文件长度, 后面的部分会保留, 所以要截断
 

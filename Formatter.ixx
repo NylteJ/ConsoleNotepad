@@ -8,6 +8,7 @@ export module Formatter;
 import std;
 
 import ConsoleTypedef;
+import Utils;
 
 using namespace std;
 
@@ -25,7 +26,7 @@ export namespace NylteJ
 		public:
 			size_t DisplaySize() const
 			{
-				auto doubleLengthCount = ranges::count_if(lineData, [](auto&& chr) {return chr > 128; });
+				auto doubleLengthCount = ranges::count_if(lineData, IsWideChar);
 
 				return doubleLengthCount + lineData.size();
 			}
@@ -101,7 +102,7 @@ export namespace NylteJ
 	{
 		size_t GetDisplaySize(wstring_view str) const
 		{
-			return str.size() + ranges::count_if(str, [](auto&& chr) {return chr > 128; });
+			return str.size() + ranges::count_if(str, IsWideChar);
 		}
 		size_t GetRawDisplaySize(wstring_view str) const
 		{
@@ -111,7 +112,7 @@ export namespace NylteJ
 			{
 				if (chr == '\t')
 					nowSize = nowSize / 4 * 4 + 4;
-				else if (chr >= 128)
+				else if (IsWideChar(chr))
 					nowSize += 2;
 				else if (chr != '\n' && chr != '\r')
 					nowSize++;
@@ -193,7 +194,7 @@ export namespace NylteJ
 					else
 						nowIndex++;
 
-					if (str[nowIndex - 1] >= 128)
+					if (IsWideChar(str[nowIndex - 1]))
 						doubleLengthCharCount++;
 				}
 
@@ -239,7 +240,7 @@ export namespace NylteJ
 							nowRawIndex++;
 							pos.x += 4 - pos.x % 4;
 						}
-						else if (formattedStr.rawStr[nowRawIndex] > 128)
+						else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
 						{
 							nowRawIndex++;
 							pos.x += 2;
@@ -277,7 +278,7 @@ export namespace NylteJ
 					nowRawIndex++;
 					nowX += 4 - nowX % 4;
 				}
-				else if (formattedStr.rawStr[nowRawIndex] > 128)
+				else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
 				{
 					nowRawIndex++;
 					nowX += 2;
@@ -304,7 +305,7 @@ export namespace NylteJ
 
 			while (nowX < pos.x)
 			{
-				if (formattedStr[nowFormattedIndex] > 128)
+				if (IsWideChar(formattedStr[nowFormattedIndex]))
 				{
 					nowFormattedIndex++;
 					nowX += 2;
@@ -363,7 +364,7 @@ export namespace NylteJ
 			if (pos.x + formattedStr.beginX > 0)
 			{
 				auto nowRawIndex = GetRawIndex(formattedStr, pos);
-				if (formattedStr.rawStr[nowRawIndex - 1] > 128
+				if (IsWideChar(formattedStr.rawStr[nowRawIndex - 1])
 					&& (allowFlow || pos.x < formattedStr[pos.y].DisplaySize())
 					&& nowRawIndex == GetRawIndex(formattedStr, pos + ConsolePosition{ 1, 0 }))
 					if (direction == Right)

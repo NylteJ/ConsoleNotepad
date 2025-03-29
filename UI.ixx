@@ -164,9 +164,9 @@ export namespace NylteJ
 					PrintTitle();
 					PrintFooter();
 
-					editor->PrintData();
+					editor->WhenFocused();
 
-					uiHandler.Refocus();
+					uiHandler.GiveFocusTo(uiHandler.nowFocus);
 
 					uiHandler.nowFocus->ManageInput(message, handlers);
 				});
@@ -243,6 +243,14 @@ export namespace NylteJ
 									}
 									NewFile();
 								}
+								else if (message.key == F)	// 查找也放到 UI 里了, 因为弹出的查找框里也有 Editor, 查找功能放到 Editor 里会循环依赖. 而且也只有最外层的 Editor 需要进行查找
+								{
+									auto window = make_shared<FindWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
+														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} });
+									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+									uiHandler.GiveFocusTo(window);
+								}
 								else
 									PrintFooter();
 							}
@@ -279,7 +287,7 @@ export namespace NylteJ
 					uiHandler.nowFocus->ManageInput(message, handlers);
 				});
 
-			uiHandler.Refocus();
+			uiHandler.GiveFocusTo(uiHandler.nowFocus);
 		}
 	};
 }

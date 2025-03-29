@@ -77,6 +77,10 @@ export namespace NylteJ
 		{
 			PrintFrame();
 		}
+		void WhenRefocused() override
+		{
+			console.HideCursor();
+		}
 
 		BasicWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
 			:console(console),
@@ -233,6 +237,10 @@ export namespace NylteJ
 				console.Print(tipText, { drawRange.leftTop.x + 1,drawRange.leftTop.y });
 
 			editor.WhenFocused();
+		}
+		void WhenRefocused() override
+		{
+			editor.WhenRefocused();
 		}
 
 		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring_view tipText = L"输入路径 (按 Tab 自动补全, 按回车确认): "sv)
@@ -459,6 +467,206 @@ export namespace NylteJ
 			:SelectWindow(console, drawRange, {L"保存"s, L"不保存"s, L"取消"s}, L"当前更改未保存. 是否先保存? "sv),
 			callback(callback)
 		{
+		}
+	};
+
+	class FindWindow :public BasicWindow
+	{
+	private:
+		constexpr static wstring_view tipText1 = L"查找: 按回车查找, 用方向键切换对象."sv;
+		constexpr static wstring_view tipText2 = L"请使用 \\n, \\r 来代指回车和换行."sv;
+		constexpr static wstring_view tipText3 = L"目前仅支持完全、非全字、非正则匹配."sv;
+	private:
+		Editor findEditor;
+
+		vector<size_t> allFindedIndexs;
+
+		size_t nowFindedIndexID = 0;
+
+		wstring lastFindText = L""s;
+	private:
+		void PrintWindow()
+		{
+			console.Print(tipText1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+			if (drawRange.Height() >= 5)
+				console.Print(tipText2, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
+			if (drawRange.Height() >= 6)
+				console.Print(tipText3, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
+		}
+
+		void MoveMainEditorPos(UnionHandler& handlers)
+		{
+			if (nowFindedIndexID < allFindedIndexs.size())
+			{
+				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+
+				WhenFocused();
+			}
+			else if (allFindedIndexs.empty())
+			{
+				handlers.ui.mainEditor.ResetCursor();
+				WhenFocused();
+			}
+		}
+
+		wstring GetNowFindText()
+		{
+			wstring stringToFind = findEditor.GetData() | ranges::to<wstring>();
+
+			size_t pos = 0;
+			while ((pos = stringToFind.find(L"\\n"sv, pos)) != string::npos)
+			{
+				stringToFind.replace(pos, L"\\n"sv.size(), L"\n"sv);
+				pos += L"\n"sv.size();
+			}
+
+			pos = 0;
+			while ((pos = stringToFind.find(L"\\r"sv, pos)) != string::npos)
+			{
+				stringToFind.replace(pos, L"\\r"sv.size(), L"\r"sv);
+				pos += L"\r"sv.size();
+			}
+
+			return stringToFind;
+		}
+
+		void ReFindAll(UnionHandler& handlers)
+		{
+			allFindedIndexs.clear();
+
+			wstring stringToFind = GetNowFindText();
+			wstring_view stringAll = handlers.ui.mainEditor.GetData();
+
+			lastFindText = stringToFind;
+
+			// BMH 应该在这里比 BM 更适合一点?
+			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end() };
+
+			auto iter = stringAll.begin();
+
+			while (true)
+			{
+				iter = search(iter, stringAll.end(), searcher);
+
+				if (iter == stringAll.end())
+					break;
+				
+				allFindedIndexs.emplace_back(iter - stringAll.begin());
+
+				++iter;
+			}
+
+			nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+
+		void FindNext(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			nowFindedIndexID++;
+
+			if (nowFindedIndexID == allFindedIndexs.size())
+				nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+		void FindPrev(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			nowFindedIndexID--;
+
+			if (nowFindedIndexID == -1)
+				nowFindedIndexID = allFindedIndexs.size() - 1;
+
+			MoveMainEditorPos(handlers);
+		}
+	public:
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			using enum InputHandler::MessageKeyboard::Key;
+
+			if (message.key == Enter)
+			{
+				if (GetNowFindText() != lastFindText)
+					ReFindAll(handlers);
+				else
+					FindNext(handlers);
+
+				return;
+			}
+			else if (message.key == Up)
+			{
+				if (GetNowFindText() == lastFindText)
+					FindPrev(handlers);
+
+				return;
+			}
+			else if (message.key == Down)
+			{
+				if (GetNowFindText() == lastFindText)
+					FindNext(handlers);
+
+				return;
+			}
+
+			findEditor.ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			if ((message.LeftClick() || message.RightClick())
+				&& !drawRange.Contain(message.position))
+			{
+				EraseThis(handlers);	// TODO: 改成可恢复的失焦, 而不是直接关掉
+
+				handlers.ui.mainEditor.ManageInput(message, handlers);
+				return;
+			}
+
+			findEditor.ManageInput(message, handlers);
+		}
+
+		void WhenFocused() override
+		{
+			BasicWindow::WhenFocused();
+
+			PrintWindow();
+
+			findEditor.WhenFocused();
+		}
+		void WhenRefocused() override
+		{
+			BasicWindow::WhenRefocused();
+
+			findEditor.WhenRefocused();
+		}
+
+		FindWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
+			:BasicWindow(console, drawRange),
+			findEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 2},
+										{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 2} })
+		{
+			if (drawRange.Height() >= 5)
+				findEditor.ChangeDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} });
 		}
 	};
 }

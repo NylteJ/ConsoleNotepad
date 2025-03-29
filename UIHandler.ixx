@@ -42,7 +42,7 @@ export namespace NylteJ
 		void Refocus()
 		{
 			if (nowFocus != nullptr)
-				nowFocus->WhenFocused();
+				nowFocus->WhenRefocused();
 		}
 
 		void EraseComponent(auto&& compontentPtr)

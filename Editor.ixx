@@ -647,6 +647,23 @@ export namespace NylteJ
 			PrintData();
 		}
 
+		void MoveCursorToIndex(size_t from, size_t to)
+		{
+			cursorIndex = (from + to) / 2;	// 神人解决方案 TODO: 想一个不那么神人的
+
+			ChangeBeginX(cursorIndex);
+			ScrollToIndex(cursorIndex);
+
+			auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+
+			SetCursorPos(formatter->RestrictPos(formattedStr, formatter->GetFormattedPos(formattedStr, cursorIndex - fileDataIndex), None));
+
+			selectBeginIndex = from;
+			selectEndIndex = cursorIndex = to;
+
+			PrintData();
+		}
+
 		void MoveCursorToEnd()
 		{
 			if (fileData.empty())
@@ -811,6 +828,11 @@ export namespace NylteJ
 		void WhenFocused() override
 		{
 			PrintData();
+		}
+
+		void WhenRefocused() override
+		{
+			FlushCursor();
 		}
 
 		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())

@@ -35,6 +35,8 @@ export namespace NylteJ
 			:str(str)
 		{
 		}
+
+		virtual ~Exception() = default;
 	};
 
 #define ExceptionGener(name) class name :public Exception { public: name(auto&& str) :Exception(str) {} };

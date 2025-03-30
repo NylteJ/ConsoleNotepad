@@ -28,6 +28,8 @@ export namespace NylteJ
 		{
 			WhenFocused();
 		}
+
+		virtual ~UIComponent() = default;
 	};
 
 	using UnionHandler = UnionHandlerInterface<shared_ptr<UIComponent>>;

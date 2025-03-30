@@ -184,11 +184,11 @@ export namespace NylteJ
 			ClipboardHandler& clipboardHandler,
 			const wstring& title = L"ConsoleNotepad ver. 0.8     made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler),
-			title(title),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
 																				  handlers.console.GetConsoleSize().height - 2 } })),
-			uiHandler(*editor)
+			uiHandler(*editor),
+			title(title)
 		{
 			uiHandler.GiveFocusTo(editor);
 
@@ -201,7 +201,16 @@ export namespace NylteJ
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message)
 				{
-					editor->ChangeDrawRange({ {0,1},{message.newSize.width - 1,message.newSize.height - 2} });
+					// 貌似老式的 conhost 有蜜汁兼容问题, 有时会返回控制台有 9001 行......
+					// 但是直接 handlers.console.GetConsoleSize() 返回的又是正常的.
+					// 这里先用一个 dirty 点的解决方案吧
+					// 顺便一提老式的 conhost 需要拉左右边框才会触发这个事件, 拉上下边框是不触发的, 很迷
+					InputHandler::MessageWindowSizeChanged newMessage = message;
+
+					if (newMessage.newSize.height >= 1000)
+						newMessage.newSize = handlers.console.GetConsoleSize();
+					
+					editor->ChangeDrawRange({ {0,1},{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
 
 					lastIsEsc = false;
 
@@ -212,7 +221,7 @@ export namespace NylteJ
 
 					uiHandler.GiveFocusTo(uiHandler.nowFocus);
 
-					uiHandler.nowFocus->ManageInput(message, handlers);
+					uiHandler.nowFocus->ManageInput(newMessage, handlers);
 				});
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message)
@@ -320,6 +329,10 @@ export namespace NylteJ
 					catch (Exception& e)
 					{
 						PrintFooter(L"发生异常: "s + e.What());
+					}
+					catch (exception& e)
+					{
+						PrintFooter(L"发生异常: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// 这里不能再抛异常了, 不然 terminate 了
 					}
 				});
 

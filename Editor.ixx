@@ -61,7 +61,7 @@ export namespace NylteJ
 				return ret;
 			}
 
-			void DoOperation(Editor& editor)
+			void DoOperation(Editor& editor) const
 			{
 				// 这里无需调用 SetCursorPos 或 ScrollToIndex 等, 后面 Erase / Insert 会调用的
 
@@ -172,7 +172,7 @@ export namespace NylteJ
 			}
 			if (distToBegin + 1 > beginX + drawRange.Width())
 			{
-				beginX = distToBegin - drawRange.Width() + 1;
+				beginX = distToBegin + 1 - drawRange.Width();
 				return true;
 			}
 			return false;
@@ -290,7 +290,6 @@ export namespace NylteJ
 
 				nowCursorPos.y++;
 			}
-			// 貌似老式的 conhost 有蜜汁兼容问题, 有时会返回控制台有 9001 行......导致这里会出问题, 不过后面再调整好了 (反正这不是核心功能)
 
 			FlushCursor();		// 不加这个的话打字的时候光标有时会乱闪
 		}
@@ -299,9 +298,9 @@ export namespace NylteJ
 		{
 			return drawRange;
 		}
-		void ChangeDrawRange(const ConsoleRect& drawRange)
+		void ChangeDrawRange(const ConsoleRect& newDrawRange)
 		{
-			this->drawRange = drawRange;
+			drawRange = newDrawRange;
 		}
 
 		wstring_view GetData() const
@@ -504,15 +503,7 @@ export namespace NylteJ
 
 			fileData.insert_range(fileData.begin() + cursorIndex, str);
 
-			SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), cursorIndex - fileDataIndex));
-
-			PrintData();
-
-			if (str.size() > 1)
-				SetCursorPos(cursorPos + ConsolePosition{ formatter->GetDisplaySize(wstring_view{str.begin(),str.end() - 1}), 0 });
-			MoveCursor(Direction::Right);
-
-			FlushCursor();
+			MoveCursorToIndex(cursorIndex + str.size(), cursorIndex + str.size());
 		}
 
 		// 基于当前光标/选区位置删除 (等价于按一下 Backspace)
@@ -628,7 +619,7 @@ export namespace NylteJ
 		{
 			if (beginX < -line)
 			{
-				cursorPos.x -= beginX;
+				cursorPos.x += beginX;
 				beginX = 0;
 			}
 			else
@@ -753,6 +744,7 @@ export namespace NylteJ
 					Erase();
 				console.ShowCursor();
 			}
+				return;
 			case Esc:
 				return;
 			case Home:

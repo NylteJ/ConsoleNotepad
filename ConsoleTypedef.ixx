@@ -43,7 +43,7 @@ export namespace NylteJ
 		bool operator==(const ConsolePosition& right) const = default;
 
 		ConsolePosition(auto&& x, auto&& y)
-			:x(x), y(y)
+			:x(static_cast<ConsoleXPos>(x)), y(static_cast<ConsoleYPos>(y))
 		{
 		}
 	};

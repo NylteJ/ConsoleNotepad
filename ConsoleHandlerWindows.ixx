@@ -84,7 +84,7 @@ export namespace NylteJ
 
 		void SetCursorTo(ConsolePosition pos) const
 		{
-			SetConsoleCursorPosition(consoleOutputHandle, { .X = static_cast<short>(pos.x),.Y = static_cast<short>(pos.y) });
+			SetConsoleCursorPosition(consoleOutputHandle, { .X = static_cast<SHORT>(pos.x),.Y = static_cast<SHORT>(pos.y) });
 		}
 
 		// 复制粘贴领域大神

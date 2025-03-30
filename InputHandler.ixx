@@ -144,11 +144,11 @@ export namespace NylteJ
 			}
 			bool LeftClick() const
 			{
-				return buttonStatus[0] && type == Type::Clicked;
+				return buttonStatus[0] && (type == Type::Clicked || type == Type::DoubleClicked);
 			}
 			bool RightClick() const
 			{
-				return buttonStatus[1] && type == Type::Clicked;
+				return buttonStatus[1] && (type == Type::Clicked || type == Type::DoubleClicked);	// 第二次点击被标记为双击而非单击
 			}
 
 			int WheelMove() const

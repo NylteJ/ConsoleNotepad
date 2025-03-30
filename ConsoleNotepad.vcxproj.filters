@@ -96,5 +96,8 @@
     <ClCompile Include="Utils.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
+    <ClCompile Include="ConsoleArgumentsAnalyzer.ixx">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

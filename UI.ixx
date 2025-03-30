@@ -40,15 +40,18 @@ export namespace NylteJ
 
 		chrono::time_point<chrono::steady_clock> lastSaveTime = chrono::steady_clock::now();
 	private:
-		void WhenFileSaved()
+		void WhenFileSaved(bool reSave = false)
 		{
 			size_t nowDataHash = hash<wstring_view>{}(editor->GetData());
 
-			if (nowDataHash != lastSaveDataHash)
+			if (reSave || nowDataHash != lastSaveDataHash)
 			{
 				lastSaveDataHash = nowDataHash;
 				lastSaveTime = chrono::steady_clock::now();
-				PrintFooter(L"已保存! "sv);
+
+				wstring filename = handlers.file.nowFilePath.filename();
+
+				PrintFooter(format(L"已保存到 {} !"sv, filename));
 			}
 		}
 		void WhenFileOpened()
@@ -56,9 +59,13 @@ export namespace NylteJ
 			lastSaveDataHash = hash<wstring_view>{}(editor->GetData());
 			lastSaveTime = chrono::steady_clock::now();
 
-			autoSaveFile.CreateFile(handlers.file.nowFilePath.concat(L".autosave"sv), true);
+			wstring filename = handlers.file.nowFilePath.filename();
 
-			PrintFooter(L"已打开! "sv);
+			auto tempPath = handlers.file.nowFilePath;
+
+			autoSaveFile.CreateFile(tempPath.concat(L".autosave"sv), true);		// concat 会改变原 path
+
+			PrintFooter(format(L"已打开 {} !"sv, filename));
 		}
 
 		bool IsFileSaved()
@@ -145,12 +152,6 @@ export namespace NylteJ
 		{
 			handlers.console.HideCursor();
 
-			handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width) | ranges::to<wstring>(),
-									{ 0,handlers.console.GetConsoleSize().height - 1 },
-									BasicColors::black, BasicColors::yellow);
-
-			handlers.console.Print(extraText, { 0,handlers.console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
-
 			wstring rightText;
 			if (chrono::steady_clock::now() - lastSaveTime >= 1min)
 				rightText = format(L"上次保存: {} 前. 自动保存周期: {}"sv,
@@ -167,6 +168,12 @@ export namespace NylteJ
 					rightTextLen += 2;
 				else
 					rightTextLen++;
+
+			handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen) | ranges::to<wstring>(),
+									{ 0,handlers.console.GetConsoleSize().height - 1 },
+									BasicColors::black, BasicColors::yellow);
+
+			handlers.console.Print(extraText, { 0,handlers.console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
 
 			if (rightTextLen <= handlers.console.GetConsoleSize().width)
 				handlers.console.Print(rightText,
@@ -271,7 +278,7 @@ export namespace NylteJ
 										auto window = make_shared<SaveFileWindow>(handlers.console,
 											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
-											bind(&UI::WhenFileSaved, this));
+											bind(&UI::WhenFileSaved, this, true));
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
@@ -340,21 +347,46 @@ export namespace NylteJ
 				{
 					using enum InputHandler::MessageMouse::Type;
 
-					if (message.buttonStatus.any() || message.WheelMove() != 0)
+					try
 					{
-						PrintFooter();
-
-						if (lastIsEsc)
+						if (message.LeftClick() || message.RightClick() || message.WheelMove() != 0)
 						{
-							lastIsEsc = false;
-							PrintTitle();
-						}
-					}
+							PrintFooter();
 
-					uiHandler.nowFocus->ManageInput(message, handlers);
+							if (lastIsEsc)
+							{
+								lastIsEsc = false;
+								PrintTitle();
+							}
+						}
+
+						uiHandler.nowFocus->ManageInput(message, handlers);
+					}
+					catch (Exception& e)
+					{
+						PrintFooter(L"发生异常: "s + e.What());
+					}
+					catch (exception& e)
+					{
+						PrintFooter(L"发生异常: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// 这里不能再抛异常了, 不然 terminate 了
+					}
 				});
 
-			NewFile();
+			if (handlers.file.Valid())
+			{
+				try
+				{
+					editor->SetData(handlers.file.ReadAll());
+					WhenFileOpened();
+				}
+				catch (WrongEncodingException&)
+				{
+					NewFile();
+					PrintFooter(L"编码错误, 文件没能打开, 已自动新建文件!"sv);
+				}
+			}
+			else
+				NewFile();
 
 			uiHandler.GiveFocusTo(uiHandler.nowFocus);
 		}

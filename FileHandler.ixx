@@ -20,9 +20,10 @@ export namespace NylteJ
 #ifdef _WIN32
 		FileHandlerWindows reader;
 #endif
-		Encoding nowEncoding;
 	public:
 		filesystem::path nowFilePath;
+
+		Encoding nowEncoding;
 
 		bool isTempFile;
 	public:

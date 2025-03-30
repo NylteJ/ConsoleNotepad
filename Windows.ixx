@@ -91,6 +91,8 @@ export namespace NylteJ
 			drawRange(drawRange)
 		{
 		}
+
+		virtual ~BasicWindow() = default;
 	};
 
 	// 选择打开 / 保存路径的共有部分

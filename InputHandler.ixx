@@ -35,7 +35,7 @@ export namespace NylteJ
 		class MessageKeyboard
 		{
 		public:
-			enum class Key :char
+			enum class Key
 			{
 				Num0 = '0',
 				Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,

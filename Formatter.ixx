@@ -96,6 +96,8 @@ export namespace NylteJ
 
 		virtual size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const = 0;
 		virtual size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const = 0;
+
+		virtual ~FormatterBase() = default;
 	};
 
 	class DefaultFormatter :public FormatterBase
@@ -152,7 +154,6 @@ export namespace NylteJ
 			{
 				size_t beginIndex = -1;
 
-				size_t rawSize = str.size();
 				size_t doubleLengthCharCount = 0, beforeBeginDoubleLenCharCount = 0;	// beforeBeginDoubleLenCharCount 仅用于对齐 Tab
 				size_t nowIndex = 0;
 				for (; nowIndex < str.size();)

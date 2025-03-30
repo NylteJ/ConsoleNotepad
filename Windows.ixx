@@ -279,14 +279,7 @@ export namespace NylteJ
 	private:
 		function<void()> callback;
 	public:
-		void ManagePath(wstring_view path, UnionHandler& handlers) override
-		{
-			handlers.file.CreateFile(path);
-
-			handlers.file.Write(handlers.ui.mainEditor.GetData());
-
-			callback();
-		}
+		void ManagePath(wstring_view path, UnionHandler& handlers) override;
 
 		SaveFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void()> callback = [] {})
 			:FilePathWindow(console, drawRange, L"保存到: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
@@ -505,6 +498,29 @@ export namespace NylteJ
 		}
 	};
 
+	class OverrideOrNotWindow :public SelectWindow
+	{
+	private:
+		function<void(size_t)> doOverride;
+	public:
+		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
+		{
+			if (choiceIndex == 0)	// 覆盖
+				doOverride(choiceIndex);
+			else	// 取消, 此时不调用 callback, 效果和按 Esc 应该是一样的
+				return;
+			// TODO: 理论上这里取消后应当回到原窗口, 但代码不好改
+		}
+
+		OverrideOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> doOverride = [](size_t) {})
+			:SelectWindow(console, drawRange, { L"覆盖"s, L"取消"s }, L"文件已存在. 是否覆盖? "sv),
+			doOverride(doOverride)
+		{
+			nowChoose = 1;	// 默认不覆盖
+		}
+	};
+
+
 	void OpenFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
 	{
 		try
@@ -537,6 +553,39 @@ export namespace NylteJ
 				L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "sv);
 			handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
 			handlers.ui.GiveFocusTo(window);
+		}
+	}
+	void SaveFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
+	{
+		{
+			try
+			{
+				handlers.file.CreateFile(path);
+
+				handlers.file.Write(handlers.ui.mainEditor.GetData());
+
+				callback();
+			}
+			catch (FileOpenFailedException&)
+			{
+				auto window = make_shared<OverrideOrNotWindow>(handlers.console,
+					ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+									{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+					[callback = this->callback,
+					&file = handlers.file,
+					path = path | ranges::to<wstring>(),
+					&mainEditor = handlers.ui.mainEditor]
+					(size_t)
+					{
+						file.CreateFile(path, true);
+
+						file.Write(mainEditor.GetData());
+
+						callback();
+					});
+				handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
+				handlers.ui.GiveFocusTo(window);
+			}
 		}
 	}
 

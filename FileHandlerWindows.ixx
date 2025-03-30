@@ -51,9 +51,11 @@ export namespace NylteJ
 #pragma push_macro("CreateFile")
 #undef CreateFile
 		// 实际上做的还是 OpenFile 的活, 只是会在文件不存在时创建、在文件存在时报错
-		void CreateFile(filesystem::path filePath)
+		void CreateFile(filesystem::path filePath, bool allowOverride = false)
 		{
-			OpenFileReal(filePath, CREATE_NEW);
+			auto flag = allowOverride ? CREATE_ALWAYS : CREATE_NEW;
+
+			OpenFileReal(filePath, flag);
 
 			if (!Valid())
 				throw FileOpenFailedException{ L"文件创建失败! 请检查文件是否已存在、路径是否合法以及有无访问权限!"s };

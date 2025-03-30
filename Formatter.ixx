@@ -338,7 +338,8 @@ export namespace NylteJ
 				pos.x = formattedStr[pos.y].DisplaySize();
 
 			// 限制到与制表符对齐
-			if ((pos.x + formattedStr.beginX) % 4 != 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
+			if ((pos.x + formattedStr.beginX) % 4 != 0
+				&& GetRawIndex(formattedStr, pos) > 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
 			{
 				const auto nowRawIndex = GetRawIndex(formattedStr, pos);
 
@@ -364,7 +365,7 @@ export namespace NylteJ
 			if (pos.x + formattedStr.beginX > 0)
 			{
 				auto nowRawIndex = GetRawIndex(formattedStr, pos);
-				if (IsWideChar(formattedStr.rawStr[nowRawIndex - 1])
+				if (nowRawIndex > 0 && IsWideChar(formattedStr.rawStr[nowRawIndex - 1])
 					&& (allowFlow || pos.x < formattedStr[pos.y].DisplaySize())
 					&& nowRawIndex == GetRawIndex(formattedStr, pos + ConsolePosition{ 1, 0 }))
 					if (direction == Right)

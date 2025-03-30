@@ -24,7 +24,11 @@ export namespace NylteJ
 	class UI
 	{
 	private:
+		constexpr static auto autoSaveDuration = 3min;
+	private:
 		UnionHandler handlers;
+
+		FileHandler autoSaveFile = { true };
 
 		shared_ptr<Editor> editor;	// editor 必须在 uiHandler 前、handlers 后被初始化 (否则会空引用)
 
@@ -33,6 +37,8 @@ export namespace NylteJ
 		wstring title;
 		
 		size_t lastSaveDataHash = hash<wstring_view>{}(L""sv);	// 只存 Hash
+
+		chrono::time_point<chrono::steady_clock> lastSaveTime = chrono::steady_clock::now();
 	private:
 		void WhenFileSaved()
 		{
@@ -40,13 +46,17 @@ export namespace NylteJ
 
 			if (nowDataHash != lastSaveDataHash)
 			{
-				PrintFooter(L"已保存! "sv);
 				lastSaveDataHash = nowDataHash;
+				lastSaveTime = chrono::steady_clock::now();
+				PrintFooter(L"已保存! "sv);
 			}
 		}
 		void WhenFileOpened()
 		{
 			lastSaveDataHash = hash<wstring_view>{}(editor->GetData());
+			lastSaveTime = chrono::steady_clock::now();
+
+			autoSaveFile.CreateFile(handlers.file.nowFilePath.concat(L".autosave"sv), true);
 
 			PrintFooter(L"已打开! "sv);
 		}
@@ -74,8 +84,10 @@ export namespace NylteJ
 			editor->ResetCursor();
 
 			handlers.file.CloseFile();
+			autoSaveFile.CreateFile(handlers.file.nowFilePath.concat(L"__Unnamed_NewFile.autosave"sv), true);
 
 			lastSaveDataHash = hash<wstring_view>{}(L""sv);
+			lastSaveTime = chrono::steady_clock::now();
 
 			PrintFooter(L"已新建文件!"sv);
 		}
@@ -90,11 +102,21 @@ export namespace NylteJ
 			uiHandler.GiveFocusTo(window);
 		}
 
-		void Exit()
+		void Exit(bool forced = false)
 		{
 			handlers.console.ClearConsole();		// 如果是通过命令行运行的, 那退出时还是有必要清屏的
 			handlers.console.~ConsoleHandler();		// exit 不会调用该析构函数, 但目前的程序架构下这个函数需要被调用 (虽然我感觉这种架构不太合理, 不过可以临时先顶着)
+
+			if (!forced)
+				autoSaveFile.~FileHandler();
+
 			exit(0);
+		}
+
+		void AutoSave()
+		{
+			autoSaveFile.Write(editor->GetData());
+			lastSaveTime = chrono::steady_clock::now();
 		}
 	public:
 		void PrintTitle(wstring_view extraText = L""sv)
@@ -129,6 +151,29 @@ export namespace NylteJ
 
 			handlers.console.Print(extraText, { 0,handlers.console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
 
+			wstring rightText;
+			if (chrono::steady_clock::now() - lastSaveTime >= 1min)
+				rightText = format(L"上次保存: {} 前. 自动保存周期: {}"sv,
+					chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now() - lastSaveTime),
+					autoSaveDuration);
+			else
+				rightText = format(L"上次保存: {} 前. 自动保存周期: {}"sv,
+					chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - lastSaveTime),
+					autoSaveDuration);
+
+			size_t rightTextLen = 0;
+			for (auto chr : rightText)
+				if (IsWideChar(chr))
+					rightTextLen += 2;
+				else
+					rightTextLen++;
+
+			if (rightTextLen <= handlers.console.GetConsoleSize().width)
+				handlers.console.Print(rightText,
+					{ handlers.console.GetConsoleSize().width - rightTextLen,handlers.console.GetConsoleSize().height - 1 },
+					BasicColors::black,
+					BasicColors::yellow);
+
 			uiHandler.Refocus();
 		}
 
@@ -137,7 +182,7 @@ export namespace NylteJ
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
-			const wstring& title = L"ConsoleNotepad ver. 0.7     made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.8     made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler),
 			title(title),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
@@ -183,7 +228,7 @@ export namespace NylteJ
 								PrintTitle();
 							}
 							else
-								Exit();
+								Exit(!IsFileSaved());
 
 						if (uiHandler.nowFocus == editor)
 						{
@@ -203,6 +248,9 @@ export namespace NylteJ
 									return;		// 拦截掉此次 Esc, 不然弹出的窗口会直接趋势
 								}
 							}
+
+							if (chrono::steady_clock::now() - lastSaveTime >= autoSaveDuration)
+								AutoSave();
 
 							if (message.extraKeys.Ctrl())
 							{
@@ -284,6 +332,8 @@ export namespace NylteJ
 
 					uiHandler.nowFocus->ManageInput(message, handlers);
 				});
+
+			NewFile();
 
 			uiHandler.GiveFocusTo(uiHandler.nowFocus);
 		}

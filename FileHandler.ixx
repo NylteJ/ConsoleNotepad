@@ -22,6 +22,10 @@ export namespace NylteJ
 #endif
 		Encoding nowEncoding;
 	public:
+		filesystem::path nowFilePath;
+
+		bool isTempFile;
+	public:
 		bool Valid() const
 		{
 			return reader.Valid();
@@ -29,14 +33,16 @@ export namespace NylteJ
 
 		void OpenFile(filesystem::path filePath)
 		{
-			reader.CloseFile();
+			CloseFile();
 			reader.OpenFile(filePath);
+			nowFilePath = filePath;
 		}
 
-		void CreateFile(filesystem::path filePath)
+		void CreateFile(filesystem::path filePath, bool allowOverride = false)
 		{
-			reader.CloseFile();
-			reader.CreateFile(filePath);
+			CloseFile();
+			reader.CreateFile(filePath, allowOverride);
+			nowFilePath = filePath;
 		}
 
 		wstring ReadAll(bool force = false) const
@@ -54,6 +60,11 @@ export namespace NylteJ
 		void CloseFile()
 		{
 			reader.CloseFile();
+
+			if (isTempFile)
+				filesystem::remove(nowFilePath);
+
+			nowFilePath.clear();
 		}
 
 		void Write(wstring_view data)
@@ -68,11 +79,19 @@ export namespace NylteJ
 			Write(data);
 		}
 
-		FileHandler(filesystem::path filePath)
+		FileHandler(filesystem::path filePath, bool isTempFile = false)
+			:isTempFile(isTempFile)
 		{
 			OpenFile(filePath);
 		}
-		FileHandler() {}
+		FileHandler(bool isTempFile = false)
+			:isTempFile(isTempFile)
+		{
+		}
+		FileHandler(const FileHandler& right)
+			:FileHandler(right.nowFilePath, right.isTempFile)
+		{
+		}
 
 		~FileHandler()
 		{

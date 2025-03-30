@@ -2,6 +2,7 @@
 // 并非 Windows
 // 实际上是控制台窗口模块, 用来更友好地显示用的
 // 和 Editor 类似, 只用考虑自己内部的绘制, 由 UI 模块负责将他们拼接起来
+// 现在貌似已经发展成各种窗口的集合体了
 export module Windows;
 
 import std;
@@ -633,18 +634,15 @@ export namespace NylteJ
 		{
 			wstring stringToFind = findEditor.GetData() | ranges::to<wstring>();
 
-			size_t pos = 0;
-			while ((pos = stringToFind.find(L"\\n"sv, pos)) != string::npos)
+			for (auto&& [source, target] : vector{ pair	{L"\\n"sv,L"\n"sv},
+														{L"\\r"sv,L"\r"sv} })
 			{
-				stringToFind.replace(pos, L"\\n"sv.size(), L"\n"sv);
-				pos += L"\n"sv.size();
-			}
-
-			pos = 0;
-			while ((pos = stringToFind.find(L"\\r"sv, pos)) != string::npos)
-			{
-				stringToFind.replace(pos, L"\\r"sv.size(), L"\r"sv);
-				pos += L"\r"sv.size();
+				size_t pos = 0;
+				while ((pos = stringToFind.find(source, pos)) != string::npos)
+				{
+					stringToFind.replace(pos, source.size(), target);
+					pos += target.size();
+				}
 			}
 
 			return stringToFind;
@@ -787,6 +785,302 @@ export namespace NylteJ
 			if (drawRange.Height() >= 5)
 				findEditor.ChangeDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} });
+		}
+	};
+
+	// TODO: 其实这里应该要复用一部分上面的代码的, 甚至可以直接合并两个类
+	// 但是先不管了, 复制粘贴真爽吧
+	class ReplaceWindow :public BasicWindow
+	{
+	private:
+		constexpr static wstring_view tipTextTitle = L"替换: 按回车替换, 用方向键切换对象."sv;
+		constexpr static wstring_view tipText1 = L"Shift + 回车全部替换. 按 Tab 切换输入框."sv;
+		constexpr static wstring_view tipTextFrom = L"将: "sv;
+		constexpr static wstring_view tipTextTo = L"替换为: "sv;
+		constexpr static wstring_view tipText2 = L"用 \\n, \\r, \\t 代指回车、换行、Tab."sv;
+		constexpr static wstring_view tipText3 = L"目前仅支持完全、非全字、非正则匹配."sv;
+	private:
+		Editor findEditor, replaceEditor;
+		Editor* nowEditor = &findEditor;
+
+		vector<size_t> allFindedIndexs;
+
+		size_t nowFindedIndexID = 0;
+
+		wstring lastFindText = L""s;
+	private:
+		void PrintWindow()
+		{
+			// TODO: 做压行适配
+			if (drawRange.Height() < 10)
+				throw Exception{ L"窗口太小了!"sv };
+
+			console.Print(tipTextTitle, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+			console.Print(tipText1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
+			console.Print(tipTextFrom, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 3 });
+			console.Print(tipTextTo, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 5 });
+			console.Print(tipText2, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 2 });
+			console.Print(tipText3, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
+		}
+
+		void SwitchEditor()
+		{
+			if (nowEditor == &findEditor)
+				nowEditor = &replaceEditor;
+			else
+				nowEditor = &findEditor;
+		}
+
+		void MoveMainEditorPos(UnionHandler& handlers)
+		{
+			if (nowFindedIndexID < allFindedIndexs.size())
+			{
+				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+
+				WhenFocused();
+			}
+			else if (allFindedIndexs.empty())
+			{
+				handlers.ui.mainEditor.ResetCursor();
+				WhenFocused();
+			}
+		}
+
+		wstring ConvertText(wstring raw) const
+		{
+			for (auto&& [source, target] : vector{ pair	{L"\\n"sv,L"\n"sv},
+														{L"\\r"sv,L"\r"sv},
+														{L"\\t"sv,L"\t"sv} })
+			{
+				size_t pos = 0;
+				while ((pos = raw.find(source, pos)) != string::npos)
+				{
+					raw.replace(pos, source.size(), target);
+					pos += target.size();
+				}
+			}
+
+			return raw;
+		}
+
+		wstring GetNowFindText() const
+		{
+			return ConvertText(findEditor.GetData() | ranges::to<wstring>());
+		}
+		wstring GetNowReplaceText() const
+		{
+			return ConvertText(replaceEditor.GetData() | ranges::to<wstring>());
+		}
+
+		void ReFindAll(UnionHandler& handlers)
+		{
+			allFindedIndexs.clear();
+
+			wstring stringToFind = GetNowFindText();
+			wstring_view stringAll = handlers.ui.mainEditor.GetData();
+
+			lastFindText = stringToFind;
+
+			// BMH 应该在这里比 BM 更适合一点?
+			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end() };
+
+			auto iter = stringAll.begin();
+
+			while (true)
+			{
+				iter = search(iter, stringAll.end(), searcher);
+
+				if (iter == stringAll.end())
+					break;
+
+				allFindedIndexs.emplace_back(iter - stringAll.begin());
+
+				++iter;
+			}
+
+			nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+
+		void FindNext(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			nowFindedIndexID++;
+
+			if (nowFindedIndexID == allFindedIndexs.size())
+				nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+		void FindPrev(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			nowFindedIndexID--;
+
+			if (nowFindedIndexID == -1)
+				nowFindedIndexID = allFindedIndexs.size() - 1;
+
+			MoveMainEditorPos(handlers);
+		}
+
+		void ReplaceNext(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			MoveMainEditorPos(handlers);
+
+			handlers.ui.mainEditor.Insert(GetNowReplaceText());
+
+			const auto offset = static_cast<long long>(GetNowReplaceText().size()) - static_cast<long long>(GetNowFindText().size());
+
+			nowFindedIndexID = allFindedIndexs.erase(allFindedIndexs.begin() + nowFindedIndexID) - allFindedIndexs.begin();
+
+			for (size_t i = nowFindedIndexID; i < allFindedIndexs.size(); i++)	// 后面的都要偏移, 前面的都不用
+				allFindedIndexs[i] += offset;
+
+			if (nowFindedIndexID == allFindedIndexs.size() && !allFindedIndexs.empty())
+				nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+		void ReplaceAll(UnionHandler& handlers)
+		{
+			if (allFindedIndexs.empty())
+				return;
+
+			nowFindedIndexID = allFindedIndexs.size() - 1;
+
+			// 这里选择反复调用 Editor::Insert 只是为了便于撤销 (虽然得挨个撤销)
+			while (nowFindedIndexID > 0)
+			{
+				// 这里本窗体本身无需被绘制, 所以无需调用 MoveMainEditorPos
+				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID],
+					allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+
+				handlers.ui.mainEditor.Insert(GetNowReplaceText());
+
+				nowFindedIndexID--;
+			}
+			// size_t 恒非负, 所以只能这样了
+			handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID],
+				allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+
+			handlers.ui.mainEditor.Insert(GetNowReplaceText());
+
+			allFindedIndexs.clear();
+
+			nowFindedIndexID = 0;
+
+			MoveMainEditorPos(handlers);
+		}
+	public:
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			using enum InputHandler::MessageKeyboard::Key;
+
+			if (message.key == Enter)
+			{
+				if(message.extraKeys.Shift())
+				{
+					if (GetNowFindText() != lastFindText)
+						ReFindAll(handlers);
+					ReplaceAll(handlers);
+				}
+				else
+				{
+					if (GetNowFindText() != lastFindText)
+						ReFindAll(handlers);
+					ReplaceNext(handlers);
+				}
+
+				return;
+			}
+			else if (message.key == Up)
+			{
+				if (GetNowFindText() != lastFindText)
+					ReFindAll(handlers);
+				FindPrev(handlers);
+
+				return;
+			}
+			else if (message.key == Down)
+			{
+				if (GetNowFindText() != lastFindText)
+					ReFindAll(handlers);
+				FindNext(handlers);
+
+				return;
+			}
+			else if (message.key == Tab)
+			{
+				SwitchEditor();
+
+				nowEditor->WhenRefocused();
+
+				return;
+			}
+
+			nowEditor->ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
+		{
+			BasicWindow::ManageInput(message, handlers);
+
+			if (nowExit)
+				return;
+
+			if ((message.LeftClick() || message.RightClick())
+				&& !drawRange.Contain(message.position))
+			{
+				EraseThis(handlers);	// TODO: 改成可恢复的失焦, 而不是直接关掉
+
+				handlers.ui.mainEditor.ManageInput(message, handlers);
+				return;
+			}
+
+			nowEditor->ManageInput(message, handlers);
+		}
+
+		void WhenFocused() override
+		{
+			BasicWindow::WhenFocused();
+
+			PrintWindow();
+
+			findEditor.WhenFocused();
+			replaceEditor.WhenFocused();
+
+			nowEditor->WhenRefocused();
+		}
+		void WhenRefocused() override
+		{
+			BasicWindow::WhenRefocused();
+
+			nowEditor->WhenRefocused();
+		}
+
+		ReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
+			:BasicWindow(console, drawRange),
+			findEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
+										{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} }),
+			replaceEditor(console, L""s, {	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
+											{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} })
+		{
 		}
 	};
 }

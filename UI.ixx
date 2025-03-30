@@ -298,6 +298,14 @@ export namespace NylteJ
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}
+								else if (message.key == H)
+								{
+									auto window = make_shared<ReplaceWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
+														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} });
+									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+									uiHandler.GiveFocusTo(window);
+								}
 								else
 									PrintFooter();
 							}

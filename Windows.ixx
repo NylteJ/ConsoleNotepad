@@ -395,7 +395,11 @@ export namespace NylteJ
 
 				if (lineIndex >= 0 && lineIndex + beginChoice < choices.size())
 					if (nowChoose != lineIndex + beginChoice)	// 本来就选中了就直接选择了, 否则仅仅只是选中. 换言之鼠标要双击才有用
+					{
 						nowChoose = lineIndex + beginChoice;
+
+						PrintChoices();
+					}
 					else
 					{
 						ManageChoice(nowChoose, handlers);

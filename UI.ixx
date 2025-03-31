@@ -246,6 +246,9 @@ export namespace NylteJ
 							else
 								Exit(!IsFileSaved());
 
+						if (chrono::steady_clock::now() - lastSaveTime >= autoSaveDuration)
+							AutoSave();
+
 						if (uiHandler.nowFocus == editor)
 						{
 
@@ -264,9 +267,6 @@ export namespace NylteJ
 									return;		// 拦截掉此次 Esc, 不然弹出的窗口会直接趋势
 								}
 							}
-
-							if (chrono::steady_clock::now() - lastSaveTime >= autoSaveDuration)
-								AutoSave();
 
 							if (message.extraKeys.Ctrl())
 							{
@@ -308,17 +308,21 @@ export namespace NylteJ
 								}
 								else if (message.key == F)	// 查找也放到 UI 里了, 因为弹出的查找框里也有 Editor, 查找功能放到 Editor 里会循环依赖. 而且也只有最外层的 Editor 需要进行查找
 								{
-									auto window = make_shared<FindWindow>(handlers.console,
+									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
-														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} });
+														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} },
+										editor->GetSelectedStr() | ranges::to<wstring>(),
+										true);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}
 								else if (message.key == H)
 								{
-									auto window = make_shared<ReplaceWindow>(handlers.console,
+									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
-														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} });
+														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} },
+										editor->GetSelectedStr() | ranges::to<wstring>(),
+										false);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}
@@ -329,7 +333,7 @@ export namespace NylteJ
 								PrintFooter();
 						}
 						else
-							/*PrintFooter()*/;
+							PrintFooter();
 
 						uiHandler.nowFocus->ManageInput(message, handlers);
 					}

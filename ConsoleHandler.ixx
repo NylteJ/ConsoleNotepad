@@ -102,6 +102,7 @@ export namespace NylteJ
 		~ConsoleHandler()
 		{
 			handler.SetConsoleMode(decltype(handler)::ConsoleMode::Default);
+			ShowCursor();
 		}
 	};
 }

@@ -12,6 +12,7 @@ import ConsoleTypedef;
 import BasicColors;
 import InputHandler;
 import UIComponent;
+import Selector;
 
 import StringEncoder;
 import Exceptions;
@@ -94,6 +95,7 @@ export namespace NylteJ
 
 		virtual ~BasicWindow() = default;
 	};
+
 
 	// 选择打开 / 保存路径的共有部分
 	// 这样后面加花也更方便
@@ -290,6 +292,7 @@ export namespace NylteJ
 		{
 		}
 	};
+
 
 	// 有两个或更多个选项的窗口
 	// 其实还有挺多地方能用上的, 一些技术也能复用到查找 / 替换窗口里
@@ -596,245 +599,64 @@ export namespace NylteJ
 		}
 	}
 
-
-	class FindWindow :public BasicWindow
+	
+	// 查找替换二合一
+	// 代价就是代码有点难看懂了
+	class FindReplaceWindow :public BasicWindow
 	{
 	private:
-		constexpr static wstring_view tipText1 = L"查找: 按回车查找, 用方向键切换对象."sv;
-		constexpr static wstring_view tipText2 = L"请使用 \\n, \\r 来代指回车和换行."sv;
-		constexpr static wstring_view tipText3 = L"目前仅支持完全、非全字、非正则匹配."sv;
+		using FindOptions = bitset<4>;
+	private:
+		constexpr static wstring_view titleFind = L"查找: 按回车查找, 用方向键切换对象."sv;
+		constexpr static wstring_view titleReplace = L"替换: 按回车替换, 用方向键切换对象."sv;
+		constexpr static wstring_view tipText1 = L"用 \\n, \\t 代指回车、Tab, \\\\n 代指 \"\\n\"."sv;
+		constexpr static wstring_view tipText2Find = L"用 Tab 切换选框."sv;
+		constexpr static wstring_view tipText2Replace = L"用 Tab 切换选框, Shift + 回车替换全部."sv;
+		constexpr static wstring_view tipText3Replace = L"替换为:"sv;
 	private:
 		Editor findEditor;
+		Editor replaceEditor;
 
 		vector<size_t> allFindedIndexs;
 
 		size_t nowFindedIndexID = 0;
 
 		wstring lastFindText = L""s;
+		FindOptions lastFindOptions;
+
+		Selector matchAllCase;	// 区分大小写
+		Selector matchFullWord;	// 全字匹配
+
+		vector<UIComponent*> components = { &findEditor,&matchAllCase,&matchFullWord };
+
+		decltype(components.begin()) nowFocused = components.begin();
+
+		const bool findMode = true;	// 当前窗口模式
 	private:
 		void PrintWindow()
 		{
-			console.Print(tipText1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
-			if (drawRange.Height() >= 5)
-				console.Print(tipText2, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
-			if (drawRange.Height() >= 6)
-				console.Print(tipText3, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
-		}
+			console.HideCursor();
 
-		void MoveMainEditorPos(UnionHandler& handlers)
-		{
-			if (nowFindedIndexID < allFindedIndexs.size())
+			wstring_view title, tip1, tip2;
+
+			if (findMode)
 			{
-				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
-
-				WhenFocused();
+				title = titleFind;
+				tip2 = tipText2Find;
 			}
-			else if (allFindedIndexs.empty())
-			{
-				handlers.ui.mainEditor.ResetCursor();
-				WhenFocused();
-			}
-		}
-
-		wstring GetNowFindText()
-		{
-			wstring stringToFind = findEditor.GetData() | ranges::to<wstring>();
-
-			for (auto&& [source, target] : vector{ pair	{L"\\n"sv,L"\n"sv},
-														{L"\\r"sv,L"\r"sv} })
-			{
-				size_t pos = 0;
-				while ((pos = stringToFind.find(source, pos)) != string::npos)
-				{
-					stringToFind.replace(pos, source.size(), target);
-					pos += target.size();
-				}
-			}
-
-			return stringToFind;
-		}
-
-		void ReFindAll(UnionHandler& handlers)
-		{
-			allFindedIndexs.clear();
-
-			wstring stringToFind = GetNowFindText();
-			wstring_view stringAll = handlers.ui.mainEditor.GetData();
-
-			lastFindText = stringToFind;
-
-			// BMH 应该在这里比 BM 更适合一点?
-			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end() };
-
-			auto iter = stringAll.begin();
-
-			while (true)
-			{
-				iter = search(iter, stringAll.end(), searcher);
-
-				if (iter == stringAll.end())
-					break;
-				
-				allFindedIndexs.emplace_back(iter - stringAll.begin());
-
-				++iter;
-			}
-
-			nowFindedIndexID = 0;
-
-			MoveMainEditorPos(handlers);
-		}
-
-		void FindNext(UnionHandler& handlers)
-		{
-			if (allFindedIndexs.empty())
-				return;
-
-			nowFindedIndexID++;
-
-			if (nowFindedIndexID == allFindedIndexs.size())
-				nowFindedIndexID = 0;
-
-			MoveMainEditorPos(handlers);
-		}
-		void FindPrev(UnionHandler& handlers)
-		{
-			if (allFindedIndexs.empty())
-				return;
-
-			nowFindedIndexID--;
-
-			if (nowFindedIndexID == -1)
-				nowFindedIndexID = allFindedIndexs.size() - 1;
-
-			MoveMainEditorPos(handlers);
-		}
-	public:
-		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
-		{
-			BasicWindow::ManageInput(message, handlers);
-		}
-		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
-		{
-			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
-
-			using enum InputHandler::MessageKeyboard::Key;
-
-			if (message.key == Enter)
-			{
-				if (GetNowFindText() != lastFindText)
-					ReFindAll(handlers);
-				else
-					FindNext(handlers);
-
-				return;
-			}
-			else if (message.key == Up)
-			{
-				if (GetNowFindText() == lastFindText)
-					FindPrev(handlers);
-
-				return;
-			}
-			else if (message.key == Down)
-			{
-				if (GetNowFindText() == lastFindText)
-					FindNext(handlers);
-
-				return;
-			}
-
-			findEditor.ManageInput(message, handlers);
-		}
-		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
-		{
-			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
-
-			if ((message.LeftClick() || message.RightClick())
-				&& !drawRange.Contain(message.position))
-			{
-				EraseThis(handlers);	// TODO: 改成可恢复的失焦, 而不是直接关掉
-
-				handlers.ui.mainEditor.ManageInput(message, handlers);
-				return;
-			}
-
-			findEditor.ManageInput(message, handlers);
-		}
-
-		void WhenFocused() override
-		{
-			BasicWindow::WhenFocused();
-
-			PrintWindow();
-
-			findEditor.WhenFocused();
-		}
-		void WhenRefocused() override
-		{
-			BasicWindow::WhenRefocused();
-
-			findEditor.WhenRefocused();
-		}
-
-		FindWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
-			:BasicWindow(console, drawRange),
-			findEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 2},
-										{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 2} })
-		{
-			if (drawRange.Height() >= 5)
-				findEditor.ChangeDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
-												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} });
-		}
-	};
-
-	// TODO: 其实这里应该要复用一部分上面的代码的, 甚至可以直接合并两个类
-	// 但是先不管了, 复制粘贴真爽吧
-	class ReplaceWindow :public BasicWindow
-	{
-	private:
-		constexpr static wstring_view tipTextTitle = L"替换: 按回车替换, 用方向键切换对象."sv;
-		constexpr static wstring_view tipText1 = L"Shift + 回车全部替换. 按 Tab 切换输入框."sv;
-		constexpr static wstring_view tipTextFrom = L"将: "sv;
-		constexpr static wstring_view tipTextTo = L"替换为: "sv;
-		constexpr static wstring_view tipText2 = L"用 \\n, \\r, \\t 代指回车、换行、Tab."sv;
-		constexpr static wstring_view tipText3 = L"目前仅支持完全、非全字、非正则匹配."sv;
-	private:
-		Editor findEditor, replaceEditor;
-		Editor* nowEditor = &findEditor;
-
-		vector<size_t> allFindedIndexs;
-
-		size_t nowFindedIndexID = 0;
-
-		wstring lastFindText = L""s;
-	private:
-		void PrintWindow()
-		{
-			// TODO: 做压行适配
-			if (drawRange.Height() < 10)
-				throw Exception{ L"窗口太小了!"sv };
-
-			console.Print(tipTextTitle, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
-			console.Print(tipText1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
-			console.Print(tipTextFrom, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 3 });
-			console.Print(tipTextTo, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 5 });
-			console.Print(tipText2, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 2 });
-			console.Print(tipText3, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
-		}
-
-		void SwitchEditor()
-		{
-			if (nowEditor == &findEditor)
-				nowEditor = &replaceEditor;
 			else
-				nowEditor = &findEditor;
+			{
+				title = titleReplace;
+				tip2 = tipText2Replace;
+
+				console.Print(tipText3Replace, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 4 });
+			}
+
+			tip1 = tipText1;
+
+			console.Print(title, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+			console.Print(tip1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
+			console.Print(tip2, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
 		}
 
 		void MoveMainEditorPos(UnionHandler& handlers)
@@ -852,21 +674,38 @@ export namespace NylteJ
 			}
 		}
 
-		wstring ConvertText(wstring raw) const
+		template<bool inverse = false>
+		wstring ConvertText(wstring str) const
 		{
-			for (auto&& [source, target] : vector{ pair	{L"\\n"sv,L"\n"sv},
-														{L"\\r"sv,L"\r"sv},
-														{L"\\t"sv,L"\t"sv} })
+			auto table = vector{ pair	{L"\\n"sv,L"\n"sv},
+										{L"\\\n"sv,L"\\n"sv},
+										{L"\\t"sv,L"\t"sv},
+										{L"\\\t"sv,L"\\t"sv},
+										{L"\\r"sv,L"\r"sv},
+										{L"\\\r"sv,L"\\r"sv} };
+
+			auto getView = [&]() constexpr
+				{
+					if constexpr (inverse)
+						return table
+						| ranges::views::reverse
+						| ranges::views::transform([](auto&& x) {return pair{ x.second,x.first }; });
+					else
+						return table
+						| ranges::views::all;
+				};
+
+			for (auto&& [source, target] : getView())
 			{
 				size_t pos = 0;
-				while ((pos = raw.find(source, pos)) != string::npos)
+				while ((pos = str.find(source, pos)) != string::npos)
 				{
-					raw.replace(pos, source.size(), target);
+					str.replace(pos, source.size(), target);
 					pos += target.size();
 				}
 			}
 
-			return raw;
+			return str;
 		}
 
 		wstring GetNowFindText() const
@@ -886,9 +725,17 @@ export namespace NylteJ
 			wstring_view stringAll = handlers.ui.mainEditor.GetData();
 
 			lastFindText = stringToFind;
+			lastFindOptions = GetFindOptions();
 
 			// BMH 应该在这里比 BM 更适合一点?
-			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end() };
+			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end(),hash<wchar_t>{},
+				[&](auto&& x,auto&& y)
+				{
+					if (MatchAllCase() && iswalpha(x) && iswalpha(y))
+						return towupper(x) == towupper(y);
+					
+					return x == y;
+				} };
 
 			auto iter = stringAll.begin();
 
@@ -898,8 +745,10 @@ export namespace NylteJ
 
 				if (iter == stringAll.end())
 					break;
-
-				allFindedIndexs.emplace_back(iter - stringAll.begin());
+				if (!MatchFullWord()
+					|| ((iter == stringAll.begin() || !iswalpha(*(iter - 1)))
+						&& (iter + stringToFind.size() == stringAll.end() || !iswalpha(*(iter + stringToFind.size())))))
+					allFindedIndexs.emplace_back(iter - stringAll.begin());
 
 				++iter;
 			}
@@ -932,6 +781,23 @@ export namespace NylteJ
 				nowFindedIndexID = allFindedIndexs.size() - 1;
 
 			MoveMainEditorPos(handlers);
+		}
+
+		bool MatchAllCase() const
+		{
+			return matchAllCase.GetNowChoose() == 1;
+		}
+		bool MatchFullWord() const
+		{
+			return matchFullWord.GetNowChoose() == 1;
+		}
+
+		FindOptions GetFindOptions() const
+		{
+			FindOptions ret;
+			ret[0] = MatchAllCase();
+			ret[1] = MatchFullWord();
+			return ret;
 		}
 
 		void ReplaceNext(UnionHandler& handlers)
@@ -1001,47 +867,48 @@ export namespace NylteJ
 
 			if (message.key == Enter)
 			{
-				if(message.extraKeys.Shift())
-				{
-					if (GetNowFindText() != lastFindText)
-						ReFindAll(handlers);
+				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
+					ReFindAll(handlers);
+				else if (findMode)
+					FindNext(handlers);
+				else if (message.extraKeys.Shift())
 					ReplaceAll(handlers);
-				}
-				else
-				{
-					if (GetNowFindText() != lastFindText)
-						ReFindAll(handlers);
-					ReplaceNext(handlers);
-				}
+				else ReplaceNext(handlers);
 
 				return;
 			}
 			else if (message.key == Up)
 			{
-				if (GetNowFindText() != lastFindText)
+				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
 					ReFindAll(handlers);
-				FindPrev(handlers);
+				
+				FindPrev(handlers);	// 这个时候没问题, 此时会直接跳到最后一个, 另外两种情况不行是因为会跳过第一个
 
 				return;
 			}
 			else if (message.key == Down)
 			{
-				if (GetNowFindText() != lastFindText)
+				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
 					ReFindAll(handlers);
-				FindNext(handlers);
+				else
+					FindNext(handlers);
 
 				return;
 			}
 			else if (message.key == Tab)
 			{
-				SwitchEditor();
+				(*nowFocused)->WhenUnfocused();
 
-				nowEditor->WhenRefocused();
+				++nowFocused;
+				if (nowFocused == components.end())
+					nowFocused = components.begin();
+
+				(*nowFocused)->WhenRefocused();
 
 				return;
 			}
 
-			nowEditor->ManageInput(message, handlers);
+			(*nowFocused)->ManageInput(message, handlers);
 		}
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
@@ -1059,7 +926,7 @@ export namespace NylteJ
 				return;
 			}
 
-			nowEditor->ManageInput(message, handlers);
+			(*nowFocused)->ManageInput(message, handlers);
 		}
 
 		void WhenFocused() override
@@ -1068,25 +935,49 @@ export namespace NylteJ
 
 			PrintWindow();
 
-			findEditor.WhenFocused();
-			replaceEditor.WhenFocused();
+			for (auto ptr : components)
+				ptr->Repaint();
 
-			nowEditor->WhenRefocused();
+			(*nowFocused)->WhenRefocused();
 		}
 		void WhenRefocused() override
 		{
 			BasicWindow::WhenRefocused();
 
-			nowEditor->WhenRefocused();
+			(*nowFocused)->WhenRefocused();
 		}
 
-		ReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
+		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring strToFind = L""s, bool findMode = true)
 			:BasicWindow(console, drawRange),
-			findEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
-										{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} }),
-			replaceEditor(console, L""s, {	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
-											{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} })
+			findEditor(console, L""s, {{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} }),
+			replaceEditor(console, L""s, {{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} }),
+			matchAllCase(console,
+				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
+					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} },
+				{ L"区分大小写"s,L"不区分大小写"s }),
+			matchFullWord(console,
+				{ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
+					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
+				{ L"匹配所有"s,L"全字匹配"s }),
+			findMode(findMode)
 		{
+			findEditor.SetData(ConvertText<true>(strToFind));
+
+			if (!findMode)
+			{
+				components.insert(components.begin() + 1, &replaceEditor);
+				nowFocused = components.begin();
+
+				matchAllCase.SetDrawRange({ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
+											{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} });
+				matchFullWord.SetDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 7},
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 7} });
+			}
+
+			findEditor.MoveCursorToEnd();
+			findEditor.SelectAll();			// 更贴近主流编辑器行为
 		}
 	};
 }

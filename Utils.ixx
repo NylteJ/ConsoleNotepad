@@ -18,4 +18,10 @@ export namespace NylteJ
 
 		return true;
 	}
+
+	// 获取一个单行且不含 Tab 的字符串的显示长度
+	constexpr size_t GetDisplayLength(wstring_view str)
+	{
+		return str.size() + ranges::count_if(str, IsWideChar);
+	}
 }

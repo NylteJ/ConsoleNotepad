@@ -33,6 +33,9 @@ export namespace NylteJ
 	public:
 		void GiveFocusTo(UIComponentPtr compontentPtr)
 		{
+			if (nowFocus != nullptr)
+				nowFocus->WhenUnfocused();
+
 			nowFocus = compontentPtr;
 
 			if (nowFocus != nullptr)

@@ -425,9 +425,10 @@ export namespace NylteJ
 				direction = None;	// 向上换行直接在这里进行, 向下换行在后面进行. 至于为什么你别管, 能跑就行
 			}
 			if (direction == Right && newPos.x > formattedStr[newPos.y].DisplaySize()
+				&& formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex < fileData.size()
 				&& newPos.x + beginX > formatter->GetRawDisplaySize({ fileData.begin() + formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex),
 															fileData.begin() + formatter->SearchLineEndIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex) }))
-				// 实际上最后一个条件隐含了倒数第二个, 但考虑到开销以及常用程度, 还是不删掉倒数第二个了
+				// 实际上最后一个条件隐含了第二个, 但考虑到开销以及常用程度, 还是不删掉第二个了
 			{
 				newPos.y++;
 				direction = Down;

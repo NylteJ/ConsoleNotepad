@@ -29,6 +29,13 @@ export namespace NylteJ
 			WhenFocused();
 		}
 
+		virtual void WhenUnfocused() {}
+		virtual void Repaint()
+		{
+			WhenFocused();
+			WhenUnfocused();
+		}
+
 		virtual ~UIComponent() = default;
 	};
 

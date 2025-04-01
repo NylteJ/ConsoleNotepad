@@ -34,6 +34,9 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="头文件\UI\Windows">
+      <UniqueIdentifier>{7f3ed2f3-8aad-4843-944c-11d7acb39079}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -87,9 +90,6 @@
     <ClCompile Include="StringEncoder.ixx">
       <Filter>头文件\PlatformRelated</Filter>
     </ClCompile>
-    <ClCompile Include="Windows.ixx">
-      <Filter>头文件\UI</Filter>
-    </ClCompile>
     <ClCompile Include="Exceptions.ixx">
       <Filter>头文件</Filter>
     </ClCompile>
@@ -101,6 +101,15 @@
     </ClCompile>
     <ClCompile Include="Selector.ixx">
       <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows.ixx">
+      <Filter>头文件\UI\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="FindReplaceWindow.ixx">
+      <Filter>头文件\UI\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicWindow.ixx">
+      <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

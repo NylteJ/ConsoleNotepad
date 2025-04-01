@@ -10,6 +10,7 @@ import std;
 
 import InputHandler;
 import UnionHandler;
+import ConsoleTypedef;
 
 using namespace std;
 
@@ -18,6 +19,8 @@ export namespace NylteJ
 	// 循环依赖, 堂堂解决!	(不懂的可以顺着 UnionHandler 往前看)
 	class UIComponent
 	{
+	protected:
+		ConsoleRect drawRange;
 	public:
 		virtual void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) = 0;
 		virtual void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) = 0;
@@ -34,6 +37,20 @@ export namespace NylteJ
 		{
 			WhenFocused();
 			WhenUnfocused();
+		}
+
+		virtual void SetDrawRange(const ConsoleRect& newRange)
+		{
+			drawRange = newRange;
+		}
+		virtual const ConsoleRect& GetDrawRange() const
+		{
+			return drawRange;
+		}
+
+		UIComponent(const ConsoleRect& drawRange)
+			:drawRange(drawRange)
+		{
 		}
 
 		virtual ~UIComponent() = default;

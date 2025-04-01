@@ -12,10 +12,12 @@ import UIHandler;
 import StringEncoder;
 import Exceptions;
 import Utils;
+import SettingsHandler;
 
 import UIComponent;
 import Editor;
 import Windows;
+import SettingWindow;
 
 using namespace std;
 
@@ -23,8 +25,6 @@ export namespace NylteJ
 {
 	class UI
 	{
-	private:
-		constexpr static auto autoSaveDuration = 3min;
 	private:
 		UnionHandler handlers;
 
@@ -153,14 +153,22 @@ export namespace NylteJ
 			handlers.console.HideCursor();
 
 			wstring rightText;
-			if (chrono::steady_clock::now() - lastSaveTime >= 1min)
-				rightText = format(L"上次保存: {} 前. 自动保存周期: {}"sv,
-					chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now() - lastSaveTime),
-					autoSaveDuration);
+
+			auto leftTime = chrono::steady_clock::now() - lastSaveTime;
+			auto saveDuration = handlers.settings.AutoSavingDuration();
+
+			if (leftTime >= 1min)
+				rightText = format(L"上次保存: {} 前. "sv, chrono::duration_cast<chrono::minutes>(leftTime));
 			else
-				rightText = format(L"上次保存: {} 前. 自动保存周期: {}"sv,
-					chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - lastSaveTime),
-					autoSaveDuration);
+				rightText = format(L"上次保存: {} 前. "sv, chrono::duration_cast<chrono::seconds>(leftTime));
+
+			if (saveDuration.has_value())
+			{
+				if (saveDuration.value() >= 1min)
+					rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::minutes>(saveDuration.value()));
+				else
+					rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration.value()));
+			}
 
 			size_t rightTextLen = 0;
 			for (auto chr : rightText)
@@ -189,8 +197,9 @@ export namespace NylteJ
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
+			SettingsHandler& settingsHandler,
 			const wstring& title = L"ConsoleNotepad ver. 0.8     made by NylteJ"s)
-			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler),
+			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingsHandler),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
 																				  handlers.console.GetConsoleSize().height - 2 } })),
@@ -217,7 +226,7 @@ export namespace NylteJ
 					if (newMessage.newSize.height >= 1000)
 						newMessage.newSize = handlers.console.GetConsoleSize();
 					
-					editor->ChangeDrawRange({ {0,1},{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
+					editor->SetDrawRange({ {0,1},{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
 
 					lastIsEsc = false;
 
@@ -246,7 +255,7 @@ export namespace NylteJ
 							else
 								Exit(!IsFileSaved());
 
-						if (chrono::steady_clock::now() - lastSaveTime >= autoSaveDuration)
+						if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.AutoSavingDuration().value_or(114514h))
 							AutoSave();
 
 						if (uiHandler.nowFocus == editor)
@@ -308,9 +317,13 @@ export namespace NylteJ
 								}
 								else if (message.key == F)	// 查找也放到 UI 里了, 因为弹出的查找框里也有 Editor, 查找功能放到 Editor 里会循环依赖. 而且也只有最外层的 Editor 需要进行查找
 								{
+									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
+																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} };
+									if (windowRange.Height() < 8 && handlers.console.GetConsoleSize().height >= 10)
+										windowRange.rightBottom.y = windowRange.leftTop.y + 7;
+
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
-														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} },
+										windowRange,
 										editor->GetSelectedStr() | ranges::to<wstring>(),
 										true);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
@@ -318,11 +331,24 @@ export namespace NylteJ
 								}
 								else if (message.key == H)
 								{
+									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
+																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} };
+									if (windowRange.Height() < 10 && handlers.console.GetConsoleSize().height >= 12)
+										windowRange.rightBottom.y = windowRange.leftTop.y + 9;
+
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.65,1},
-														{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} },
+										windowRange,
 										editor->GetSelectedStr() | ranges::to<wstring>(),
 										false);
+									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+									uiHandler.GiveFocusTo(window);
+								}
+								else if (message.key == P)	// 设置
+								{
+									auto window = make_shared<SettingWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
+														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
+										settingsHandler);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}

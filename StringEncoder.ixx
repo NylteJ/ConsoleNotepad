@@ -18,12 +18,15 @@ using namespace std;
 
 export namespace NylteJ
 {
-	enum class Encoding
+	enum class Encoding :size_t
 	{
 		UTF8,
 		GB2312,
 
-		FORCE = 0x114514
+		FORCE = 0x114514,
+
+		FirstEncoding = UTF8,
+		LastEncoding = GB2312
 	};
 
 	Encoding GetEncoding(UINT encoding)

@@ -111,5 +111,11 @@
     <ClCompile Include="BasicWindow.ixx">
       <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
+    <ClCompile Include="SettingWindow.ixx">
+      <Filter>头文件\UI\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsHandler.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -102,8 +102,6 @@ export namespace NylteJ
 
 		size_t fileDataIndex = 0;	// 目前屏幕上显示的区域是从 fileData 的哪个下标开始的
 
-		ConsoleRect drawRange;
-
 		shared_ptr<FormatterBase> formatter;
 
 		ConsolePosition cursorPos = { 0,0 };	// 当前编辑器的光标位置, 是相对 drawRange 左上角而言的坐标, 可以超出屏幕 (当然此时不显示)
@@ -292,15 +290,6 @@ export namespace NylteJ
 			}
 
 			FlushCursor();		// 不加这个的话打字的时候光标有时会乱闪
-		}
-
-		const auto& GetDrawRange() const
-		{
-			return drawRange;
-		}
-		void ChangeDrawRange(const ConsoleRect& newDrawRange)
-		{
-			drawRange = newDrawRange;
 		}
 
 		wstring_view GetData() const
@@ -721,13 +710,19 @@ export namespace NylteJ
 				MoveCursor(Direction::Left, message.extraKeys.Shift());
 				return;
 			case Up:
-				MoveCursor(Direction::Up, message.extraKeys.Shift());
+				if (!message.extraKeys.Ctrl())
+					MoveCursor(Direction::Up, message.extraKeys.Shift());
+				else
+					ScrollScreen(-1);
 				return;
 			case Right:
 				MoveCursor(Direction::Right, message.extraKeys.Shift());
 				return;
 			case Down:
-				MoveCursor(Direction::Down, message.extraKeys.Shift());
+				if (!message.extraKeys.Ctrl())
+					MoveCursor(Direction::Down, message.extraKeys.Shift());
+				else
+					ScrollScreen(1);
 				return;
 			case Backspace:
 				Erase();
@@ -753,6 +748,12 @@ export namespace NylteJ
 				return;
 			case End:
 				MoveCursorToEnd();
+				return;
+			case PageUp:
+				ScrollScreen(-drawRange.Height() + 1);
+				return;
+			case PageDown:
+				ScrollScreen(drawRange.Height() - 1);
 				return;
 			default:
 				break;
@@ -830,7 +831,7 @@ export namespace NylteJ
 		}
 
 		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
-			:console(console), fileData(fileData), drawRange(drawRange), formatter(formatter)
+			:console(console), fileData(fileData), UIComponent(drawRange), formatter(formatter)
 		{
 			PrintData();
 		}

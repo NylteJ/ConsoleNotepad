@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BasicColors.ixx" />
+    <ClCompile Include="BasicWindow.ixx" />
     <ClCompile Include="ClipboardHandler.ixx" />
     <ClCompile Include="ClipboardHandlerWindows.ixx" />
     <ClCompile Include="ConsoleArgumentsAnalyzer.ixx" />
@@ -150,6 +151,7 @@
     <ClCompile Include="Exceptions.ixx" />
     <ClCompile Include="FileHandler.ixx" />
     <ClCompile Include="FileHandlerWindows.ixx" />
+    <ClCompile Include="FindReplaceWindow.ixx" />
     <ClCompile Include="Formatter.ixx" />
     <ClCompile Include="Selector.ixx" />
     <ClCompile Include="StringEncoder.ixx" />

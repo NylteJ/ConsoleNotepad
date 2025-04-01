@@ -6,6 +6,7 @@ import UI;
 import InputHandler;
 import FileHandler;
 import ClipboardHandler;
+import SettingsHandler;
 
 import ConsoleArgumentsAnalyzer;
 import Exceptions;
@@ -45,6 +46,8 @@ int main(int argc, char** argv)
 
 	ClipboardHandler clipboardHandler;
 
+	SettingsHandler settings{ console };
+
 	if (arguments.OpenFilePath().has_value())
 	{
 		if (arguments.GetEncoding().has_value())
@@ -57,7 +60,7 @@ int main(int argc, char** argv)
 		catch (FileOpenFailedException&) {}
 	}
 
-	UI ui{ console,str,inputHandler,file,clipboardHandler };
+	UI ui{ console,str,inputHandler,file,clipboardHandler,settings };
 
 	console.BeginMonitorInput(inputHandler);
 

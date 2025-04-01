@@ -60,6 +60,8 @@ export namespace NylteJ
 
 				Home = 0x24,
 				End = 0x23,
+				PageUp = 0x21,
+				PageDown = 0x22,
 
 				Special1 = 0xDB, 	// [{
 				Special2 = 0xDD		// ]}

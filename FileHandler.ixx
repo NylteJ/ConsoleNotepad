@@ -58,6 +58,11 @@ export namespace NylteJ
 			return ReadAll(encoding == FORCE);
 		}
 
+		string ReadAsBytes() const
+		{
+			return reader.ReadAsBytes();
+		}
+
 		void CloseFile()
 		{
 			reader.CloseFile();
@@ -68,6 +73,10 @@ export namespace NylteJ
 			nowFilePath.clear();
 		}
 
+		void Write(string_view bytes)
+		{
+			reader.Write(bytes);
+		}
 		void Write(wstring_view data)
 		{
 			reader.Write(data, nowEncoding);

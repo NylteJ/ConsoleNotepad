@@ -86,7 +86,7 @@ export namespace NylteJ
 
 				if (exists(nowPath))
 				{
-					if (is_directory(nowPath) && nowPath.wstring().back() == L'\\')
+					if (is_directory(nowPath) && nowPath.wstring().back() == L'\\')		// 补全子目录 / 文件
 					{
 						auto iter = directory_iterator{ nowPath,directory_options::skip_permission_denied };
 
@@ -97,7 +97,7 @@ export namespace NylteJ
 							editor.MoveCursorToEnd();
 						}
 					}
-					else if (is_directory(nowPath) || is_regular_file(nowPath))
+					else if (is_directory(nowPath) || is_regular_file(nowPath))			// 补全到当前目录的下一个目录 / 文件
 					{
 						auto prevPath = nowPath.parent_path();
 
@@ -122,7 +122,7 @@ export namespace NylteJ
 						}
 					}
 				}
-				else
+				else	// 补全当前文件名
 				{
 					auto prevPath = nowPath.parent_path();
 
@@ -133,7 +133,9 @@ export namespace NylteJ
 					{
 						auto iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
 
-						while (iter != end(iter))
+						bool haveFind = false;
+
+						while (iter != end(iter))	// 先区分大小写地找, 再不区分大小写地找
 						{
 							wstring nowFilename = iter->path().filename().wstring();
 							wstring inputFilename = nowPath.filename().wstring();
@@ -143,10 +145,38 @@ export namespace NylteJ
 								editor.SetData((prevPath / iter->path().filename()).wstring());
 								editor.PrintData();
 								editor.MoveCursorToEnd();
+								haveFind = true;
 								break;
 							}
 
 							++iter;
+						}
+						if (!haveFind)
+						{
+							iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
+							while (iter != end(iter))
+							{
+								wstring nowFilename = iter->path().filename().wstring();
+								wstring inputFilename = nowPath.filename().wstring();
+
+								wstring nowFilenameLower = nowFilename
+									| ranges::views::transform([](auto&& chr) {return towlower(chr); })
+									| ranges::to<wstring>();
+								wstring inputFilenameLower = inputFilename
+									| ranges::views::transform([](auto&& chr) {return towlower(chr); })
+									| ranges::to<wstring>();
+
+								if (nowFilenameLower.starts_with(inputFilenameLower))
+								{
+									editor.SetData((prevPath / iter->path().filename()).wstring());
+									editor.PrintData();
+									editor.MoveCursorToEnd();
+									haveFind = true;
+									break;
+								}
+
+								++iter;
+							}
 						}
 					}
 				}
@@ -189,7 +219,7 @@ export namespace NylteJ
 			tipText(tipText)
 		{
 			if (drawRange.Width() >= 4)
-				editor.ChangeDrawRange({ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 2},
+				editor.SetDrawRange({ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 2},
 											{drawRange.rightBottom.x - 1,drawRange.rightBottom.y - 1} });
 		}
 	};
@@ -405,7 +435,11 @@ export namespace NylteJ
 	class EncodingSelectWindow :public SelectWindow
 	{
 	private:
+		constexpr static wstring_view lastChoiceText = L" (上次选择)"sv;
+	private:
 		function<void(Encoding)> callback;
+
+		size_t lastChoice = 0;
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
 		{
@@ -419,21 +453,50 @@ export namespace NylteJ
 
 			using enum Encoding;
 
-			switch (choiceIndex)
+			if (choiceIndex + 3 == choices.size())	//自动识别
 			{
-			case 0:		// UTF-8
-				callback(UTF8);
-				return;
-			case 1:		// GB 2312
-				callback(GB2312);
-				return;
-			default:
-				unreachable();
+				for (size_t i = static_cast<size_t>(FirstEncoding); i <= static_cast<size_t>(LastEncoding); i++)
+				{
+					try
+					{
+						callback(static_cast<Encoding>(i));
+						return;
+					}
+					catch (WrongEncodingException&) {}
+				}
+				throw WrongEncodingException{ L"目前尚不支持该编码! 请尝试强制打开."sv };
+			}
+
+			try
+			{
+				switch (choiceIndex)
+				{
+				case 0:		// UTF-8
+					callback(UTF8);
+					return;
+				case 1:		// GB 2312
+					callback(GB2312);
+					return;
+				default:
+					unreachable();
+				}
+			}
+			catch (WrongEncodingException&)
+			{
+				if (choices[lastChoice].ends_with(lastChoiceText))
+					choices[lastChoice].erase(choices[lastChoice].size() - lastChoiceText.size(), lastChoiceText.size());
+
+				lastChoice = choiceIndex;
+				choices[lastChoice].append_range(lastChoiceText);
+
+				Repaint();
+
+				throw;
 			}
 		}
 
 		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, wstring_view tip = L"手动选择文件编码: "sv)
-			:SelectWindow(console, drawRange, { L"UTF-8 (默认)"s, L"GB 2312"s, L"强制打开 (极易出 bug)"s,L"取消"s }, tip),
+			:SelectWindow(console, drawRange, { L"UTF-8"s, L"GB 2312"s, L"自动识别 (实验性功能)"s, L"强制打开 (慎重!)"s,L"取消"s }, tip),
 			callback(callback)
 		{
 		}

@@ -64,8 +64,15 @@ export namespace NylteJ
 
 		wstring ReadAll(Encoding encoding, bool force = false) const
 		{
+			return StrToWStr(ReadAsBytes(), encoding, force);
+		}
+
+		string ReadAsBytes() const
+		{
 			if (!Valid())
-				return L""s;
+				return ""s;
+
+			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
 
 			LARGE_INTEGER fileSize;
 			GetFileSizeEx(fileHandle, &fileSize);
@@ -83,7 +90,7 @@ export namespace NylteJ
 
 			ReadFile(fileHandle, buffer.data(), buffer.size() * sizeof(buffer[0]), &temp, NULL);
 
-			return StrToWStr(buffer, encoding, force);
+			return buffer;
 		}
 
 		void CloseFile()
@@ -95,21 +102,23 @@ export namespace NylteJ
 			}
 		}
 
-		void Write(wstring_view data, Encoding encoding)
+		void Write(string_view bytes)
 		{
 			if (!Valid())
 				return;
 
 			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
 
-			string buffer = WStrToStr(data, encoding);
-
 			DWORD temp;
-			WriteFile(fileHandle, buffer.data(), buffer.size()*sizeof(buffer[0]), &temp, NULL);
+			WriteFile(fileHandle, bytes.data(), bytes.size() * sizeof(bytes[0]), &temp, NULL);
 
 			SetEndOfFile(fileHandle);	// 以上只是单纯的覆写, 如果新文件长度短于原文件长度, 后面的部分会保留, 所以要截断
 
 			FlushFileBuffers(fileHandle);
+		}
+		void Write(wstring_view data, Encoding encoding)
+		{
+			Write(WStrToStr(data, encoding));
 		}
 	};
 }

@@ -11,6 +11,8 @@ import UIComponent;
 import Selector;
 import BasicWindow;
 
+import Exceptions;
+
 import Editor;
 
 using namespace std;
@@ -146,8 +148,8 @@ export namespace NylteJ
 			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end(),hash<wchar_t>{},
 				[&](auto&& x,auto&& y)
 				{
-					if (MatchAllCase() && iswalpha(x) && iswalpha(y))
-						return towupper(x) == towupper(y);
+					if (MatchAllCase())
+						return towlower(x) == towlower(y);
 
 					return x == y;
 				} };
@@ -373,20 +375,25 @@ export namespace NylteJ
 
 		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring strToFind = L""s, bool findMode = true)
 			:BasicWindow(console, drawRange),
-			findEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
+			findEditor(console, L""s, {			{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} }),
-			replaceEditor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
+			replaceEditor(console, L""s, {		{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} }),
 			matchAllCase(console,
-				{ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
+				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} },
 				{ L"区分大小写"s,L"不区分大小写"s }),
 			matchFullWord(console,
-				{ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
+				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
 				{ L"匹配所有"s,L"全字匹配"s }),
 			findMode(findMode)
 		{
+			if (findMode && drawRange.Height() < 8)
+				throw Exception{ L"窗口太小了!"sv };
+			if (!findMode && drawRange.Height() < 10)
+				throw Exception{ L"窗口太小了!"sv };
+
 			findEditor.SetData(ConvertText<true>(strToFind));
 
 			if (!findMode)

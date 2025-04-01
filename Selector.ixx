@@ -20,7 +20,6 @@ export namespace NylteJ
 	{
 	private:
 		ConsoleHandler& console;
-		ConsoleRect drawRange;
 
 		vector<wstring> choices;
 		size_t nowChoose = 0;
@@ -41,10 +40,33 @@ export namespace NylteJ
 
 			console.Print(choices[nowChoose], { drawRange.leftTop.x + beginX,drawRange.leftTop.y }, color, color);
 		}
+
+		void ToLastChoice()
+		{
+			if (nowChoose == 0)
+				nowChoose = choices.size() - 1;
+			else
+				nowChoose--;
+
+			Print();
+		}
+		void ToNextChoice()
+		{
+			if (nowChoose == choices.size() - 1)
+				nowChoose = 0;
+			else
+				nowChoose++;
+
+			Print();
+		}
 	public:
 		size_t GetNowChoose() const
 		{
 			return nowChoose;
+		}
+		void SetNowChoose(size_t chooseIndex)
+		{
+			nowChoose = chooseIndex;
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override {}
@@ -55,24 +77,21 @@ export namespace NylteJ
 			switch (message.key)
 			{
 			case Left:
-				if (nowChoose == 0)
-					nowChoose = choices.size() - 1;
-				else
-					nowChoose--;
-
-				Print();
+				ToLastChoice();
 				return;
 			case Right:
-				if (nowChoose == choices.size() - 1)
-					nowChoose = 0;
-				else
-					nowChoose++;
-
-				Print();
+				ToNextChoice();
 				return;
 			}
 		}
-		void ManageInput(const InputHandler::MessageMouse& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override {}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override
+		{
+			if (message.LeftClick())
+				if (message.position == drawRange.leftTop)
+					ToLastChoice();
+				else if (message.position == drawRange.rightBottom)
+					ToNextChoice();
+		}
 
 		void WhenFocused() override
 		{
@@ -101,8 +120,8 @@ export namespace NylteJ
 			drawRange = newRange;
 		}
 
-		Selector(ConsoleHandler& console, ConsoleRect drawRange, const vector<wstring>& choices)
-			:console(console), drawRange(drawRange), choices(choices)
+		Selector(ConsoleHandler& console, ConsoleRect drawRange, const vector<wstring>& choices, size_t nowChooseIndex = 0)
+			:console(console), UIComponent(drawRange), choices(choices), nowChoose(nowChooseIndex)
 		{
 			if (choices.empty())
 				throw Exception{ L"选项不可为空"sv };

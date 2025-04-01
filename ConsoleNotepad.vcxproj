@@ -154,6 +154,8 @@
     <ClCompile Include="FindReplaceWindow.ixx" />
     <ClCompile Include="Formatter.ixx" />
     <ClCompile Include="Selector.ixx" />
+    <ClCompile Include="SettingsHandler.ixx" />
+    <ClCompile Include="SettingWindow.ixx" />
     <ClCompile Include="StringEncoder.ixx" />
     <ClCompile Include="UIComponent.ixx" />
     <ClCompile Include="InputHandler.ixx" />

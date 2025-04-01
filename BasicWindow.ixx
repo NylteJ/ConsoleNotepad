@@ -17,8 +17,6 @@ export namespace NylteJ
 	protected:
 		ConsoleHandler& console;
 
-		ConsoleRect drawRange;
-
 		bool nowExit = false;	// 有点丑, 但可以先用着
 	protected:
 		void EraseThis(UnionHandler& handlers)
@@ -27,7 +25,7 @@ export namespace NylteJ
 			nowExit = true;
 		}
 	public:
-		void PrintFrame()
+		void PrintFrame() const
 		{
 			if (drawRange.Height() < 2 || drawRange.Width() < 2)	// 不应如此, 所以直接 throw 吧
 				throw invalid_argument{ "窗口太小了! "s };
@@ -77,7 +75,7 @@ export namespace NylteJ
 
 		BasicWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
 			:console(console),
-			drawRange(drawRange)
+			UIComponent(drawRange)
 		{
 		}
 

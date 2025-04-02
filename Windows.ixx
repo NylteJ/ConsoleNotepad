@@ -14,6 +14,7 @@ import BasicColors;
 import InputHandler;
 import UIComponent;
 import Selector;
+import SettingsHandler;
 
 import StringEncoder;
 import Exceptions;
@@ -537,9 +538,9 @@ export namespace NylteJ
 		}
 		catch (WrongEncodingException&)
 		{
-			auto window = make_shared<EncodingSelectWindow>(handlers.console,
-				ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+			auto behavior = handlers.settings.BehaviorWhenErrorEncoding();
+
+			auto funcToOpen =
 				[path = ranges::to<wstring>(path),
 				callback = this->callback,
 				&file = handlers.file,
@@ -552,8 +553,36 @@ export namespace NylteJ
 					mainEditor.ResetCursor();
 
 					callback();
-				},
-				L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "sv);
+				};
+
+			wstring tipText = L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "s;
+
+			if (behavior == 1 || behavior == 2)	// 先尝试自动识别
+			{
+				for (size_t i = static_cast<size_t>(FirstEncoding); i <= static_cast<size_t>(LastEncoding); i++)
+				{
+					try
+					{
+						funcToOpen(static_cast<Encoding>(i));
+						return;
+					}
+					catch (WrongEncodingException&) {}
+				}
+				// 失败了
+				if (behavior == 2)	// 强制打开
+				{
+					funcToOpen(FORCE);
+					return;
+				}
+				tipText = L"编码自动识别失败, 请手动选择编码: "s;
+			}
+
+			auto window = make_shared<EncodingSelectWindow>(handlers.console,
+				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				funcToOpen,
+				tipText
+				);
 			handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
 			handlers.ui.GiveFocusTo(window);
 		}

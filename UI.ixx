@@ -198,11 +198,14 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingsHandler& settingsHandler,
-			const wstring& title = L"ConsoleNotepad ver. 0.8     made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.85    made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingsHandler),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
-																				  handlers.console.GetConsoleSize().height - 2 } })),
+																				  handlers.console.GetConsoleSize().height - 2 } },
+				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxUndoStep).value(),
+				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxRedoStep).value(),
+				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxMergeCharUndoRedo).value())),
 			uiHandler(*editor),
 			title(title)
 		{

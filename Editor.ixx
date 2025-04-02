@@ -91,10 +91,10 @@ export namespace NylteJ
 		};
 	private:
 		// 撤销 / 重做的步数上限，干脆拉大一点得了
-		constexpr static size_t maxUndoStep = 1024;
+		/*constexpr static size_t maxUndoStep = 1024;
 		constexpr static size_t maxRedoStep = 1024;
 
-		constexpr static size_t maxMergeOperationStrLen = 16;	// 最多把多少个字符的变动融合到一步, 这个其实不适合设太大, 会让手感变得极其难受
+		constexpr static size_t maxMergeOperationStrLen = 16;*/	// 最多把多少个字符的变动融合到一步, 这个其实不适合设太大, 会让手感变得极其难受
 	private:
 		ConsoleHandler& console;
 
@@ -115,6 +115,10 @@ export namespace NylteJ
 		deque<EditOperation> undoDeque;	// Ctrl + Z
 		deque<EditOperation> redoDeque;	// Ctrl + Y
 		// 为什么要用 deque 呢? 因为 stack 不能 pop 栈底的元素, 无法控制 stack 大小
+
+		const size_t maxUndoStep;
+		const size_t maxRedoStep;
+		const size_t maxMergeOperationStrLen;
 	private:
 		constexpr size_t MinSelectIndex() const
 		{
@@ -830,8 +834,11 @@ export namespace NylteJ
 			FlushCursor();
 		}
 
-		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
-			:console(console), fileData(fileData), UIComponent(drawRange), formatter(formatter)
+		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,
+			size_t maxUndoStep = 8, size_t maxRedoStep = 8, size_t maxMergeOperationStrLen = 0,
+			shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
+			:console(console), fileData(fileData), UIComponent(drawRange), formatter(formatter),
+			maxUndoStep(maxUndoStep), maxRedoStep(maxRedoStep), maxMergeOperationStrLen(maxMergeOperationStrLen)
 		{
 			PrintData();
 		}

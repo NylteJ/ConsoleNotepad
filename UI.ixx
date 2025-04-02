@@ -12,7 +12,7 @@ import UIHandler;
 import StringEncoder;
 import Exceptions;
 import Utils;
-import SettingsHandler;
+import SettingMap;
 
 import UIComponent;
 import Editor;
@@ -80,6 +80,7 @@ export namespace NylteJ
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
 				encoding,
+				handlers.settings,
 				bind(&UI::WhenFileOpened, this));
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
@@ -104,6 +105,7 @@ export namespace NylteJ
 			auto window = make_shared<SaveOrNotWindow>(handlers.console,
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				handlers.settings,
 				callback);
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
@@ -155,20 +157,19 @@ export namespace NylteJ
 			wstring rightText;
 
 			auto leftTime = chrono::steady_clock::now() - lastSaveTime;
-			auto saveDuration = handlers.settings.AutoSavingDuration();
+			auto saveDuration = handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s;
 
 			if (leftTime >= 1min)
 				rightText = format(L"上次保存: {} 前. "sv, chrono::duration_cast<chrono::minutes>(leftTime));
 			else
 				rightText = format(L"上次保存: {} 前. "sv, chrono::duration_cast<chrono::seconds>(leftTime));
 
-			if (saveDuration.has_value())
-			{
-				if (saveDuration.value() >= 1min)
-					rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::minutes>(saveDuration.value()));
-				else
-					rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration.value()));
-			}
+			if (saveDuration >= 1h)
+				rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::hours>(saveDuration));
+			else if (saveDuration >= 1min)
+				rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::minutes>(saveDuration));
+			else
+				rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration));
 
 			size_t rightTextLen = 0;
 			for (auto chr : rightText)
@@ -197,15 +198,13 @@ export namespace NylteJ
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
-			SettingsHandler& settingsHandler,
+			SettingMap& settingMap,
 			const wstring& title = L"ConsoleNotepad ver. 0.85    made by NylteJ"s)
-			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingsHandler),
+			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
 																				  handlers.console.GetConsoleSize().height - 2 } },
-				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxUndoStep).value(),
-				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxRedoStep).value(),
-				settingsHandler.UniversalGet<uint32_t>(SettingsHandler::SettingItem::ID::MaxMergeCharUndoRedo).value())),
+				settingMap)),
 			uiHandler(*editor),
 			title(title)
 		{
@@ -258,7 +257,7 @@ export namespace NylteJ
 							else
 								Exit(!IsFileSaved());
 
-						if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.AutoSavingDuration().value_or(114514h))
+						if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
 							AutoSave();
 
 						if (uiHandler.nowFocus == editor)
@@ -290,6 +289,7 @@ export namespace NylteJ
 										auto window = make_shared<SaveFileWindow>(handlers.console,
 											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+											settingMap,
 											bind(&UI::WhenFileSaved, this, true));
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
@@ -327,6 +327,7 @@ export namespace NylteJ
 
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										windowRange,
+										settingMap,
 										editor->GetSelectedStr() | ranges::to<wstring>(),
 										true);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
@@ -341,6 +342,7 @@ export namespace NylteJ
 
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										windowRange,
+										settingMap,
 										editor->GetSelectedStr() | ranges::to<wstring>(),
 										false);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
@@ -351,7 +353,7 @@ export namespace NylteJ
 									auto window = make_shared<SettingWindow>(handlers.console,
 										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
 														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
-										settingsHandler);
+										settingMap);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}
@@ -364,6 +366,7 @@ export namespace NylteJ
 						else
 							PrintFooter();
 
+						uiHandler.nowFocus->WhenRefocused();
 						uiHandler.nowFocus->ManageInput(message, handlers);
 					}
 					catch (Exception& e)

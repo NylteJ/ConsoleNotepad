@@ -10,6 +10,7 @@ import InputHandler;
 import UIComponent;
 import Selector;
 import BasicWindow;
+import SettingMap;
 
 import Exceptions;
 
@@ -373,12 +374,14 @@ export namespace NylteJ
 			(*nowFocused)->WhenRefocused();
 		}
 
-		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring strToFind = L""s, bool findMode = true)
+		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, wstring strToFind = L""s, bool findMode = true)
 			:BasicWindow(console, drawRange),
 			findEditor(console, L""s, {			{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
-												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} }),
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} },
+				settingMap),
 			replaceEditor(console, L""s, {		{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
-												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} }),
+												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
+				settingMap),
 			matchAllCase(console,
 				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} },

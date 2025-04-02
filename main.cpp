@@ -6,7 +6,7 @@ import UI;
 import InputHandler;
 import FileHandler;
 import ClipboardHandler;
-import SettingsHandler;
+import SettingMap;
 
 import ConsoleArgumentsAnalyzer;
 import Exceptions;
@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 
 	ClipboardHandler clipboardHandler;
 
-	SettingsHandler settings{ console };
+	SettingMap settings{};
 
 	if (arguments.OpenFilePath().has_value())
 	{

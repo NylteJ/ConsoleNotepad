@@ -32,14 +32,14 @@ export namespace NylteJ
 			return reader.Valid();
 		}
 
-		void OpenFile(filesystem::path filePath)
+		void OpenFile(const filesystem::path& filePath)
 		{
 			CloseFile();
 			reader.OpenFile(filePath);
 			nowFilePath = filePath;
 		}
 
-		void CreateFile(filesystem::path filePath, bool allowOverride = false)
+		void CreateFile(const filesystem::path& filePath, bool allowOverride = false)
 		{
 			CloseFile();
 			reader.CreateFile(filePath, allowOverride);

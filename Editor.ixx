@@ -21,7 +21,7 @@ export namespace NylteJ
 {
 	class Editor :public UIComponent
 	{
-	private:
+	public:
 		// 用于 Ctrl + Z / Y
 		// 存储一 / 多步操作 (比如相邻的插入 / 删除会被算在一起, 不然挨字符 Ctrl + Z 实在是痛苦)
 		class EditOperation
@@ -62,6 +62,21 @@ export namespace NylteJ
 				return ret;
 			}
 
+			// 直接对字符串进行操作, 主要用在连续的 Undo / Redo 里
+			void DoOperationDirect(wstring& str) const
+			{
+				switch (type)
+				{
+				case Insert:
+					str.insert_range(str.begin() + index, *data);
+					return;
+				case Erase:
+					str.erase(str.begin() + index, str.begin() + index + data->size());
+					return;
+				default:
+					unreachable();
+				}
+			}
 			void DoOperation(Editor& editor) const
 			{
 				// 这里无需调用 SetCursorPos 或 ScrollToIndex 等, 后面 Erase / Insert 会调用的
@@ -77,8 +92,8 @@ export namespace NylteJ
 					{
 						editor.selectBeginIndex = index;
 						editor.selectEndIndex = index + data->size();
+						editor.PrintData();
 					}
-					editor.PrintData();
 					return;
 				case Erase:
 					editor.selectBeginIndex = index;
@@ -692,6 +707,36 @@ export namespace NylteJ
 				redoDeque.erase(redoDeque.end() - eraseCount, redoDeque.end());
 			}
 		}
+		void Undo(size_t step)
+		{
+			if (step == 0)
+				return;
+
+			while (step > 1)
+			{
+				if (undoDeque.empty())
+					return;
+
+				undoDeque.front().DoOperationDirect(fileData);
+
+				redoDeque.emplace_front(undoDeque.front().GetReverseOperation());
+
+				undoDeque.pop_front();
+
+				if (redoDeque.size() > GetMaxUndoStep())
+				{
+					const auto eraseCount = redoDeque.size() - GetMaxUndoStep();
+					redoDeque.erase(redoDeque.end() - eraseCount, redoDeque.end());
+				}
+
+				--step;
+			}
+
+			ResetCursor();
+
+			Undo();
+		}
+
 		void Redo()
 		{
 			if (redoDeque.empty())
@@ -708,6 +753,44 @@ export namespace NylteJ
 				const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
 				undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
 			}
+		}
+		void Redo(size_t step)
+		{
+			if (step == 0)
+				return;
+
+			while (step > 1)
+			{
+				if (redoDeque.empty())
+					return;
+
+				redoDeque.front().DoOperationDirect(fileData);
+
+				undoDeque.emplace_front(redoDeque.front().GetReverseOperation());
+
+				redoDeque.pop_front();
+
+				if (undoDeque.size() > GetMaxUndoStep())
+				{
+					const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
+					undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
+				}
+
+				--step;
+			}
+
+			ResetCursor();
+
+			Redo();
+		}
+
+		auto& GetUndoDeque() const
+		{
+			return undoDeque;
+		}
+		auto& GetRedoDeque() const
+		{
+			return redoDeque;
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理

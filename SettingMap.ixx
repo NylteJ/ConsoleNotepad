@@ -29,6 +29,8 @@ export namespace NylteJ
 			MaxUndoStep = 2,
 			MaxRedoStep = 3,
 			MaxMergeCharUndoRedo = 4,
+			AutoSaveFileExtension = 5,
+			NewFileAutoSaveName = 6
 		};
 		using enum ID;
 	private:
@@ -47,17 +49,44 @@ export namespace NylteJ
 		ID_TYPE(MaxUndoStep, uint16_t);
 		ID_TYPE(MaxRedoStep, uint16_t);
 		ID_TYPE(MaxMergeCharUndoRedo, uint16_t);
+		ID_TYPE(AutoSaveFileExtension, wstring);
+		ID_TYPE(NewFileAutoSaveName, wstring);
 
 #undef ID_TYPE
 
 #pragma endregion
 	public:
+		using SizeDataType = uint16_t;	// 64KB 的单条数据大小上限应该无论如何都够用了
+	private:
+		class FromByteHelper
+		{
+		private:
+			istringstream& input;
+			SizeDataType dataSize;
+		public:
+			template<typename NormalType>
+			void operator()(NormalType&& value) const
+			{
+				input.read(reinterpret_cast<char*>(&value), dataSize);
+			}
+			template<>
+			void operator()(wstring& str) const
+			{
+				str.resize(dataSize / 2);
+				input.read(reinterpret_cast<char*>(str.data()), dataSize);
+			}
+
+			FromByteHelper(istringstream& input, SizeDataType dataSize)
+				:input(input), dataSize(dataSize)
+			{
+			}
+		};
+	public:
 		template<ID id>
 		using DataType = DataTypeHelper<id>::type;
-
-		using SizeDataType = uint16_t;	// 64KB 的单条数据大小上限应该无论如何都够用了
 		
-		using StoreType = variant<uint8_t, uint16_t, uint32_t, uint64_t, float, double>;
+		// 其实这个大一点也没关系, 因为每个设置项都只会带来一个新对象, 外界获取到的始终是实际的对应类型
+		using StoreType = variant<uint8_t, uint16_t, uint32_t, uint64_t, float, double, wstring>;
 	private:
 		unordered_map<ID, StoreType> datas;
 
@@ -85,7 +114,7 @@ export namespace NylteJ
 
 		// 后续删掉某些 ID 时再在这里加
 		// 没有反射的痛
-		static constexpr array allValidID{ DefaultBehaviorWhenErrorEncoding,AutoSavingDuration,MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo };
+		static constexpr array allValidID{ DefaultBehaviorWhenErrorEncoding,AutoSavingDuration,MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo,AutoSaveFileExtension,NewFileAutoSaveName };
 	private:
 		static constexpr bool IsValidID(ID id)
 		{
@@ -106,6 +135,10 @@ export namespace NylteJ
 				return DataType<MaxRedoStep>{ 1024 };
 			case MaxMergeCharUndoRedo:
 				return DataType<MaxMergeCharUndoRedo>{ 16 };
+			case AutoSaveFileExtension:
+				return DataType<AutoSaveFileExtension>{ L".autosave"s };
+			case NewFileAutoSaveName:
+				return DataType<NewFileAutoSaveName>{ L"__Unnamed_NewFile"s };
 			}
 			unreachable();
 		}
@@ -168,10 +201,7 @@ export namespace NylteJ
 				{
 					datas[id] = GetDefaultValues(id);
 
-					visit([&](auto&& data) constexpr
-						{
-							input.read(reinterpret_cast<char*>(&data), sizeof(data));
-						}, datas[id]);
+					visit(FromByteHelper{ input,dataSize }, datas[id]);
 				}
 				else
 					input.seekg(dataSize, ios::cur);
@@ -184,11 +214,18 @@ export namespace NylteJ
 
 			for (auto&& [id, data] : datas)
 			{
-				const SizeDataType dataSize = VariantSize(id);
+				SizeDataType dataSize = VariantSize(id);
+				const char* dataPtr = reinterpret_cast<const char*>(&data);
+
+				if (auto ptr = get_if<wstring>(&data);ptr != nullptr)
+				{
+					dataSize = static_cast<SizeDataType>(ptr->size() * sizeof(wstring::value_type));
+					dataPtr = reinterpret_cast<const char*>(ptr->data());
+				}
 
 				output.write(reinterpret_cast<const char*>(&dataSize), sizeof(dataSize));
 				output.write(reinterpret_cast<const char*>(&id), sizeof(id));
-				output.write(reinterpret_cast<const char*>(&data), VariantSize(id));
+				output.write(dataPtr, dataSize);
 			}
 
 			return output.str();

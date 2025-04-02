@@ -137,6 +137,8 @@ export namespace NylteJ
 				return;
 			}
 
+			ChangeFocusIndex(nowFocusedSettingIndex);
+
 			settings.settingList[nowFocusedSettingIndex].component->ManageInput(message, handlers);
 		}
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
@@ -184,6 +186,8 @@ export namespace NylteJ
 						&& nowFocusedSettingIndex < nowBeginSettingIndex + MaxSettingInScreen())
 						settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 				}
+
+				return;	// À¹½Ø¹öÂÖ
 			}
 
 			settings.settingList[nowFocusedSettingIndex].component->ManageInput(message, handlers);

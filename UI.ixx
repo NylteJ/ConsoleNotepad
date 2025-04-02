@@ -63,7 +63,7 @@ export namespace NylteJ
 
 			auto tempPath = handlers.file.nowFilePath;
 
-			autoSaveFile.CreateFile(tempPath.concat(L".autosave"sv), true);		// concat 会改变原 path
+			autoSaveFile.CreateFile(tempPath.concat(handlers.settings.Get<SettingID::AutoSaveFileExtension>()), true);		// concat 会改变原 path
 
 			PrintFooter(format(L"已打开 {} !"sv, filename));
 		}
@@ -92,7 +92,7 @@ export namespace NylteJ
 			editor->ResetCursor();
 
 			handlers.file.CloseFile();
-			autoSaveFile.CreateFile(handlers.file.nowFilePath.concat(L"__Unnamed_NewFile.autosave"sv), true);
+			autoSaveFile.CreateFile(handlers.settings.Get<SettingID::NewFileAutoSaveName>() + handlers.settings.Get<SettingID::AutoSaveFileExtension>(), true);
 
 			lastSaveDataHash = hash<wstring_view>{}(L""sv);
 			lastSaveTime = chrono::steady_clock::now();

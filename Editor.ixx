@@ -849,6 +849,11 @@ export namespace NylteJ
 			FlushCursor();
 		}
 
+		void WhenUnfocused() override
+		{
+			console.HideCursor();
+		}
+
 		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,const SettingMap& settingMap,
 			shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
 			:console(console), fileData(fileData), UIComponent(drawRange), settingMap(settingMap), formatter(formatter)

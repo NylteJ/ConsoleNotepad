@@ -84,9 +84,15 @@ export namespace NylteJ
 		throw Exception{ L"错误的数据格式!"sv };\
 	return ret;\
 }
+#define WSTRING_CASE(id_) case id_: return static_pointer_cast<Editor>(component)->GetData() | ranges::to<wstring>();
+
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
 						NORMAL_CASE(MaxMergeCharUndoRedo)
+						WSTRING_CASE(AutoSaveFileExtension)
+						WSTRING_CASE(NewFileAutoSaveName)
+
+#undef WSTRING_CASE
 #undef NORMAL_CASE
 					}
 				unreachable();
@@ -122,11 +128,15 @@ export namespace NylteJ
 						return;
 					}
 #define NORMAL_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(to_wstring(settingMap.Get<id_>()));return;
+#define WSTRING_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(settingMap.Get<id_>());return;
 
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
 						NORMAL_CASE(MaxMergeCharUndoRedo)
+						WSTRING_CASE(AutoSaveFileExtension)
+						WSTRING_CASE(NewFileAutoSaveName)
 
+#undef WSTRING_CASE
 #undef NORMAL_CASE
 					}
 
@@ -174,6 +184,10 @@ export namespace NylteJ
 			settingList.emplace_back(L"重做 (Ctrl + Y) 步数上限 (各个编辑器单独计算):"s, MaxRedoStep,
 				make_shared<Editor>(console, L""s, drawRange, settingMap));
 			settingList.emplace_back(L"撤销 / 重做时的字符融合上限 (各个编辑器单独计算):"s, MaxMergeCharUndoRedo,
+				make_shared<Editor>(console, L""s, drawRange, settingMap));
+			settingList.emplace_back(L"自动保存文件的后缀名:"s, AutoSaveFileExtension,
+				make_shared<Editor>(console, L""s, drawRange, settingMap));
+			settingList.emplace_back(L"新文件的自动保存文件名:"s, NewFileAutoSaveName,
 				make_shared<Editor>(console, L""s, drawRange, settingMap));
 
 			ReloadAll();

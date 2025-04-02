@@ -13,6 +13,7 @@ import ConsoleTypedef;
 import Formatter;
 import BasicColors;
 import UIComponent;
+import SettingMap;
 
 using namespace std;
 
@@ -90,12 +91,6 @@ export namespace NylteJ
 			}
 		};
 	private:
-		// 撤销 / 重做的步数上限，干脆拉大一点得了
-		/*constexpr static size_t maxUndoStep = 1024;
-		constexpr static size_t maxRedoStep = 1024;
-
-		constexpr static size_t maxMergeOperationStrLen = 16;*/	// 最多把多少个字符的变动融合到一步, 这个其实不适合设太大, 会让手感变得极其难受
-	private:
 		ConsoleHandler& console;
 
 		wstring fileData;
@@ -116,9 +111,7 @@ export namespace NylteJ
 		deque<EditOperation> redoDeque;	// Ctrl + Y
 		// 为什么要用 deque 呢? 因为 stack 不能 pop 栈底的元素, 无法控制 stack 大小
 
-		const size_t maxUndoStep;
-		const size_t maxRedoStep;
-		const size_t maxMergeOperationStrLen;
+		const SettingMap& settingMap;
 	private:
 		constexpr size_t MinSelectIndex() const
 		{
@@ -189,14 +182,14 @@ export namespace NylteJ
 			if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Erase && type == EditOperation::Type::Insert
 				&& undoDeque.front().index + undoDeque.front().data->size() == index
-				&& undoDeque.front().data->size() + data.size() <= maxMergeOperationStrLen)	// 都是插入时, 融合!
+				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// 都是插入时, 融合!
 			{
 				*(undoDeque.front().data) += data;
 			}
 			else if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Insert && type == EditOperation::Type::Erase
 				&& index + data.size() == undoDeque.front().index
-				&& undoDeque.front().data->size() + data.size() <= maxMergeOperationStrLen)	// 都是删除时, 融合!
+				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// 都是删除时, 融合!
 			{
 				undoDeque.front().index = index;
 				undoDeque.front().data->insert_range(undoDeque.front().data->begin(), data);
@@ -213,9 +206,25 @@ export namespace NylteJ
 
 				undoDeque.emplace_front(operation);
 
-				if (undoDeque.size() > maxUndoStep)
-					undoDeque.pop_back();
+				if (undoDeque.size() > GetMaxUndoStep())
+				{
+					const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
+					undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
+				}
 			}
+		}
+
+		auto GetMaxMergeOperationStrLen() const
+		{
+			return settingMap.Get<SettingID::MaxMergeCharUndoRedo>();
+		}
+		auto GetMaxUndoStep() const
+		{
+			return settingMap.Get<SettingID::MaxUndoStep>();
+		}
+		auto GetMaxRedoStep() const
+		{
+			return settingMap.Get<SettingID::MaxRedoStep>();
 		}
 	public:
 		// 输出内容的同时会覆盖背景
@@ -677,8 +686,11 @@ export namespace NylteJ
 
 			undoDeque.pop_front();
 
-			if (redoDeque.size() > maxRedoStep)
-				redoDeque.pop_back();
+			if (redoDeque.size() > GetMaxUndoStep())
+			{
+				const auto eraseCount = redoDeque.size() - GetMaxUndoStep();
+				redoDeque.erase(redoDeque.end() - eraseCount, redoDeque.end());
+			}
 		}
 		void Redo()
 		{
@@ -691,8 +703,11 @@ export namespace NylteJ
 
 			redoDeque.pop_front();
 
-			if (undoDeque.size() > maxUndoStep)
-				undoDeque.pop_back();
+			if (undoDeque.size() > GetMaxUndoStep())
+			{
+				const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
+				undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
+			}
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
@@ -834,13 +849,10 @@ export namespace NylteJ
 			FlushCursor();
 		}
 
-		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,
-			size_t maxUndoStep = 8, size_t maxRedoStep = 8, size_t maxMergeOperationStrLen = 0,
+		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,const SettingMap& settingMap,
 			shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
-			:console(console), fileData(fileData), UIComponent(drawRange), formatter(formatter),
-			maxUndoStep(maxUndoStep), maxRedoStep(maxRedoStep), maxMergeOperationStrLen(maxMergeOperationStrLen)
+			:console(console), fileData(fileData), UIComponent(drawRange), settingMap(settingMap), formatter(formatter)
 		{
-			PrintData();
 		}
 };
 }

@@ -15,6 +15,7 @@ import Utils;
 import StringEncoder;
 import FileHandler;
 import SettingsHandler;
+import SettingMap;
 
 using namespace std;
 
@@ -30,7 +31,7 @@ export namespace NylteJ
 
 		size_t nowFocusedSettingIndex = 0;
 
-		SettingsHandler& settings;
+		SettingsHandler settings;
 	private:
 		constexpr size_t MaxSettingInScreen() const
 		{
@@ -199,21 +200,16 @@ export namespace NylteJ
 		void WhenRefocused() override
 		{
 			BasicWindow::WhenRefocused();
+
+			settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 		}
 
-		SettingWindow(ConsoleHandler& console, const ConsoleRect& drawRange, SettingsHandler& settings)
+		SettingWindow(ConsoleHandler& console, const ConsoleRect& drawRange, SettingMap& settings)
 			:BasicWindow(console, drawRange),
-			settings(settings)
+			settings(console, settings)
 		{
 			if (drawRange.Height() < 6)
 				throw Exception{ L"´°¿ÚÌ«Ð¡!"sv };
-
-			settings.editing = true;
-		}
-
-		~SettingWindow()
-		{
-			settings.editing = false;
 		}
 	};
 }

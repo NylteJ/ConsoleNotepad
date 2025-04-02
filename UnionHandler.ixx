@@ -8,11 +8,10 @@ import ClipboardHandler;
 import ConsoleHandler;
 import InputHandler;
 import UIHandler;
+import SettingMap;
 
 export namespace NylteJ
 {
-	class SettingsHandler;
-
 	// 这里不能直接写出来 (using UIComponentPtr = shared_ptr<UIComponent>), 否则会循环依赖
 	// 所以为了用的时候方便, 别名定义在 UIComponent.ixx 里了, 这里定义个长一点的名字
 	template<typename UIComponentPtr>
@@ -24,7 +23,7 @@ export namespace NylteJ
 		FileHandler& file;
 		ClipboardHandler& clipboard;
 		UIHandler<UIComponentPtr>& ui;
-		SettingsHandler& settings;
+		SettingMap& settings;
 	public:
 		UnionHandlerInterface(auto&& consoleHandler, auto&& inputHandler, auto&& fileHandler, auto&& clipboardHandler, auto&& uiHandler, auto&& settings)
 			:console(consoleHandler), input(inputHandler), file(fileHandler), clipboard(clipboardHandler), ui(uiHandler), settings(settings)

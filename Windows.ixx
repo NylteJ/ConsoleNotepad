@@ -14,7 +14,7 @@ import BasicColors;
 import InputHandler;
 import UIComponent;
 import Selector;
-import SettingsHandler;
+import SettingMap;
 
 import StringEncoder;
 import Exceptions;
@@ -213,10 +213,11 @@ export namespace NylteJ
 			editor.WhenRefocused();
 		}
 
-		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, wstring_view tipText = L"输入路径 (按 Tab 自动补全, 按回车确认): "sv)
+		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap,wstring_view tipText = L"输入路径 (按 Tab 自动补全, 按回车确认): "sv)
 			:BasicWindow(console, drawRange),
 			editor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 1},
-									{drawRange.rightBottom.x - 1,drawRange.rightBottom.y - 1} }),
+									{drawRange.rightBottom.x - 1,drawRange.rightBottom.y - 1} },
+				settingMap),
 			tipText(tipText)
 		{
 			if (drawRange.Width() >= 4)
@@ -234,8 +235,8 @@ export namespace NylteJ
 	public:
 		void ManagePath(wstring_view path, UnionHandler& handlers) override;	// 要用到后面的 EncodingSelectWindow, 没办法
 
-		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, Encoding encoding, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, L"打开文件: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
+		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, Encoding encoding, const SettingMap& settingMap, function<void()> callback = [] {})
+			:FilePathWindow(console, drawRange, settingMap, L"打开文件: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
 			encoding(encoding),
 			callback(callback)
 		{
@@ -248,8 +249,8 @@ export namespace NylteJ
 	public:
 		void ManagePath(wstring_view path, UnionHandler& handlers) override;
 
-		SaveFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, L"保存到: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
+		SaveFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, function<void()> callback = [] {})
+			:FilePathWindow(console, drawRange, settingMap, L"保存到: 输入路径 (按 Tab 自动补全, 按回车确认): "sv),
 			callback(callback)
 		{
 		}
@@ -397,6 +398,8 @@ export namespace NylteJ
 	class SaveOrNotWindow :public SelectWindow
 	{
 	private:
+		const SettingMap& settingMap;
+
 		function<void(size_t)> callback;
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
@@ -411,7 +414,7 @@ export namespace NylteJ
 				else
 				{
 					// TODO: 未来再考虑统一吧
-					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange,
+					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange, settingMap,
 						[callback = this->callback, choiceIndex] {callback(choiceIndex); });
 					// 注意这里只能传值, 因为 callback 被调用时这个 Window 很可能已经被销毁了
 					// 而且必须这样指定, 否则 lambda 只会捕获 this, callback 还是无效, 得这样才会让他复制一份
@@ -426,8 +429,9 @@ export namespace NylteJ
 				return;
 		}
 
-		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
+		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, function<void(size_t)> callback = [](size_t) {})
 			:SelectWindow(console, drawRange, { L"保存"s, L"不保存"s, L"取消"s }, L"当前更改未保存. 是否先保存? "sv),
+			settingMap(settingMap),
 			callback(callback)
 		{
 		}
@@ -538,7 +542,7 @@ export namespace NylteJ
 		}
 		catch (WrongEncodingException&)
 		{
-			auto behavior = handlers.settings.BehaviorWhenErrorEncoding();
+			auto behavior = handlers.settings.Get<SettingID::DefaultBehaviorWhenErrorEncoding>();
 
 			auto funcToOpen =
 				[path = ranges::to<wstring>(path),

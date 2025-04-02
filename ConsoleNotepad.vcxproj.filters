@@ -117,5 +117,8 @@
     <ClCompile Include="SettingsHandler.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
+    <ClCompile Include="SettingMap.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

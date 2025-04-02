@@ -40,7 +40,7 @@ export namespace NylteJ
 			return fileHandle != INVALID_HANDLE_VALUE;
 		}
 
-		void OpenFile(filesystem::path filePath)
+		void OpenFile(const filesystem::path& filePath)
 		{
 			OpenFileReal(filePath, OPEN_EXISTING);
 

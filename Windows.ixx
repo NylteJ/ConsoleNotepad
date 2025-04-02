@@ -269,7 +269,7 @@ export namespace NylteJ
 		size_t beginChoice = 0;		// 当窗口太小、选项太多时用来滚动
 
 		wstring_view tipText;
-	private:
+	protected:
 		void PrintChoices()
 		{
 			if (drawRange.Height() < 4)
@@ -374,6 +374,24 @@ export namespace NylteJ
 						return;
 					}
 			}
+
+			if (message.type == VWheeled)
+			{
+				auto move = message.WheelMove();
+
+				if ((beginChoice > 0 || move > 0)
+					&& (beginChoice + 1 < choices.size() || move < 0))
+				{
+					if (beginChoice + move + (drawRange.Height() - 3) >= choices.size())
+						beginChoice = choices.size() - (drawRange.Height() - 3);
+					else if (move < 0 && beginChoice < -move)
+						beginChoice = 0;
+					else
+						beginChoice += move;
+
+					PrintChoices();
+				}
+			}
 		}
 
 		void WhenFocused() override
@@ -398,8 +416,6 @@ export namespace NylteJ
 	class SaveOrNotWindow :public SelectWindow
 	{
 	private:
-		const SettingMap& settingMap;
-
 		function<void(size_t)> callback;
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
@@ -414,7 +430,7 @@ export namespace NylteJ
 				else
 				{
 					// TODO: 未来再考虑统一吧
-					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange, settingMap,
+					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange, handlers.settings,
 						[callback = this->callback, choiceIndex] {callback(choiceIndex); });
 					// 注意这里只能传值, 因为 callback 被调用时这个 Window 很可能已经被销毁了
 					// 而且必须这样指定, 否则 lambda 只会捕获 this, callback 还是无效, 得这样才会让他复制一份
@@ -429,9 +445,8 @@ export namespace NylteJ
 				return;
 		}
 
-		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, function<void(size_t)> callback = [](size_t) {})
+		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
 			:SelectWindow(console, drawRange, { L"保存"s, L"不保存"s, L"取消"s }, L"当前更改未保存. 是否先保存? "sv),
-			settingMap(settingMap),
 			callback(callback)
 		{
 		}
@@ -528,6 +543,130 @@ export namespace NylteJ
 			nowChoose = 1;	// 默认不覆盖
 		}
 	};
+
+	class LoadAutoSaveOrNotWindow :public SelectWindow
+	{
+	private:
+		function<void(size_t)> callback;
+	public:
+		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
+		{
+			if (choiceIndex == 0)	// 加载
+				callback(choiceIndex);
+			else if (choiceIndex == 1)	// 不加载
+				callback(choiceIndex);
+			else	// 取消
+				return;
+		}
+
+		LoadAutoSaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
+			:SelectWindow(console, drawRange, { L"加载"s, L"不加载"s, L"取消"s }, L"检测到自动保存文件, 是否加载? "sv),
+			callback(callback)
+		{
+		}
+	};
+
+	class HistoryWindow :public SelectWindow
+	{
+	private:
+		void MakeChoices(auto&& deque, bool inverse)
+		{
+			for (auto&& operation : deque)
+			{
+				wstring str;
+
+				bool addEllipsis = false;
+
+				if ((operation.type == Editor::EditOperation::Type::Insert) xor inverse)
+					str += L"+ "s;
+				else if ((operation.type == Editor::EditOperation::Type::Erase) xor inverse)
+					str += L"- "s;
+
+				wstring nowOperationData = *operation.data;
+
+				// 制表符直接删掉. 历史记录需要的是具体信息, 只要能从短短的几个字符中看出这次操作都做了什么就可以了, 制表符不用留
+				for (auto&& chr : array{ '\t','\r' })
+				{
+					auto [delBegin, delEnd] = ranges::remove(nowOperationData, chr);
+					nowOperationData.erase(delBegin, delEnd);
+				}
+
+				// 只保留第一行
+				// 回车起手的情况暂时不管 TODO
+				if (auto nextLineIter = ranges::find(nowOperationData, '\n'); nextLineIter != nowOperationData.end())
+				{
+					nowOperationData.erase(nextLineIter, nowOperationData.end());
+
+					addEllipsis = true;
+				}
+
+				if (GetDisplayLength(nowOperationData) >= drawRange.Width() - 4)
+				{
+					size_t nowDisplayLength = 0;
+					size_t endIndex = 0;
+
+					while (nowDisplayLength < drawRange.Width() - 7)
+					{
+						auto chr = nowOperationData[endIndex];
+
+						if (IsWideChar(chr))
+							nowDisplayLength += 2;
+						else
+							nowDisplayLength++;
+
+						endIndex++;
+					}
+					if (nowDisplayLength > drawRange.Width() - 7)
+						endIndex--;
+
+					str += wstring_view{ nowOperationData.begin(),nowOperationData.begin() + endIndex };
+					addEllipsis = true;
+				}
+				else
+					str += nowOperationData;
+
+				if (addEllipsis)
+					str += L"..."sv;
+
+				choices.emplace_back(move(str));
+			}
+		}
+	public:
+		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
+		{
+			const auto undoSize = handlers.ui.mainEditor.GetUndoDeque().size();
+
+			if (choiceIndex < undoSize)
+				handlers.ui.mainEditor.Undo(undoSize - choiceIndex);
+			else if (choiceIndex > undoSize)
+				handlers.ui.mainEditor.Redo(choiceIndex - undoSize);
+		}
+
+		HistoryWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const Editor& mainEditor)
+			:SelectWindow(console, drawRange, {}, L"选择要撤销到的历史记录......"sv)
+		{
+			// 别忘了 undoDeque 里存的都是反转后的原操作, 以及 deque 的读取顺序
+			MakeChoices(mainEditor.GetUndoDeque() | ranges::views::reverse, true);
+
+			// 当前状况
+			const auto tipTextNowSituation = L"当前状况"s;
+			const auto allSpaceWidth = drawRange.Width() - 2 - GetDisplayLength(tipTextNowSituation);
+			const auto lineHalfWidth = allSpaceWidth / 2;
+			choices.emplace_back(
+				(ranges::views::repeat(L'-', lineHalfWidth) | ranges::to<wstring>())
+				+ tipTextNowSituation
+				+ (ranges::views::repeat(L'-', allSpaceWidth - lineHalfWidth) | ranges::to<wstring>()));
+			ChangeChoose(choices.size() - 1);
+
+			MakeChoices(mainEditor.GetRedoDeque(), false);
+
+			// 尽量保证 “当前位置” 处在选项框的中间, 以提醒用户横线下面还有东西
+			const auto halfHeight = (drawRange.Height() - 4) / 2;
+			if (nowChoose - beginChoice > halfHeight)
+				beginChoice = nowChoose - halfHeight;
+		}
+	};
+
 
 	void OpenFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
 	{

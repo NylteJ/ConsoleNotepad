@@ -61,9 +61,7 @@ export namespace NylteJ
 
 			wstring filename = handlers.file.nowFilePath.filename();
 
-			auto tempPath = handlers.file.nowFilePath;
-
-			autoSaveFile.CreateFile(tempPath.concat(handlers.settings.Get<SettingID::AutoSaveFileExtension>()), true);		// concat 会改变原 path
+			ManageAutoSaveFile();
 
 			PrintFooter(format(L"已打开 {} !"sv, filename));
 		}
@@ -92,7 +90,8 @@ export namespace NylteJ
 			editor->ResetCursor();
 
 			handlers.file.CloseFile();
-			autoSaveFile.CreateFile(handlers.settings.Get<SettingID::NewFileAutoSaveName>() + handlers.settings.Get<SettingID::AutoSaveFileExtension>(), true);
+
+			ManageAutoSaveFile(handlers.settings.Get<SettingID::NewFileAutoSaveName>());
 
 			lastSaveDataHash = hash<wstring_view>{}(L""sv);
 			lastSaveTime = chrono::steady_clock::now();
@@ -105,7 +104,6 @@ export namespace NylteJ
 			auto window = make_shared<SaveOrNotWindow>(handlers.console,
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
-				handlers.settings,
 				callback);
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
@@ -126,6 +124,42 @@ export namespace NylteJ
 		{
 			autoSaveFile.Write(editor->GetData());
 			lastSaveTime = chrono::steady_clock::now();
+		}
+
+		void ManageAutoSaveFile(filesystem::path mainFileName)
+		{
+			filesystem::path& autoSaveFileName = mainFileName;
+			autoSaveFileName.concat(handlers.settings.Get<SettingID::AutoSaveFileExtension>());
+
+			if (filesystem::exists(autoSaveFileName) && filesystem::is_regular_file(autoSaveFileName)
+				&& (!filesystem::exists(autoSaveFile.nowFilePath)
+					|| !filesystem::equivalent(autoSaveFileName, autoSaveFile.nowFilePath))
+				&& !filesystem::is_empty(autoSaveFileName))
+			{
+				auto window = make_shared<LoadAutoSaveOrNotWindow>(handlers.console,
+					ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+									{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+					[&, autoSaveFileName]
+					(size_t choice)
+					{
+						if (choice == 0)
+						{
+							autoSaveFile.OpenFile(autoSaveFileName);
+							editor->SetData(autoSaveFile.ReadAll());
+						}
+						else if (choice == 1)
+							autoSaveFile.CreateFile(autoSaveFileName, true);
+						else unreachable();
+					});
+				uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+				uiHandler.GiveFocusTo(window);
+			}
+			else
+				autoSaveFile.CreateFile(autoSaveFileName, true);
+		}
+		void ManageAutoSaveFile()
+		{
+			ManageAutoSaveFile(handlers.file.nowFilePath);
 		}
 	public:
 		void PrintTitle(wstring_view extraText = L""sv)
@@ -199,7 +233,7 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.85    made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.9    made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
@@ -354,6 +388,15 @@ export namespace NylteJ
 										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
 														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
 										settingMap);
+									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+									uiHandler.GiveFocusTo(window);
+								}
+								else if (message.key == L)	// 历史记录
+								{
+									auto window = make_shared<HistoryWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+										*editor);
 									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 									uiHandler.GiveFocusTo(window);
 								}

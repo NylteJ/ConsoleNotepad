@@ -175,7 +175,12 @@ export namespace NylteJ
 					&& (nowBeginSettingIndex + 1 < settings.settingList.size() || move < 0))
 				{
 					if (nowBeginSettingIndex + move + MaxSettingInScreen() >= settings.settingList.size())
-						nowBeginSettingIndex = settings.settingList.size() - MaxSettingInScreen();
+					{
+						if (settings.settingList.size() > MaxSettingInScreen())
+							nowBeginSettingIndex = settings.settingList.size() - MaxSettingInScreen();
+						else
+							nowBeginSettingIndex = 0;
+					}
 					else if (move < 0 && nowBeginSettingIndex < -move)
 						nowBeginSettingIndex = 0;
 					else

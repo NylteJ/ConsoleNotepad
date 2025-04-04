@@ -30,7 +30,9 @@ export namespace NylteJ
 			MaxRedoStep = 3,
 			MaxMergeCharUndoRedo = 4,
 			AutoSaveFileExtension = 5,
-			NewFileAutoSaveName = 6
+			NewFileAutoSaveName = 6,
+			CloseHistoryWindowAfterEnter = 7,
+			SplitUndoStrWhenEnter = 8
 		};
 		using enum ID;
 	private:
@@ -51,6 +53,8 @@ export namespace NylteJ
 		ID_TYPE(MaxMergeCharUndoRedo, uint16_t);
 		ID_TYPE(AutoSaveFileExtension, wstring);
 		ID_TYPE(NewFileAutoSaveName, wstring);
+		ID_TYPE(CloseHistoryWindowAfterEnter, uint8_t);
+		ID_TYPE(SplitUndoStrWhenEnter, uint8_t);
 
 #undef ID_TYPE
 
@@ -114,7 +118,12 @@ export namespace NylteJ
 
 		// 后续删掉某些 ID 时再在这里加
 		// 没有反射的痛
-		static constexpr array allValidID{ DefaultBehaviorWhenErrorEncoding,AutoSavingDuration,MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo,AutoSaveFileExtension,NewFileAutoSaveName };
+		static constexpr array allValidID{ DefaultBehaviorWhenErrorEncoding,
+			AutoSavingDuration,
+			MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo,
+			AutoSaveFileExtension,NewFileAutoSaveName,
+			CloseHistoryWindowAfterEnter,
+			SplitUndoStrWhenEnter };
 	private:
 		static constexpr bool IsValidID(ID id)
 		{
@@ -126,7 +135,7 @@ export namespace NylteJ
 			switch (id)
 			{
 			case DefaultBehaviorWhenErrorEncoding:
-				return DataType<DefaultBehaviorWhenErrorEncoding>{0};
+				return DataType<DefaultBehaviorWhenErrorEncoding>{ 1 };
 			case AutoSavingDuration:
 				return DataType<AutoSavingDuration>{ 180 };
 			case MaxUndoStep:
@@ -139,6 +148,10 @@ export namespace NylteJ
 				return DataType<AutoSaveFileExtension>{ L".autosave"s };
 			case NewFileAutoSaveName:
 				return DataType<NewFileAutoSaveName>{ L"__Unnamed_NewFile"s };
+			case CloseHistoryWindowAfterEnter:
+				return DataType<CloseHistoryWindowAfterEnter>{ 0 };
+			case SplitUndoStrWhenEnter:
+				return DataType<SplitUndoStrWhenEnter>{ 1 };
 			}
 			unreachable();
 		}
@@ -247,6 +260,10 @@ export namespace NylteJ
 				settingsFile.OpenFile(saveFilePath);
 
 				LoadFromFile();
+
+				for (auto&& id : allValidID)
+					if (!datas.contains(id))
+						datas[id] = GetDefaultValues(id);
 			}
 			catch (const FileOpenFailedException&)
 			{

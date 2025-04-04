@@ -732,8 +732,6 @@ export namespace NylteJ
 				--step;
 			}
 
-			ResetCursor();
-
 			Undo();
 		}
 
@@ -778,8 +776,6 @@ export namespace NylteJ
 
 				--step;
 			}
-
-			ResetCursor();
 
 			Redo();
 		}

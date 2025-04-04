@@ -21,8 +21,8 @@ export namespace NylteJ
 	protected:
 		void EraseThis(UnionHandler& handlers)
 		{
-			handlers.ui.EraseComponent(this);
 			nowExit = true;
+			handlers.ui.EraseComponent(this);
 		}
 	public:
 		void PrintFrame() const

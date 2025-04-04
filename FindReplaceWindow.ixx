@@ -1,6 +1,8 @@
 // FindReplaceWindow.ixx
 // 查找替换的二合一窗口
 // 代价就是代码有点难看懂了
+// 加上正则表达式后更乱了, 纯屎山来的
+// TODO: 重构屎山 (这是我打的第几个这样的 TODO 了)
 export module FindReplaceWindow;
 
 import std;
@@ -23,11 +25,12 @@ export namespace NylteJ
 	class FindReplaceWindow :public BasicWindow
 	{
 	private:
-		using FindOptions = bitset<4>;
+		using FindOptions = bitset<3>;
 	private:
 		constexpr static wstring_view titleFind = L"查找: 按回车查找, 用方向键切换对象."sv;
 		constexpr static wstring_view titleReplace = L"替换: 按回车替换, 用方向键切换对象."sv;
-		constexpr static wstring_view tipText1 = L"用 \\n, \\t 代指回车、Tab, \\\\n 代指 \"\\n\"."sv;
+		constexpr static wstring_view tipText1Normal = L"用 \\n, \\t 代指回车、Tab, \\\\n 代指 \"\\n\"."sv;
+		constexpr static wstring_view tipText1Regex = L"基本遵循 ECMAScript 正则表达式文法."sv;
 		constexpr static wstring_view tipText2Find = L"用 Tab 切换选框."sv;
 		constexpr static wstring_view tipText2Replace = L"用 Tab 切换选框, Shift + 回车替换全部."sv;
 		constexpr static wstring_view tipText3Replace = L"替换为:"sv;
@@ -37,15 +40,20 @@ export namespace NylteJ
 
 		vector<size_t> allFindedIndexs;
 
+		vector<size_t> allFindResultSizeForRegex;
+		vector<wstring> allReplaceResultForRegex;	// 仅在正则替换时使用
+
 		size_t nowFindedIndexID = 0;
 
 		wstring lastFindText = L""s;
+		wstring lastReplaceText = L""s;		// 仅在正则替换时使用, 其他时候当替换文本变更时无需重新搜索
 		FindOptions lastFindOptions;
 
 		Selector matchAllCase;	// 区分大小写
 		Selector matchFullWord;	// 全字匹配
+		Selector matchRegex;	// 正则表达式
 
-		vector<UIComponent*> components = { &findEditor,&matchAllCase,&matchFullWord };
+		vector<UIComponent*> components = { &findEditor,&matchAllCase,&matchFullWord,&matchRegex };
 
 		decltype(components.begin()) nowFocused = components.begin();
 
@@ -70,7 +78,10 @@ export namespace NylteJ
 				console.Print(tipText3Replace, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 4 });
 			}
 
-			tip1 = tipText1;
+			if (MatchRegex())
+				tip1 = tipText1Regex;
+			else
+				tip1 = tipText1Normal;
 
 			console.Print(title, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
 			console.Print(tip1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
@@ -81,7 +92,10 @@ export namespace NylteJ
 		{
 			if (nowFindedIndexID < allFindedIndexs.size())
 			{
-				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+				if(MatchRegex())
+					handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + allFindResultSizeForRegex[nowFindedIndexID]);
+				else
+					handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
 
 				WhenFocused();
 			}
@@ -128,16 +142,28 @@ export namespace NylteJ
 
 		wstring GetNowFindText() const
 		{
-			return ConvertText(findEditor.GetData() | ranges::to<wstring>());
+			auto ret = findEditor.GetData() | ranges::to<wstring>();
+
+			if (MatchRegex())
+				return ret;
+
+			return ConvertText(ret);
 		}
 		wstring GetNowReplaceText() const
 		{
-			return ConvertText(replaceEditor.GetData() | ranges::to<wstring>());
+			auto ret = replaceEditor.GetData() | ranges::to<wstring>();
+
+			if (MatchRegex())
+				return ret;
+
+			return ConvertText(ret);
 		}
 
 		void ReFindAll(UnionHandler& handlers)
 		{
 			allFindedIndexs.clear();
+			allFindResultSizeForRegex.clear();
+			allReplaceResultForRegex.clear();
 
 			wstring stringToFind = GetNowFindText();
 			wstring_view stringAll = handlers.ui.mainEditor.GetData();
@@ -145,30 +171,63 @@ export namespace NylteJ
 			lastFindText = stringToFind;
 			lastFindOptions = GetFindOptions();
 
-			// BMH 应该在这里比 BM 更适合一点?
-			boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end(),hash<wchar_t>{},
-				[&](auto&& x,auto&& y)
-				{
-					if (MatchAllCase())
-						return towlower(x) == towlower(y);
-
-					return x == y;
-				} };
-
-			auto iter = stringAll.begin();
-
-			while (true)
+			if (!MatchRegex())
 			{
-				iter = search(iter, stringAll.end(), searcher);
+				// BMH 应该在这里比 BM 更适合一点?
+				boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end(),hash<wchar_t>{},
+					[&](auto&& x,auto&& y)
+					{
+						if (MatchAllCase())
+							return towlower(x) == towlower(y);
 
-				if (iter == stringAll.end())
-					break;
-				if (!MatchFullWord()
-					|| ((iter == stringAll.begin() || !iswalpha(*(iter - 1)))
-						&& (iter + stringToFind.size() == stringAll.end() || !iswalpha(*(iter + stringToFind.size())))))
-					allFindedIndexs.emplace_back(iter - stringAll.begin());
+						return x == y;
+					} };
 
-				++iter;
+				auto iter = stringAll.begin();
+
+				while (true)
+				{
+					iter = search(iter, stringAll.end(), searcher);
+
+					if (iter == stringAll.end())
+						break;
+					if (!MatchFullWord()
+						|| ((iter == stringAll.begin() || !iswalpha(*(iter - 1)))
+							&& (iter + stringToFind.size() == stringAll.end() || !iswalpha(*(iter + stringToFind.size())))))
+						allFindedIndexs.emplace_back(iter - stringAll.begin());
+
+					++iter;
+				}
+			}
+			else
+			{
+				if (!findMode)
+					lastReplaceText = GetNowReplaceText();
+
+				auto regexOption = regex_constants::ECMAScript | regex_constants::optimize;
+				if (MatchAllCase())
+					regexOption |= regex_constants::icase;
+				if (MatchFullWord())
+				{
+					if (!stringToFind.starts_with(L"\\b"sv))
+						stringToFind = L"\\b"s + stringToFind;
+					if (!stringToFind.ends_with(L"\\b"sv))
+						stringToFind += L"\\b"s;
+				}
+
+				wregex regexToFind{ stringToFind, regexOption };
+				regex_iterator<decltype(stringAll.begin())> iter = {stringAll.begin(),stringAll.end(),regexToFind};
+				decltype(iter) end{};
+				while (iter != end)
+				{
+					allFindedIndexs.emplace_back(iter->position());
+					allFindResultSizeForRegex.emplace_back(iter->length());
+
+					if (!findMode)
+						allReplaceResultForRegex.emplace_back(iter->format(GetNowReplaceText()));
+
+					++iter;
+				}
 			}
 
 			nowFindedIndexID = 0;
@@ -209,12 +268,17 @@ export namespace NylteJ
 		{
 			return matchFullWord.GetNowChoose() == 1;
 		}
+		bool MatchRegex() const
+		{
+			return matchRegex.GetNowChoose() == 1;
+		}
 
 		FindOptions GetFindOptions() const
 		{
 			FindOptions ret;
 			ret[0] = MatchAllCase();
 			ret[1] = MatchFullWord();
+			ret[2] = MatchRegex();
 			return ret;
 		}
 
@@ -225,14 +289,29 @@ export namespace NylteJ
 
 			MoveMainEditorPos(handlers);
 
-			if (!GetNowReplaceText().empty())
-				handlers.ui.mainEditor.Insert(GetNowReplaceText());
+			auto nowReplaceText = GetNowReplaceText();
+
+			if (MatchRegex())
+				nowReplaceText = allReplaceResultForRegex[nowFindedIndexID];
+
+			if (!nowReplaceText.empty())
+				handlers.ui.mainEditor.Insert(nowReplaceText);
 			else
 				handlers.ui.mainEditor.Erase();
 
-			const auto offset = static_cast<long long>(GetNowReplaceText().size()) - static_cast<long long>(GetNowFindText().size());
+			long long offset;
+			
+			if (MatchRegex())
+				offset = static_cast<long long>(nowReplaceText.size()) - static_cast<long long>(allFindResultSizeForRegex[nowFindedIndexID]);
+			else
+				offset = static_cast<long long>(nowReplaceText.size()) - static_cast<long long>(GetNowFindText().size());
 
 			nowFindedIndexID = allFindedIndexs.erase(allFindedIndexs.begin() + nowFindedIndexID) - allFindedIndexs.begin();
+			if (MatchRegex())
+			{
+				allFindResultSizeForRegex.erase(allFindResultSizeForRegex.begin() + nowFindedIndexID);
+				allReplaceResultForRegex.erase(allReplaceResultForRegex.begin() + nowFindedIndexID);
+			}
 
 			for (size_t i = nowFindedIndexID; i < allFindedIndexs.size(); i++)	// 后面的都要偏移, 前面的都不用
 				allFindedIndexs[i] += offset;
@@ -247,31 +326,31 @@ export namespace NylteJ
 			if (allFindedIndexs.empty())
 				return;
 
-			nowFindedIndexID = allFindedIndexs.size() - 1;
+			long long nowIndexID = allFindedIndexs.size() - 1;
 
 			// 这里选择反复调用 Editor::Insert 只是为了便于撤销 (虽然得挨个撤销)
-			while (nowFindedIndexID > 0)
+			while (nowIndexID >= 0)
 			{
-				// 这里本窗体本身无需被绘制, 所以无需调用 MoveMainEditorPos
-				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID],
-					allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+				auto size = lastFindText.size();
+				if (MatchRegex())
+					size = allFindResultSizeForRegex[nowIndexID];
 
-				if (!GetNowReplaceText().empty())
-					handlers.ui.mainEditor.Insert(GetNowReplaceText());
+				// 这里本窗体本身无需被绘制, 所以无需调用 MoveMainEditorPos
+				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowIndexID],
+					allFindedIndexs[nowIndexID] + size);
+
+				auto nowReplaceText = GetNowReplaceText();
+
+				if (MatchRegex())
+					nowReplaceText = allReplaceResultForRegex[nowIndexID];
+
+				if (!nowReplaceText.empty())
+					handlers.ui.mainEditor.Insert(nowReplaceText);
 				else
 					handlers.ui.mainEditor.Erase();
 
-				nowFindedIndexID--;
+				nowIndexID--;
 			}
-			// size_t 恒非负, 所以只能这样了
-			handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID],
-				allFindedIndexs[nowFindedIndexID] + lastFindText.size());
-
-			if (!GetNowReplaceText().empty())
-				handlers.ui.mainEditor.Insert(GetNowReplaceText());
-			else
-				handlers.ui.mainEditor.Erase();
-
 			allFindedIndexs.clear();
 
 			nowFindedIndexID = 0;
@@ -292,10 +371,22 @@ export namespace NylteJ
 
 			using enum InputHandler::MessageKeyboard::Key;
 
+			auto needRefind = [&]()
+				{
+					return GetNowFindText() != lastFindText
+						|| GetFindOptions() != lastFindOptions
+						|| (!findMode && MatchRegex() && GetNowReplaceText() != lastReplaceText);
+				};
+
 			if (message.key == Enter)
 			{
-				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
+				if (needRefind())
+				{
 					ReFindAll(handlers);
+
+					if (message.extraKeys.Shift() && !findMode)
+						ReplaceAll(handlers);
+				}
 				else if (findMode)
 					FindNext(handlers);
 				else if (message.extraKeys.Shift())
@@ -306,7 +397,7 @@ export namespace NylteJ
 			}
 			else if (message.key == Up)
 			{
-				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
+				if (needRefind())
 					ReFindAll(handlers);
 
 				FindPrev(handlers);	// 这个时候没问题, 此时会直接跳到最后一个, 另外两种情况不行是因为会跳过第一个
@@ -315,7 +406,7 @@ export namespace NylteJ
 			}
 			else if (message.key == Down)
 			{
-				if (GetNowFindText() != lastFindText || GetFindOptions() != lastFindOptions)
+				if (needRefind())
 					ReFindAll(handlers);
 				else
 					FindNext(handlers);
@@ -335,7 +426,12 @@ export namespace NylteJ
 				return;
 			}
 
+			bool lastRegexEnable = MatchRegex();
+
 			(*nowFocused)->ManageInput(message, handlers);
+
+			if (lastRegexEnable != MatchRegex())	// 为了让正则表达式的提示文本能即时生效
+				WhenFocused();
 		}
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
@@ -390,11 +486,15 @@ export namespace NylteJ
 				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
 				{ L"匹配所有"s,L"全字匹配"s }),
+			matchRegex(console,
+				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
+					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} },
+				{ L"正常匹配"s,L"正则匹配"s }),
 			findMode(findMode)
 		{
-			if (findMode && drawRange.Height() < 8)
+			if (findMode && drawRange.Height() < 9)
 				throw Exception{ L"窗口太小了!"sv };
-			if (!findMode && drawRange.Height() < 10)
+			if (!findMode && drawRange.Height() < 11)
 				throw Exception{ L"窗口太小了!"sv };
 
 			findEditor.SetData(ConvertText<true>(strToFind));
@@ -406,8 +506,10 @@ export namespace NylteJ
 
 				matchAllCase.SetDrawRange({ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
 											{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} });
-				matchFullWord.SetDrawRange({ {drawRange.leftTop.x + 1,drawRange.leftTop.y + 7},
+				matchFullWord.SetDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 7},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 7} });
+				matchRegex.SetDrawRange({	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 8},
+											{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 8} });
 			}
 
 			findEditor.MoveCursorToEnd();

@@ -16,7 +16,7 @@ export namespace NylteJ
 		vector<string_view> arguments;
 		string_view exeName;
 	public:
-		string_view ExeName() const
+		filesystem::path ExePath() const
 		{
 			return exeName;
 		}

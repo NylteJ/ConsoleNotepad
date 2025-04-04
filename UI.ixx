@@ -356,8 +356,8 @@ export namespace NylteJ
 								{
 									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
 																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} };
-									if (windowRange.Height() < 8 && handlers.console.GetConsoleSize().height >= 10)
-										windowRange.rightBottom.y = windowRange.leftTop.y + 7;
+									if (windowRange.Height() < 9 && handlers.console.GetConsoleSize().height >= 11)
+										windowRange.rightBottom.y = windowRange.leftTop.y + 8;
 
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										windowRange,
@@ -371,8 +371,8 @@ export namespace NylteJ
 								{
 									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
 																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} };
-									if (windowRange.Height() < 10 && handlers.console.GetConsoleSize().height >= 12)
-										windowRange.rightBottom.y = windowRange.leftTop.y + 9;
+									if (windowRange.Height() < 11 && handlers.console.GetConsoleSize().height >= 13)
+										windowRange.rightBottom.y = windowRange.leftTop.y + 10;
 
 									auto window = make_shared<FindReplaceWindow>(handlers.console,
 										windowRange,

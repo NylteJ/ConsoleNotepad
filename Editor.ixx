@@ -194,39 +194,65 @@ export namespace NylteJ
 		{
 			redoDeque.clear();
 
+			auto mergeInsert = [&]
+				{
+					*(undoDeque.front().data) += data;
+				};
+
+			auto mergeErase = [&]
+				{
+					undoDeque.front().index = index;
+					undoDeque.front().data->insert_range(undoDeque.front().data->begin(), data);
+				};
+
+			auto addOperation = [&]
+				{
+					EditOperation operation;
+
+					operation.type = type;
+					operation.index = index;
+					operation.data = make_shared<wstring>(data.begin(), data.end());
+
+					operation.ReserveOperation();
+
+					undoDeque.emplace_front(operation);
+
+					if (undoDeque.size() > GetMaxUndoStep())
+					{
+						const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
+						undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
+					}
+				};
+
 			if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Erase && type == EditOperation::Type::Insert
 				&& undoDeque.front().index + undoDeque.front().data->size() == index
+				&& data.size() == 1
 				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// 都是插入时, 融合!
 			{
-				*(undoDeque.front().data) += data;
+				if (undoDeque.front().data->back() != '\n'
+					|| settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 2)		// 总融合
+					mergeInsert();
+				else
+					if (settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 1)	// 只融合连续换行
+					{
+						if (data[0] == '\n'
+							&& all_of(undoDeque.front().data->begin(), undoDeque.front().data->end(), [](auto&& chr) {return chr == '\n'; }))
+							mergeInsert();
+						else
+							addOperation();
+					}
+					else	// 总不融合
+						addOperation();
 			}
 			else if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Insert && type == EditOperation::Type::Erase
+				&& data.size() == 1
 				&& index + data.size() == undoDeque.front().index
 				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// 都是删除时, 融合!
-			{
-				undoDeque.front().index = index;
-				undoDeque.front().data->insert_range(undoDeque.front().data->begin(), data);
-			}
+				mergeErase();
 			else
-			{
-				EditOperation operation;
-
-				operation.type = type;
-				operation.index = index;
-				operation.data = make_shared<wstring>(data.begin(), data.end());
-
-				operation.ReserveOperation();
-
-				undoDeque.emplace_front(operation);
-
-				if (undoDeque.size() > GetMaxUndoStep())
-				{
-					const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
-					undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
-				}
-			}
+				addOperation();
 		}
 
 		auto GetMaxMergeOperationStrLen() const

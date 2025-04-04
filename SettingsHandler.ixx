@@ -48,6 +48,8 @@ export namespace NylteJ
 #define NORMAL_CASE(id_) case id_: return static_cast<DataType<id_>>(static_pointer_cast<Selector>(component)->GetNowChoose());
 
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
+						NORMAL_CASE(CloseHistoryWindowAfterEnter)
+						NORMAL_CASE(SplitUndoStrWhenEnter)
 
 #undef NORMAL_CASE
 					}
@@ -108,6 +110,8 @@ export namespace NylteJ
 #define NORMAL_CASE(id_) case id_: static_pointer_cast<Selector>(component)->SetNowChoose(settingMap.Get<id_>());return;
 
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
+						NORMAL_CASE(CloseHistoryWindowAfterEnter)
+						NORMAL_CASE(SplitUndoStrWhenEnter)
 
 #undef NORMAL_CASE
 					}
@@ -189,6 +193,12 @@ export namespace NylteJ
 				make_shared<Editor>(console, L""s, drawRange, settingMap));
 			settingList.emplace_back(L"新文件的自动保存文件名:"s, NewFileAutoSaveName,
 				make_shared<Editor>(console, L""s, drawRange, settingMap));
+			settingList.emplace_back(L"按下回车后是否关闭历史记录窗口:"s, CloseHistoryWindowAfterEnter,
+				make_shared<Selector>(console, drawRange,
+					vector{ L"不关闭"s, L"关闭"s }));
+			settingList.emplace_back(L"换行时是否融合撤销 / 重做操作:"s, SplitUndoStrWhenEnter,
+				make_shared<Selector>(console, drawRange,
+					vector{ L"永不融合"s, L"仅在连续换行时融合"s, L"融合"s}));
 
 			ReloadAll();
 		}

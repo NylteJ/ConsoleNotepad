@@ -268,7 +268,7 @@ export namespace NylteJ
 		size_t nowChoose = 0;
 		size_t beginChoice = 0;		// 当窗口太小、选项太多时用来滚动
 
-		wstring_view tipText;
+		wstring tipText;
 	protected:
 		void PrintChoices()
 		{
@@ -405,7 +405,7 @@ export namespace NylteJ
 			PrintChoices();
 		}
 
-		SelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const vector<wstring>& choices = {}, wstring_view tipText = L"选择: "sv)
+		SelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const vector<wstring>& choices = {}, wstring tipText = L"选择: "s)
 			:BasicWindow(console, drawRange),
 			choices(choices),
 			tipText(tipText)
@@ -446,7 +446,7 @@ export namespace NylteJ
 		}
 
 		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"保存"s, L"不保存"s, L"取消"s }, L"当前更改未保存. 是否先保存? "sv),
+			:SelectWindow(console, drawRange, { L"保存"s, L"不保存"s, L"取消"s }, L"当前更改未保存. 是否先保存? "s),
 			callback(callback)
 		{
 		}
@@ -515,7 +515,7 @@ export namespace NylteJ
 			}
 		}
 
-		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, wstring_view tip = L"手动选择文件编码: "sv)
+		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, wstring tip = L"手动选择文件编码: "s)
 			:SelectWindow(console, drawRange, { L"UTF-8"s, L"GB 2312"s, L"自动识别 (实验性功能)"s, L"强制打开 (慎重!)"s,L"取消"s }, tip),
 			callback(callback)
 		{
@@ -537,7 +537,7 @@ export namespace NylteJ
 		}
 
 		OverrideOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> doOverride = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"覆盖"s, L"取消"s }, L"文件已存在. 是否覆盖? "sv),
+			:SelectWindow(console, drawRange, { L"覆盖"s, L"取消"s }, L"文件已存在. 是否覆盖? "s),
 			doOverride(doOverride)
 		{
 			nowChoose = 1;	// 默认不覆盖
@@ -560,7 +560,7 @@ export namespace NylteJ
 		}
 
 		LoadAutoSaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"加载"s, L"不加载"s, L"取消"s }, L"检测到自动保存文件, 是否加载? "sv),
+			:SelectWindow(console, drawRange, { L"加载"s, L"不加载"s, L"取消"s }, L"检测到自动保存文件, 是否加载? "s),
 			callback(callback)
 		{
 		}
@@ -582,17 +582,17 @@ export namespace NylteJ
 				else if ((operation.type == Editor::EditOperation::Type::Erase) xor inverse)
 					str += L"- "s;
 
-				wstring nowOperationData = *operation.data;
-
 				// 制表符直接删掉. 历史记录需要的是具体信息, 只要能从短短的几个字符中看出这次操作都做了什么就可以了, 制表符不用留
-				for (auto&& chr : array{ '\t','\r' })
-				{
-					auto [delBegin, delEnd] = ranges::remove(nowOperationData, chr);
-					nowOperationData.erase(delBegin, delEnd);
-				}
+				// 开头和结尾的换行同理
+				wstring nowOperationData = *operation.data
+					| ranges::views::filter([](auto&& chr) {return chr != '\t' && chr != '\r'; })
+					| ranges::views::drop_while([](auto&& chr) {return chr == '\n'; })
+					| ranges::views::reverse
+					| ranges::views::drop_while([](auto&& chr) {return chr == '\n'; })
+					| ranges::views::reverse
+					| ranges::to<wstring>();
 
 				// 只保留第一行
-				// 回车起手的情况暂时不管 TODO
 				if (auto nextLineIter = ranges::find(nowOperationData, '\n'); nextLineIter != nowOperationData.end())
 				{
 					nowOperationData.erase(nextLineIter, nowOperationData.end());
@@ -642,8 +642,41 @@ export namespace NylteJ
 				handlers.ui.mainEditor.Redo(choiceIndex - undoSize);
 		}
 
+		// 这里为了实现按回车不关闭窗口的效果, 得拦截掉 Enter, 为此三个都得重写
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
+		{
+			SelectWindow::ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
+		{
+			if (handlers.settings.Get<SettingID::CloseHistoryWindowAfterEnter>() == 0
+				&& message.key == InputHandler::MessageKeyboard::Key::Enter)
+			{
+				const auto nowHereIndex = handlers.ui.mainEditor.GetUndoDeque().size();	// 那个 “现在状态” 的索引
+
+				ManageChoice(nowChoose, handlers);
+
+				// 类似冒泡, 通过连续交换来在不改变其它元素位置的情况下把 “现在状态” 挪到当前位置
+				if (nowHereIndex > nowChoose)
+					for (auto index = nowHereIndex; index > nowChoose; index--)
+						swap(choices[index], choices[index - 1]);
+				else
+					for (auto index = nowHereIndex; index < nowChoose; index++)
+						swap(choices[index], choices[index + 1]);
+
+				WhenFocused();	// 重绘一下自己, 顺便重新聚焦, 不然就被 Editor 盖过去了
+				return;
+			}
+
+			SelectWindow::ManageInput(message, handlers);
+		}
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
+		{
+			SelectWindow::ManageInput(message, handlers);
+		}
+
 		HistoryWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const Editor& mainEditor)
-			:SelectWindow(console, drawRange, {}, L"选择要撤销到的历史记录......"sv)
+			:SelectWindow(console, drawRange, {}, L"选择要撤销到的历史记录......"s)
 		{
 			// 别忘了 undoDeque 里存的都是反转后的原操作, 以及 deque 的读取顺序
 			MakeChoices(mainEditor.GetUndoDeque() | ranges::views::reverse, true);

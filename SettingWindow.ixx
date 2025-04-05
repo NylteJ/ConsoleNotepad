@@ -100,9 +100,6 @@ export namespace NylteJ
 
 			BasicWindow::ManageInput(message, handlers);
 
-			if (nowExit)
-				return;
-
 			if (message.key == Enter)
 			{
 				settings.SaveAll();
@@ -144,9 +141,6 @@ export namespace NylteJ
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
 
 			using enum InputHandler::MessageMouse::Type;
 

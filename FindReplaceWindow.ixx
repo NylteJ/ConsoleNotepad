@@ -366,9 +366,6 @@ export namespace NylteJ
 		{
 			BasicWindow::ManageInput(message, handlers);
 
-			if (nowExit)
-				return;
-
 			using enum InputHandler::MessageKeyboard::Key;
 
 			auto needRefind = [&]()
@@ -436,9 +433,6 @@ export namespace NylteJ
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
 
 			if ((message.LeftClick() || message.RightClick())
 				&& !drawRange.Contain(message.position))

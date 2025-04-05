@@ -233,7 +233,7 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.9    made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.92   made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
@@ -273,7 +273,9 @@ export namespace NylteJ
 
 					uiHandler.GiveFocusTo(uiHandler.nowFocus);
 
-					uiHandler.nowFocus->ManageInput(newMessage, handlers);
+					shared_ptr nowFocusPtr = uiHandler.nowFocus;
+
+					nowFocusPtr->ManageInput(newMessage, handlers);
 				});
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message)
@@ -289,7 +291,7 @@ export namespace NylteJ
 								PrintTitle();
 							}
 							else
-								Exit(!IsFileSaved());
+								Exit(!handlers.settings.Get<SettingID::NormalExitWhenDoubleEsc>() && !IsFileSaved());
 
 						if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
 							AutoSave();
@@ -409,8 +411,10 @@ export namespace NylteJ
 						else
 							PrintFooter();
 
-						uiHandler.nowFocus->WhenRefocused();
-						uiHandler.nowFocus->ManageInput(message, handlers);
+						shared_ptr nowFocusPtr = uiHandler.nowFocus;	// 防止提前析构, 非常重要
+
+						nowFocusPtr->WhenRefocused();
+						nowFocusPtr->ManageInput(message, handlers);
 					}
 					catch (Exception& e)
 					{
@@ -439,7 +443,9 @@ export namespace NylteJ
 							}
 						}
 
-						uiHandler.nowFocus->ManageInput(message, handlers);
+						shared_ptr nowFocusPtr = uiHandler.nowFocus;
+
+						nowFocusPtr->ManageInput(message, handlers);
 					}
 					catch (Exception& e)
 					{

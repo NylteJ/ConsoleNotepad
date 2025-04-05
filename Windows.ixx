@@ -67,9 +67,6 @@ export namespace NylteJ
 		{
 			BasicWindow::ManageInput(message, handlers);
 
-			if (nowExit)
-				return;
-
 			using enum InputHandler::MessageKeyboard::Key;
 
 			if (message.key == Enter)
@@ -190,9 +187,6 @@ export namespace NylteJ
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
 
 			editor.ManageInput(message, handlers);
 		}
@@ -317,9 +311,6 @@ export namespace NylteJ
 		{
 			BasicWindow::ManageInput(message, handlers);
 
-			if (nowExit)
-				return;
-
 			using enum InputHandler::MessageKeyboard::Key;
 
 			switch (message.key)
@@ -351,9 +342,6 @@ export namespace NylteJ
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			BasicWindow::ManageInput(message, handlers);
-
-			if (nowExit)
-				return;
 
 			if (message.LeftClick() && drawRange.Contain(message.position))
 			{

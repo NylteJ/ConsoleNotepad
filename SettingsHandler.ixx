@@ -50,6 +50,7 @@ export namespace NylteJ
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
 						NORMAL_CASE(CloseHistoryWindowAfterEnter)
 						NORMAL_CASE(SplitUndoStrWhenEnter)
+						NORMAL_CASE(NormalExitWhenDoubleEsc)
 
 #undef NORMAL_CASE
 					}
@@ -112,6 +113,7 @@ export namespace NylteJ
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
 						NORMAL_CASE(CloseHistoryWindowAfterEnter)
 						NORMAL_CASE(SplitUndoStrWhenEnter)
+						NORMAL_CASE(NormalExitWhenDoubleEsc)
 
 #undef NORMAL_CASE
 					}
@@ -199,6 +201,9 @@ export namespace NylteJ
 			settingList.emplace_back(L"换行时是否融合撤销 / 重做操作:"s, SplitUndoStrWhenEnter,
 				make_shared<Selector>(console, drawRange,
 					vector{ L"永不融合"s, L"仅在连续换行时融合"s, L"融合"s}));
+			settingList.emplace_back(L"未保存并双击 Esc 强制退出时:"s, NormalExitWhenDoubleEsc,
+				make_shared<Selector>(console, drawRange,
+					vector{ L"视作异常退出 (保留自动保存文件)"s, L"视作正常退出 (删除自动保存文件)"s }));
 
 			ReloadAll();
 		}

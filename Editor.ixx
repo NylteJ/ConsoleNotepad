@@ -677,6 +677,7 @@ export namespace NylteJ
 		// 完全重置光标到初始位置
 		void ResetCursor()
 		{
+			// 这个比较特殊, 就不合并到下面了
 			beginX = cursorIndex = fileDataIndex = selectBeginIndex = selectEndIndex = 0;
 			cursorPos = { 0,0 };
 
@@ -699,29 +700,26 @@ export namespace NylteJ
 
 			PrintData();
 		}
+		void MoveCursorToIndex(size_t pos)
+		{
+			MoveCursorToIndex(pos, pos);
+		}
 
 		void MoveCursorToEnd()
 		{
-			if (fileData.empty())
-				return;
-
-			selectBeginIndex = selectEndIndex = cursorIndex = fileData.size();
-
-			ChangeBeginX(cursorIndex);
-			ScrollToIndex(cursorIndex);
-
-			SetCursorPos(formatter->RestrictPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX),
-				drawRange.rightBottom, None));
-
-			PrintData();
+			MoveCursorToIndex(fileData.size());
 		}
 
+		template<bool direct = false>
 		void Undo()
 		{
 			if (undoDeque.empty())
 				return;
 
-			undoDeque.front().DoOperation(*this);
+			if constexpr (direct)
+				undoDeque.front().DoOperationDirect(fileData);
+			else
+				undoDeque.front().DoOperation(*this);
 
 			redoDeque.emplace_front(undoDeque.front().GetReverseOperation());
 
@@ -740,20 +738,7 @@ export namespace NylteJ
 
 			while (step > 1)
 			{
-				if (undoDeque.empty())
-					return;
-
-				undoDeque.front().DoOperationDirect(fileData);
-
-				redoDeque.emplace_front(undoDeque.front().GetReverseOperation());
-
-				undoDeque.pop_front();
-
-				if (redoDeque.size() > GetMaxUndoStep())
-				{
-					const auto eraseCount = redoDeque.size() - GetMaxUndoStep();
-					redoDeque.erase(redoDeque.end() - eraseCount, redoDeque.end());
-				}
+				Undo<true>();
 
 				--step;
 			}
@@ -761,12 +746,16 @@ export namespace NylteJ
 			Undo();
 		}
 
+		template<bool direct = false>
 		void Redo()
 		{
 			if (redoDeque.empty())
 				return;
 
-			redoDeque.front().DoOperation(*this);
+			if constexpr (direct)
+				redoDeque.front().DoOperationDirect(fileData);
+			else
+				redoDeque.front().DoOperation(*this);
 
 			undoDeque.emplace_front(redoDeque.front().GetReverseOperation());
 
@@ -785,20 +774,7 @@ export namespace NylteJ
 
 			while (step > 1)
 			{
-				if (redoDeque.empty())
-					return;
-
-				redoDeque.front().DoOperationDirect(fileData);
-
-				undoDeque.emplace_front(redoDeque.front().GetReverseOperation());
-
-				redoDeque.pop_front();
-
-				if (undoDeque.size() > GetMaxUndoStep())
-				{
-					const auto eraseCount = undoDeque.size() - GetMaxUndoStep();
-					undoDeque.erase(undoDeque.end() - eraseCount, undoDeque.end());
-				}
+				Redo<true>();
 
 				--step;
 			}

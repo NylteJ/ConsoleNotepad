@@ -32,7 +32,8 @@ export namespace NylteJ
 			AutoSaveFileExtension = 5,
 			NewFileAutoSaveName = 6,
 			CloseHistoryWindowAfterEnter = 7,
-			SplitUndoStrWhenEnter = 8
+			SplitUndoStrWhenEnter = 8,
+			NormalExitWhenDoubleEsc = 9
 		};
 		using enum ID;
 	private:
@@ -46,15 +47,16 @@ export namespace NylteJ
 		// 这里手动指定长度并不是为了省空间, 只是为了让配置文件向前向后都能兼容
 		// 实际上无论这里指定成多少位, 后面的 variant 的长度都不会变, 顶多省点磁盘空间
 		// 下面用 variant 的原因只是为了后续可能加入的字符串 / 浮点设置项等
-		ID_TYPE(DefaultBehaviorWhenErrorEncoding, uint8_t);
-		ID_TYPE(AutoSavingDuration, uint32_t);
-		ID_TYPE(MaxUndoStep, uint16_t);
-		ID_TYPE(MaxRedoStep, uint16_t);
-		ID_TYPE(MaxMergeCharUndoRedo, uint16_t);
-		ID_TYPE(AutoSaveFileExtension, wstring);
-		ID_TYPE(NewFileAutoSaveName, wstring);
-		ID_TYPE(CloseHistoryWindowAfterEnter, uint8_t);
-		ID_TYPE(SplitUndoStrWhenEnter, uint8_t);
+		ID_TYPE(DefaultBehaviorWhenErrorEncoding, uint8_t)
+		ID_TYPE(AutoSavingDuration, uint32_t)
+		ID_TYPE(MaxUndoStep, uint16_t)
+		ID_TYPE(MaxRedoStep, uint16_t)
+		ID_TYPE(MaxMergeCharUndoRedo, uint16_t)
+		ID_TYPE(AutoSaveFileExtension, wstring)
+		ID_TYPE(NewFileAutoSaveName, wstring)
+		ID_TYPE(CloseHistoryWindowAfterEnter, uint8_t)
+		ID_TYPE(SplitUndoStrWhenEnter, uint8_t)
+		ID_TYPE(NormalExitWhenDoubleEsc, uint8_t)
 
 #undef ID_TYPE
 
@@ -123,7 +125,8 @@ export namespace NylteJ
 			MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo,
 			AutoSaveFileExtension,NewFileAutoSaveName,
 			CloseHistoryWindowAfterEnter,
-			SplitUndoStrWhenEnter };
+			SplitUndoStrWhenEnter,
+			NormalExitWhenDoubleEsc };
 	private:
 		static constexpr bool IsValidID(ID id)
 		{
@@ -152,6 +155,8 @@ export namespace NylteJ
 				return DataType<CloseHistoryWindowAfterEnter>{ 0 };
 			case SplitUndoStrWhenEnter:
 				return DataType<SplitUndoStrWhenEnter>{ 1 };
+			case NormalExitWhenDoubleEsc:
+				return DataType<NormalExitWhenDoubleEsc>{ 0 };
 			}
 			unreachable();
 		}

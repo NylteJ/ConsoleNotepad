@@ -16,12 +16,9 @@ export namespace NylteJ
 	{
 	protected:
 		ConsoleHandler& console;
-
-		bool nowExit = false;	// 有点丑, 但可以先用着
 	protected:
 		void EraseThis(UnionHandler& handlers)
 		{
-			nowExit = true;
 			handlers.ui.EraseComponent(this);
 		}
 	public:

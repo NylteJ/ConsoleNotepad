@@ -15,6 +15,8 @@ export namespace NylteJ
 	public:
 		ConsoleWidth width;
 		ConsoleHeight height;
+	public:
+		bool operator==(const ConsoleSize&) const = default;
 	};
 
 	using ConsoleXPos = ConsoleWidth;

@@ -104,6 +104,11 @@ export namespace NylteJ
 			{
 				settings.SaveAll();
 				settings.ReloadAll();	// 实际上是一个规范化的过程, 比如 mins / minutes -> min
+
+				// 这里要重载主 Editor 的 drawRange, 防止行号宽度改变带来的奇怪的显示问题
+				// TODO: 写一个不那么丑陋的方法
+				handlers.input.SendMessage(InputHandler::MessageWindowSizeChanged{ handlers.console.GetConsoleSize() });
+
 				EraseThis(handlers);
 				return;
 			}

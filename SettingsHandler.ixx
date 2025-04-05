@@ -94,6 +94,7 @@ export namespace NylteJ
 						NORMAL_CASE(MaxMergeCharUndoRedo)
 						WSTRING_CASE(AutoSaveFileExtension)
 						WSTRING_CASE(NewFileAutoSaveName)
+						NORMAL_CASE(LineIndexWidth)
 
 #undef WSTRING_CASE
 #undef NORMAL_CASE
@@ -141,6 +142,7 @@ export namespace NylteJ
 						NORMAL_CASE(MaxMergeCharUndoRedo)
 						WSTRING_CASE(AutoSaveFileExtension)
 						WSTRING_CASE(NewFileAutoSaveName)
+						NORMAL_CASE(LineIndexWidth)
 
 #undef WSTRING_CASE
 #undef NORMAL_CASE
@@ -204,6 +206,8 @@ export namespace NylteJ
 			settingList.emplace_back(L"未保存并双击 Esc 强制退出时:"s, NormalExitWhenDoubleEsc,
 				make_shared<Selector>(console, drawRange,
 					vector{ L"视作异常退出 (保留自动保存文件)"s, L"视作正常退出 (删除自动保存文件)"s }));
+			settingList.emplace_back(L"行号宽度 (不含竖线, 设置为 0 以关闭行号显示):"s, LineIndexWidth,
+				make_shared<Editor>(console, L""s, drawRange, settingMap));
 
 			ReloadAll();
 		}

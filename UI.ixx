@@ -161,6 +161,44 @@ export namespace NylteJ
 		{
 			ManageAutoSaveFile(handlers.file.nowFilePath);
 		}
+
+		auto GetRealLineIndexWidth()
+		{
+			if (handlers.settings.Get<SettingID::LineIndexWidth>() > 0
+				&& handlers.settings.Get<SettingID::LineIndexWidth>() < handlers.console.GetConsoleSize().width)
+				return handlers.settings.Get<SettingID::LineIndexWidth>() + 1;
+			return 0;
+		}
+
+		void PrintLineIndex()
+		{
+			if (GetRealLineIndexWidth() == 0)
+				return;
+
+			handlers.console.HideCursor();
+
+			constexpr auto color = BasicColors::brightCyan;
+
+			const auto lineIndexs = editor->GetLineIndexs();
+			const auto drawHeight = min(static_cast<size_t>(handlers.console.GetConsoleSize().height - 2), lineIndexs.size());
+
+			const auto stringToLong = (ranges::views::repeat(L'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"│"s;
+			const auto stringNull = (ranges::views::repeat(L' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"│"s;
+
+			for (size_t i = 0; i < drawHeight; i++)
+			{
+				auto&& outputStr = format(L"{:>{}}│"sv, lineIndexs[i] + 1, handlers.settings.Get<SettingID::LineIndexWidth>());
+
+				if (outputStr.size() > handlers.settings.Get<SettingID::LineIndexWidth>() + 1)
+					outputStr = stringToLong;
+
+				handlers.console.Print(outputStr, { 0,i + 1 }, color);
+			}
+			for (size_t i = drawHeight; i < handlers.console.GetConsoleSize().height - 2; i++)
+				handlers.console.Print(stringNull, { 0,i + 1 }, color);
+
+			uiHandler.Refocus();
+		}
 	public:
 		void PrintTitle(wstring_view extraText = L""sv)
 		{
@@ -233,11 +271,11 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.92   made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.94   made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
-			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { 0,1 },
+			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
-																				  handlers.console.GetConsoleSize().height - 2 } },
+																				  handlers.console.GetConsoleSize().height - 2 } }, 
 				settingMap)),
 			uiHandler(*editor),
 			title(title)
@@ -248,6 +286,9 @@ export namespace NylteJ
 
 			PrintTitle();
 			PrintFooter();
+
+			PrintLineIndex();
+			editor->SetLineIndexPrinter(bind(&UI::PrintLineIndex, this));
 
 			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 
@@ -262,7 +303,8 @@ export namespace NylteJ
 					if (newMessage.newSize.height >= 1000)
 						newMessage.newSize = handlers.console.GetConsoleSize();
 					
-					editor->SetDrawRange({ {0,1},{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
+					editor->SetDrawRange({	{GetRealLineIndexWidth(),1},
+											{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
 
 					lastIsEsc = false;
 
@@ -270,6 +312,8 @@ export namespace NylteJ
 					PrintFooter();
 
 					editor->WhenFocused();
+
+					PrintLineIndex();
 
 					uiHandler.GiveFocusTo(uiHandler.nowFocus);
 
@@ -282,148 +326,148 @@ export namespace NylteJ
 				{
 					using enum InputHandler::MessageKeyboard::Key;
 
-					try
-					{
-						if (lastIsEsc)
-							if (message.key != Esc)
-							{
-								lastIsEsc = false;
-								PrintTitle();
-							}
-							else
-								Exit(!handlers.settings.Get<SettingID::NormalExitWhenDoubleEsc>() && !IsFileSaved());
-
-						if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
-							AutoSave();
-
-						if (uiHandler.nowFocus == editor)
+						try
 						{
-
-							if (message.key == Esc)
-							{
-								lastIsEsc = true;
-
-								if (IsFileSaved())
-									PrintTitle(L"再按一次 Esc 以退出 (当前内容已保存)"s);
-								else
+							if (lastIsEsc)
+								if (message.key != Esc)
 								{
-									PrintTitle(L"再按一次 Esc 以强制退出 (当前内容未保存!!!)"s);
-
-									AskIfSave([&](size_t) {Exit(); });
-
-									return;		// 拦截掉此次 Esc, 不然弹出的窗口会直接趋势
+									lastIsEsc = false;
+									PrintTitle();
 								}
-							}
+								else
+									Exit(!handlers.settings.Get<SettingID::NormalExitWhenDoubleEsc>() && !IsFileSaved());
 
-							if (message.extraKeys.Ctrl())
+							if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
+								AutoSave();
+
+							if (uiHandler.nowFocus == editor)
 							{
-								if (message.key == S)
+
+								if (message.key == Esc)
 								{
-									if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S 或是新文件
+									lastIsEsc = true;
+
+									if (IsFileSaved())
+										PrintTitle(L"再按一次 Esc 以退出 (当前内容已保存)"s);
+									else
 									{
-										PrintFooter(L"选择保存路径......"sv);
-										auto window = make_shared<SaveFileWindow>(handlers.console,
+										PrintTitle(L"再按一次 Esc 以强制退出 (当前内容未保存!!!)"s);
+
+										AskIfSave([&](size_t) {Exit(); });
+
+										return;		// 拦截掉此次 Esc, 不然弹出的窗口会直接趋势
+									}
+								}
+
+								if (message.extraKeys.Ctrl())
+								{
+									if (message.key == S)
+									{
+										if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S 或是新文件
+										{
+											PrintFooter(L"选择保存路径......"sv);
+											auto window = make_shared<SaveFileWindow>(handlers.console,
 											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+																{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+												settingMap,
+												bind(&UI::WhenFileSaved, this, true));
+											uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+											uiHandler.GiveFocusTo(window);
+										}
+										else
+										{
+											handlers.file.Write(editor->GetData());
+											WhenFileSaved();
+										}
+									}
+									else if (message.key == O)
+									{
+										if (!IsFileSaved())
+										{
+											AskIfSave([&](size_t index) {OpenFile(); });
+											return;
+										}
+										OpenFile();
+									}
+									else if (message.key == N)
+									{
+										if (!IsFileSaved())
+										{
+											AskIfSave([&](size_t index) {NewFile(); });
+											return;
+										}
+										NewFile();
+									}
+									else if (message.key == F)	// 查找也放到 UI 里了, 因为弹出的查找框里也有 Editor, 查找功能放到 Editor 里会循环依赖. 而且也只有最外层的 Editor 需要进行查找
+									{
+										ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
+																	{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} };
+										if (windowRange.Height() < 9 && handlers.console.GetConsoleSize().height >= 11)
+											windowRange.rightBottom.y = windowRange.leftTop.y + 8;
+
+										auto window = make_shared<FindReplaceWindow>(handlers.console,
+											windowRange,
 											settingMap,
-											bind(&UI::WhenFileSaved, this, true));
+											editor->GetSelectedStr() | ranges::to<wstring>(),
+											true);
+										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+										uiHandler.GiveFocusTo(window);
+									}
+									else if (message.key == H)
+									{
+										ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
+																	{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} };
+										if (windowRange.Height() < 11 && handlers.console.GetConsoleSize().height >= 13)
+											windowRange.rightBottom.y = windowRange.leftTop.y + 10;
+
+										auto window = make_shared<FindReplaceWindow>(handlers.console,
+											windowRange,
+											settingMap,
+											editor->GetSelectedStr() | ranges::to<wstring>(),
+											false);
+										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+										uiHandler.GiveFocusTo(window);
+									}
+									else if (message.key == P)	// 设置
+									{
+										auto window = make_shared<SettingWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
+														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
+											settingMap);
+										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
+										uiHandler.GiveFocusTo(window);
+									}
+									else if (message.key == L)	// 历史记录
+									{
+										auto window = make_shared<HistoryWindow>(handlers.console,
+										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+											*editor);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
 									else
-									{
-										handlers.file.Write(editor->GetData());
-										WhenFileSaved();
-									}
-								}
-								else if (message.key == O)
-								{
-									if (!IsFileSaved())
-									{
-										AskIfSave([&](size_t index){OpenFile();});
-										return;
-									}
-									OpenFile();
-								}
-								else if (message.key == N)
-								{
-									if (!IsFileSaved())
-									{
-										AskIfSave([&](size_t index) {NewFile(); });
-										return;
-									}
-									NewFile();
-								}
-								else if (message.key == F)	// 查找也放到 UI 里了, 因为弹出的查找框里也有 Editor, 查找功能放到 Editor 里会循环依赖. 而且也只有最外层的 Editor 需要进行查找
-								{
-									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
-																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} };
-									if (windowRange.Height() < 9 && handlers.console.GetConsoleSize().height >= 11)
-										windowRange.rightBottom.y = windowRange.leftTop.y + 8;
-
-									auto window = make_shared<FindReplaceWindow>(handlers.console,
-										windowRange,
-										settingMap,
-										editor->GetSelectedStr() | ranges::to<wstring>(),
-										true);
-									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
-									uiHandler.GiveFocusTo(window);
-								}
-								else if (message.key == H)
-								{
-									ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
-																{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.5} };
-									if (windowRange.Height() < 11 && handlers.console.GetConsoleSize().height >= 13)
-										windowRange.rightBottom.y = windowRange.leftTop.y + 10;
-
-									auto window = make_shared<FindReplaceWindow>(handlers.console,
-										windowRange,
-										settingMap,
-										editor->GetSelectedStr() | ranges::to<wstring>(),
-										false);
-									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
-									uiHandler.GiveFocusTo(window);
-								}
-								else if (message.key == P)	// 设置
-								{
-									auto window = make_shared<SettingWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
-														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
-										settingMap);
-									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
-									uiHandler.GiveFocusTo(window);
-								}
-								else if (message.key == L)	// 历史记录
-								{
-									auto window = make_shared<HistoryWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
-										*editor);
-									uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
-									uiHandler.GiveFocusTo(window);
+										PrintFooter();
 								}
 								else
 									PrintFooter();
 							}
 							else
 								PrintFooter();
+
+							shared_ptr nowFocusPtr = uiHandler.nowFocus;	// 防止提前析构, 非常重要
+
+							nowFocusPtr->WhenRefocused();
+							nowFocusPtr->ManageInput(message, handlers);
 						}
-						else
-							PrintFooter();
-
-						shared_ptr nowFocusPtr = uiHandler.nowFocus;	// 防止提前析构, 非常重要
-
-						nowFocusPtr->WhenRefocused();
-						nowFocusPtr->ManageInput(message, handlers);
-					}
-					catch (Exception& e)
-					{
-						PrintFooter(L"发生异常: "s + e.What());
-					}
-					catch (exception& e)
-					{
-						PrintFooter(L"发生异常: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// 这里不能再抛异常了, 不然 terminate 了
-					}
+						catch (Exception& e)
+						{
+							PrintFooter(L"发生异常: "s + e.What());
+						}
+						catch (exception& e)
+						{
+							PrintFooter(L"发生异常: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// 这里不能再抛异常了, 不然 terminate 了
+						}
 				});
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageMouse& message)

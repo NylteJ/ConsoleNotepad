@@ -23,6 +23,7 @@ export namespace NylteJ
 		public:
 			size_t indexInRaw;
 			wstring lineData;
+			size_t lineIndex;
 		public:
 			size_t DisplaySize() const
 			{
@@ -49,8 +50,8 @@ export namespace NylteJ
 				return lineData;
 			}
 
-			Line(size_t indexInRaw, const wstring& lineData)
-				:indexInRaw(indexInRaw), lineData(lineData)
+			Line(size_t indexInRaw, const wstring& lineData, size_t lineIndex)
+				:indexInRaw(indexInRaw), lineData(lineData), lineIndex(lineIndex)
 			{
 			}
 		};
@@ -84,7 +85,7 @@ export namespace NylteJ
 		virtual size_t GetDisplaySize(wstring_view str) const = 0;
 		virtual size_t GetRawDisplaySize(wstring_view str) const = 0;
 
-		virtual FormattedString Format(wstring_view rawStr, size_t maxWidth, size_t maxHeight, size_t beginX = 0) = 0;
+		virtual FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex) = 0;
 
 		virtual size_t GetRawIndex(const FormattedString& formattedStr, ConsolePosition pos) const = 0;
 
@@ -96,6 +97,8 @@ export namespace NylteJ
 
 		virtual size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const = 0;
 		virtual size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const = 0;
+
+		virtual size_t GetLineIndex(wstring_view rawStr, size_t index) const = 0;
 
 		virtual ~FormatterBase() = default;
 	};
@@ -126,7 +129,7 @@ export namespace NylteJ
 		// 没优化 (指所有地方都现场重新算 formattedString, 完全不缓存), 总之先跑起来再说
 		// 神奇的是, 测试了一下, 居然不会有什么性能瓶颈, 只在一行非常非常长 (KB 级) 的时候才会有明显卡顿
 		// 也就是说可以继续不优化, COOOOOOOL!
-		FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX = 0)
+		FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex)
 		{
 			FormattedString ret;
 
@@ -135,7 +138,8 @@ export namespace NylteJ
 
 			while (true)
 			{
-				ret.datas.emplace_back(lineBeginIter - rawStrView.begin(), wstring{ lineBeginIter,lineEndIter });
+				ret.datas.emplace_back(lineBeginIter - rawStrView.begin(), wstring{ lineBeginIter,lineEndIter }, beginLineIndex);
+				beginLineIndex++;
 
 				if (lineEndIter != rawStrView.begin() && *(lineEndIter - 1) == '\r')
 					ret.datas.back().lineData.pop_back();
@@ -150,7 +154,7 @@ export namespace NylteJ
 				lineEndIter = find(lineEndIter + 1, rawStrView.end(), '\n');
 			}
 
-			for (auto& [index, str] : ret.datas)
+			for (auto& [index, str, lineIndex] : ret.datas)
 			{
 				size_t beginIndex = -1;
 
@@ -224,6 +228,10 @@ export namespace NylteJ
 		{
 			if (formattedStr.datas.empty())
 				return { 0,0 };
+
+			// 屎山特有的 bug 特判解决法
+			if (index == formattedStr.rawStr.size())
+				return { formattedStr.datas.back().DisplaySize(),formattedStr.datas.size() - 1 };
 
 			for (auto iter = formattedStr.datas.begin(); iter != formattedStr.datas.end(); ++iter)
 				if (iter->indexInRaw <= index
@@ -385,7 +393,7 @@ export namespace NylteJ
 			if (index >= rawStr.size())		// 临时救一下, 真不想改屎山了
 			{
 				if (rawStr.size() >= 1 && rawStr.back() == '\n')
-					return rawStr.size() - 1;
+					return rawStr.size();
 				return SearchLineBeginIndex(rawStr, index - 1);
 			}
 
@@ -418,6 +426,11 @@ export namespace NylteJ
 				retIndex--;
 
 			return retIndex;
+		}
+
+		size_t GetLineIndex(wstring_view rawStr, size_t index) const
+		{
+			return count(rawStr.begin(), rawStr.begin() + index, '\n');
 		}
 	};
 }

@@ -111,6 +111,7 @@ export namespace NylteJ
 		wstring fileData;
 
 		size_t fileDataIndex = 0;	// 目前屏幕上显示的区域是从 fileData 的哪个下标开始的
+		size_t fileDataLineIndex = 0;	// 类似, 但存储的是行数, 从 0 开始
 
 		shared_ptr<FormatterBase> formatter;
 
@@ -127,6 +128,8 @@ export namespace NylteJ
 		// 为什么要用 deque 呢? 因为 stack 不能 pop 栈底的元素, 无法控制 stack 大小
 
 		const SettingMap& settingMap;
+
+		function<void(void)> lineIndexPrinter = [] {};
 	private:
 		constexpr size_t MinSelectIndex() const
 		{
@@ -142,28 +145,33 @@ export namespace NylteJ
 			return { fileData.begin() + fileDataIndex,fileData.end() };
 		}
 
+		void SetFileDataIndexs(size_t newFileDataIndex)
+		{
+			fileDataIndex = newFileDataIndex;
+			fileDataLineIndex = formatter->GetLineIndex(fileData, fileDataIndex);
+			lineIndexPrinter();
+		}
+
 		// 返回值: 是否进行了滚动
 		constexpr bool ScrollToIndex(size_t index)
 		{
 			if (index < fileDataIndex)
 			{
-				fileDataIndex = formatter->SearchLineBeginIndex(fileData, index);
+				SetFileDataIndexs(formatter->SearchLineBeginIndex(fileData, index));
+
 				return true;
 			}
 
-			auto formattedStrs = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+			auto formattedStrs = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 			if (index > formatter->SearchLineEndIndex(fileData, formattedStrs.datas.back().indexInRaw + fileDataIndex))
 			{
 				auto nowIndex = formatter->SearchLineBeginIndex(fileData, index);
 
 				for (int lineCount = 1; lineCount < drawRange.Height() && nowIndex >= 1; lineCount++)
-					if (nowIndex < 2 || fileData[nowIndex - 2] != '\r')
 						nowIndex = formatter->SearchLineBeginIndex(fileData, nowIndex - 1);
-					else if (nowIndex >= 2 && fileData[nowIndex - 2] == '\r')
-						nowIndex = formatter->SearchLineBeginIndex(fileData, nowIndex - 2);
 
-				fileDataIndex = nowIndex;
+				SetFileDataIndexs(nowIndex);
 
 				return true;
 			}
@@ -277,7 +285,7 @@ export namespace NylteJ
 			auto nowCursorPos = drawRange.leftTop;
 
 			// TODO: 充分利用缓存, 不要每次都重新算
-			FormattedString formattedStrs = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+			FormattedString formattedStrs = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 			ConsolePosition selectBegin = { 0,0 }, selectEnd = { 0,0 };
 			if (selectBeginIndex != selectEndIndex && MaxSelectIndex() >= fileDataIndex)
@@ -359,6 +367,8 @@ export namespace NylteJ
 			redoDeque.clear();
 
 			fileData = newData;
+
+			lineIndexPrinter();
 		}
 
 		// 激活 “这个编辑器” 的光标
@@ -381,7 +391,7 @@ export namespace NylteJ
 		{
 			if (drawRange.Contain(drawRange.leftTop + pos))
 			{
-				const auto formattedString = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+				const auto formattedString = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 				if(selectMode)
 				{
@@ -406,7 +416,7 @@ export namespace NylteJ
 		}
 		void RestrictedAndSetCursorPos(const ConsolePosition& pos, bool selectMode = false)
 		{
-			SetCursorPos(formatter->RestrictPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX),
+			SetCursorPos(formatter->RestrictPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex),
 				pos,
 				Direction::None),
 				selectMode);
@@ -422,7 +432,7 @@ export namespace NylteJ
 			bool needReprintData = ScrollToIndex(cursorIndex);
 			needReprintData |= ChangeBeginX(cursorIndex);
 
-			auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+			auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 			auto newPos = formatter->GetFormattedPos(formattedStr, cursorIndex - fileDataIndex);
 
@@ -438,7 +448,7 @@ export namespace NylteJ
 
 			// 换行, 本来在 RestrictPos 里面的, 但是逻辑上放这里合适一点
 			if (direction == Left && newPos.x < 0
-				&& (newPos.y > 0 || fileDataIndex >= 2)
+				&& (newPos.y > 0 || fileDataLineIndex >= 1)
 				&& beginX == 0)
 			{
 				newPos.y--;
@@ -452,13 +462,15 @@ export namespace NylteJ
 					needReprintData |= ChangeBeginX(formatter->SearchLineEndIndex(fileData, rawIndex + fileDataIndex));
 					newPos.x -= (beginX - nowBeginX);
 
-					formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+					formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 				}
 				else
 				{
 					fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: 优化
+					fileDataLineIndex--;	// 这个无法适配自动换行, 后面几个也是, 但现在的屎山代码本来也很难加自动换行, 姑且这么写着先
+					lineIndexPrinter();
 
-					formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+					formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 					newPos.x = formattedStr[0].DisplaySize();
 					newPos.y++;
@@ -485,8 +497,10 @@ export namespace NylteJ
 			if (newPos.y == drawRange.rightBottom.y && direction == Down)
 			{
 				fileDataIndex += formattedStr[1].indexInRaw;
+				fileDataLineIndex++;
+				lineIndexPrinter();
 
-				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 				needReprintData = true;
 
@@ -494,9 +508,11 @@ export namespace NylteJ
 
 				newPos.y--;
 			}
-			if (newPos.y < 0 && direction == Up && fileDataIndex >= 2)
+			if (newPos.y < 0 && direction == Up && fileDataLineIndex >= 1)
 			{
-				fileDataIndex = fileData.rfind('\n', fileDataIndex - 2) + 1;	// TODO: 优化
+				fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);
+				fileDataLineIndex--;
+				lineIndexPrinter();
 
 				needReprintData = true;
 
@@ -511,7 +527,7 @@ export namespace NylteJ
 
 				needReprintData |= ChangeBeginX(formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos)));
 
-				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+				formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 			}
 
 			// 横向滚屏
@@ -520,7 +536,7 @@ export namespace NylteJ
 
 			needReprintData |= ChangeBeginX(fileDataIndex + formatter->GetRawIndex(formattedStr, formatter->RestrictPos(formattedStr, newPos, direction, true)));
 			newPos.x -= (beginX - nowBeginX);
-			formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+			formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 			if (needReprintData)
 				PrintData();
@@ -548,6 +564,9 @@ export namespace NylteJ
 			fileData.insert_range(fileData.begin() + cursorIndex, str);
 
 			MoveCursorToIndex(cursorIndex + str.size(), cursorIndex + str.size());
+
+			if (str.contains('\n'))
+				lineIndexPrinter();
 		}
 
 		// 基于当前光标/选区位置删除 (等价于按一下 Backspace)
@@ -567,9 +586,11 @@ export namespace NylteJ
 
 				console.HideCursor();
 
-				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), cursorIndex - fileDataIndex));
+				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex), cursorIndex - fileDataIndex));
 
 				MoveCursor(Direction::Left);
+
+				bool needReprintLineIndex = (fileData[index] == '\n');
 
 				if (index > 0 && fileData[index - 1] == '\r')
 				{
@@ -587,8 +608,8 @@ export namespace NylteJ
 				}
 
 				PrintData();
-
-				FlushCursor();
+				if(needReprintLineIndex)
+					lineIndexPrinter();
 			}
 			else
 			{
@@ -598,9 +619,14 @@ export namespace NylteJ
 				if (log)
 					LogOperation(EditOperation::Erase, MinSelectIndex(), wstring_view{ fileData.begin() + MinSelectIndex(),fileData.begin() + MaxSelectIndex() });
 
+				bool needReprintLineIndex = wstring_view{ fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex() }.contains('\n');
+
 				fileData.erase(fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex());
 
-				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX), MinSelectIndex() - fileDataIndex));
+				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex), MinSelectIndex() - fileDataIndex));
+
+				if(needReprintLineIndex)
+					lineIndexPrinter();
 			}
 		}
 
@@ -623,37 +649,47 @@ export namespace NylteJ
 		{
 			if (line < 0)
 			{
-				if (fileDataIndex < 2)
+				if (fileDataLineIndex < 1)
 				{
 					PrintData();
+					lineIndexPrinter();
 					return;
 				}
 
-				fileDataIndex = fileData.rfind('\n', fileDataIndex - 2) + 1;	// TODO: 优化
+				fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: 优化
+				fileDataLineIndex--;
 
 				cursorPos.y++;
 
 				if (line == -1)
+				{
 					PrintData();
+					lineIndexPrinter();
+				}
 				else
 					ScrollScreen(line + 1);
 			}
 			else if (line > 0)
 			{
-				const auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+				const auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 				if (formattedStr.datas.size() <= 1)
 				{
 					PrintData();
+					lineIndexPrinter();
 					return;
 				}
 
 				fileDataIndex += formattedStr[1].indexInRaw;
+				fileDataLineIndex++;
 
 				cursorPos.y--;
 
 				if (line == 1)
+				{
 					PrintData();
+					lineIndexPrinter();
+				}
 				else
 					ScrollScreen(line - 1);
 			}
@@ -678,8 +714,9 @@ export namespace NylteJ
 		void ResetCursor()
 		{
 			// 这个比较特殊, 就不合并到下面了
-			beginX = cursorIndex = fileDataIndex = selectBeginIndex = selectEndIndex = 0;
+			beginX = cursorIndex = fileDataIndex = selectBeginIndex = selectEndIndex = fileDataLineIndex = 0;
 			cursorPos = { 0,0 };
+			lineIndexPrinter();
 
 			PrintData();
 		}
@@ -691,7 +728,7 @@ export namespace NylteJ
 			ChangeBeginX(cursorIndex);
 			ScrollToIndex(cursorIndex);
 
-			auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX);
+			auto formattedStr = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
 
 			SetCursorPos(formatter->RestrictPos(formattedStr, formatter->GetFormattedPos(formattedStr, cursorIndex - fileDataIndex), None));
 
@@ -789,6 +826,23 @@ export namespace NylteJ
 		auto& GetRedoDeque() const
 		{
 			return redoDeque;
+		}
+
+		vector<size_t> GetLineIndexs() const
+		{
+			FormattedString formattedStrs = formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex);
+
+			vector<size_t> ret;
+
+			for (auto&& lineData : formattedStrs.datas)
+				ret.emplace_back(lineData.lineIndex);
+
+			return ret;
+		}
+
+		void SetLineIndexPrinter(function<void(void)> printer)
+		{
+			lineIndexPrinter = printer;
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理

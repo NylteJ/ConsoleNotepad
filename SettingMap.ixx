@@ -116,7 +116,7 @@ export namespace NylteJ
 			return ret;
 		}
 		template<>
-		static consteval array<size_t, 1> GenerateVariantSizeArray()
+		consteval array<size_t, 1> GenerateVariantSizeArray()
 		{
 			return { sizeof(variant_alternative_t<0, StoreType>) };
 		}

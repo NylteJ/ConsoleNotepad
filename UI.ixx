@@ -73,7 +73,7 @@ export namespace NylteJ
 
 		void OpenFile(Encoding encoding = Encoding::UTF8)
 		{
-			PrintFooter(L"打开文件......"sv);
+			PrintFooter(L"打开文件......"s);
 			auto window = make_shared<OpenFileWindow>(handlers.console,
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
@@ -96,7 +96,7 @@ export namespace NylteJ
 			lastSaveDataHash = hash<wstring_view>{}(L""sv);
 			lastSaveTime = chrono::steady_clock::now();
 
-			PrintFooter(L"已新建文件!"sv);
+			PrintFooter(L"已新建文件!"s);
 		}
 
 		// 神必 bug, 这个 callback 必须用引用传, 否则会爆
@@ -224,7 +224,8 @@ export namespace NylteJ
 			uiHandler.Refocus();
 		}
 
-		void PrintFooter(wstring_view extraText = L""sv)
+		// 一样的某种神必 bug, 我是真的怀疑是 MSVC 的锅了
+		void PrintFooter(wstring&& extraText = L""s)
 		{
 			handlers.console.HideCursor();
 
@@ -245,16 +246,59 @@ export namespace NylteJ
 			else
 				rightText += format(L"自动保存周期: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration));
 
-			size_t rightTextLen = 0;
-			for (auto chr : rightText)
-				if (IsWideChar(chr))
-					rightTextLen += 2;
-				else
-					rightTextLen++;
+			// 这一块也改成屎山了 (悲)
+			const size_t rightTextLen = GetDisplayLength(rightText);
 
-			handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen) | ranges::to<wstring>(),
-									{ 0,handlers.console.GetConsoleSize().height - 1 },
-									BasicColors::black, BasicColors::yellow);
+			if (extraText.empty())	// 改为显示光标位置、文件名等
+			{
+				wstring cursorInfos = format(L"   光标位置: ({},{})  行字符: {}"sv,
+					editor->GetAbsCursorPos().x, editor->GetAbsCursorPos().y + 1,
+					editor->GetNowLineCharCount());
+
+				if (!handlers.file.nowFilePath.empty())
+				{
+					wstring filename = handlers.file.nowFilePath.filename().wstring();
+
+					constexpr auto tipText = L"当前文件: {}"sv;
+
+					const auto othersWidth = rightTextLen + GetDisplayLength(tipText) + GetDisplayLength(cursorInfos) + 8;
+
+					if (othersWidth < handlers.console.GetConsoleSize().width)
+					{
+						if (GetDisplayLength(filename) + othersWidth > handlers.console.GetConsoleSize().width)
+						{
+							size_t nowIndex = 0;
+							size_t nowDisplayLength = 0;
+
+							while (nowDisplayLength < handlers.console.GetConsoleSize().width - othersWidth)
+							{
+								if (IsWideChar(filename[nowIndex]))
+									nowDisplayLength += 2;
+								else
+									nowDisplayLength++;
+
+								nowIndex++;
+							}
+
+							filename = filename | ranges::views::take(nowIndex) | ranges::to<wstring>();
+							filename += L"..."s;
+						}
+
+						extraText = format(tipText, filename);
+					}
+				}
+				else
+					extraText = L"当前文件: (未命名新文件)"s;
+
+				extraText += cursorInfos;
+			}
+
+			const size_t leftTextLen = GetDisplayLength(extraText);
+
+			if (rightTextLen + leftTextLen < handlers.console.GetConsoleSize().width)
+				handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<wstring>(),
+					{ leftTextLen,handlers.console.GetConsoleSize().height - 1 },
+					BasicColors::black, BasicColors::yellow);
 
 			handlers.console.Print(extraText, { 0,handlers.console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
 
@@ -273,7 +317,7 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.95   made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.96   made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
@@ -310,9 +354,6 @@ export namespace NylteJ
 
 					lastIsEsc = false;
 
-					PrintTitle();
-					PrintFooter();
-
 					editor->WhenFocused();
 
 					PrintLineIndex();
@@ -322,6 +363,9 @@ export namespace NylteJ
 					shared_ptr nowFocusPtr = uiHandler.nowFocus;
 
 					nowFocusPtr->ManageInput(newMessage, handlers);
+
+					PrintTitle();
+					PrintFooter();
 				});
 
 			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message, size_t count)
@@ -344,6 +388,8 @@ export namespace NylteJ
 
 							if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
 								AutoSave();
+
+							wstring footerText;
 
 							if (uiHandler.nowFocus == editor)
 							{
@@ -370,7 +416,7 @@ export namespace NylteJ
 									{
 										if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S 或是新文件
 										{
-											PrintFooter(L"选择保存路径......"sv);
+											footerText = L"选择保存路径......"s;
 											auto window = make_shared<SaveFileWindow>(handlers.console,
 											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
@@ -451,19 +497,15 @@ export namespace NylteJ
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
-									else
-										PrintFooter();
 								}
-								else
-									PrintFooter();
 							}
-							else
-								PrintFooter();
 
 							shared_ptr nowFocusPtr = uiHandler.nowFocus;	// 防止提前析构, 非常重要
 
 							nowFocusPtr->WhenRefocused();
 							nowFocusPtr->ManageInput(message, handlers);
+
+							PrintFooter(move(footerText));
 						}
 						catch (Exception& e)
 						{
@@ -482,18 +524,6 @@ export namespace NylteJ
 
 					try
 					{
-						if (message.LeftClick() || message.RightClick() || message.WheelMove() != 0)
-						{
-							PrintFooter();
-
-							if (lastIsEsc)
-							{
-								lastIsEsc = false;
-								PrintTitle();
-							}
-						}
-						// 前面的部分与 count 无关
-
 						shared_ptr nowFocusPtr = uiHandler.nowFocus;
 
 						// 暂时只处理鼠标滚轮的情况 (这个优化很有用, 在快速滚屏幕时能极其显著地提升性能, 同时快速滚屏幕又是非常常见的需求)
@@ -507,6 +537,18 @@ export namespace NylteJ
 						else
 							for (size_t i = 0; i < count; i++)
 								nowFocusPtr->ManageInput(message, handlers);
+
+						if (message.LeftClick() || message.RightClick() || message.WheelMove() != 0
+							|| (message.buttonStatus.any() && message.type == Moved))
+						{
+							PrintFooter();
+
+							if (lastIsEsc)
+							{
+								lastIsEsc = false;
+								PrintTitle();
+							}
+						}
 					}
 					catch (Exception& e)
 					{
@@ -528,7 +570,7 @@ export namespace NylteJ
 				catch (WrongEncodingException&)
 				{
 					NewFile();
-					PrintFooter(L"编码错误, 文件没能打开, 已自动新建文件!"sv);
+					PrintFooter(L"编码错误, 文件没能打开, 已自动新建文件!"s);
 				}
 			}
 			else

@@ -68,7 +68,7 @@ export namespace NylteJ
 			reader.CloseFile();
 
 			if (isTempFile)
-				filesystem::remove(nowFilePath);
+				filesystem::remove(nowFilePath);	// 不存在也没事, 不会报错的
 
 			nowFilePath.clear();
 		}

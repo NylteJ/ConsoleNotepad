@@ -174,7 +174,7 @@ export namespace NylteJ
 		template<typename MessageType>
 		void DoDistuibute(MessageDatas<MessageType>& messageDatas)
 		{
-			lock_guard messagesLock{ messageDatas.messagesMutex }, CallbacksLock{ messageDatas.callbacksMutex };
+			scoped_lock locker{ messageDatas.messagesMutex,messageDatas.callbacksMutex };	// 比起分成两个 lock_guard, 这样不会死锁
 
 			while (!messageDatas.messagesQueue.empty())
 			{
@@ -246,9 +246,7 @@ export namespace NylteJ
 
 		void SendMessages(const auto&& messages)
 		{
-			lock_guard	windowSizeMessagesLock{ windowSizeChangedMessages.messagesMutex },
-						keyboardMessagesLock{ keyboardMessages.messagesMutex },
-						mouseMessagesLock{ mouseMessages.messagesMutex };
+			scoped_lock locker{ windowSizeChangedMessages.messagesMutex,keyboardMessages.messagesMutex,mouseMessages.messagesMutex };
 
 			for (auto&& message : messages)
 				visit([&](auto&& msg) {SendMessageWithoutLock(msg); }, message);

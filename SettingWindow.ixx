@@ -108,6 +108,7 @@ export namespace NylteJ
 				// 这里要重载主 Editor 的 drawRange, 防止行号宽度改变带来的奇怪的显示问题
 				// TODO: 写一个不那么丑陋的方法
 				handlers.input.SendMessage(InputHandler::MessageWindowSizeChanged{ handlers.console.GetConsoleSize() });
+				handlers.ui.mainEditor.MoveCursor(Direction::None);
 
 				EraseThis(handlers);
 				return;

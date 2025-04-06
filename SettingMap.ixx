@@ -34,7 +34,8 @@ export namespace NylteJ
 			CloseHistoryWindowAfterEnter = 7,
 			SplitUndoStrWhenEnter = 8,
 			NormalExitWhenDoubleEsc = 9,
-			LineIndexWidth = 10
+			LineIndexWidth = 10,
+			TabWidth = 11
 		};
 		using enum ID;
 	private:
@@ -60,6 +61,7 @@ export namespace NylteJ
 		ID_TYPE(SplitUndoStrWhenEnter, uint8_t)
 		ID_TYPE(NormalExitWhenDoubleEsc, uint8_t)
 		ID_TYPE(LineIndexWidth, uint16_t)
+		ID_TYPE(TabWidth, uint16_t)
 
 #undef ID_TYPE
 
@@ -130,7 +132,8 @@ export namespace NylteJ
 			CloseHistoryWindowAfterEnter,
 			SplitUndoStrWhenEnter,
 			NormalExitWhenDoubleEsc,
-			LineIndexWidth };
+			LineIndexWidth,
+			TabWidth };
 	private:
 		static constexpr bool IsValidID(ID id)
 		{
@@ -163,6 +166,8 @@ export namespace NylteJ
 				return DataType<NormalExitWhenDoubleEsc>{ 0 };
 			case LineIndexWidth:
 				return DataType<LineIndexWidth>{ 3 };
+			case TabWidth:
+				return DataType<TabWidth>{ 4 };
 			}
 			unreachable();
 		}

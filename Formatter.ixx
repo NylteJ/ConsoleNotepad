@@ -9,6 +9,7 @@ import std;
 
 import ConsoleTypedef;
 import Utils;
+import SettingMap;
 
 using namespace std;
 
@@ -105,6 +106,16 @@ export namespace NylteJ
 
 	class DefaultFormatter :public FormatterBase
 	{
+	private:
+		const SettingMap& settingMap;
+
+		size_t GetTabWidth() const
+		{
+			if (settingMap.Get<SettingID::TabWidth>() > 0)
+				return settingMap.Get<SettingID::TabWidth>();
+			return 1;
+		}
+	public:
 		size_t GetDisplaySize(wstring_view str) const
 		{
 			return str.size() + ranges::count_if(str, IsWideChar);
@@ -116,7 +127,7 @@ export namespace NylteJ
 			for (auto&& chr : str)
 			{
 				if (chr == '\t')
-					nowSize = nowSize / 4 * 4 + 4;
+					nowSize = nowSize / GetTabWidth() * GetTabWidth() + GetTabWidth();
 				else if (IsWideChar(chr))
 					nowSize += 2;
 				else if (chr != '\n' && chr != '\r')
@@ -180,9 +191,9 @@ export namespace NylteJ
 					if (str[nowIndex] == '\t')
 					{
 						str.replace_with_range(str.begin() + nowIndex, str.begin() + nowIndex + 1,
-							ranges::views::repeat(L' ', 4 - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % 4));
+							ranges::views::repeat(L' ', GetTabWidth() - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % GetTabWidth()));
 
-						nowIndex += 4 - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % 4;
+						nowIndex += GetTabWidth() - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % GetTabWidth();
 
 						if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginX)
 						{
@@ -247,7 +258,7 @@ export namespace NylteJ
 						if (formattedStr.rawStr[nowRawIndex] == '\t')
 						{
 							nowRawIndex++;
-							pos.x += 4 - pos.x % 4;
+							pos.x += GetTabWidth() - pos.x % GetTabWidth();
 						}
 						else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
 						{
@@ -285,7 +296,7 @@ export namespace NylteJ
 				if (formattedStr.rawStr[nowRawIndex] == '\t')
 				{
 					nowRawIndex++;
-					nowX += 4 - nowX % 4;
+					nowX += GetTabWidth() - nowX % GetTabWidth();
 				}
 				else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
 				{
@@ -347,25 +358,25 @@ export namespace NylteJ
 				pos.x = formattedStr[pos.y].DisplaySize();
 
 			// 限制到与制表符对齐
-			if ((pos.x + formattedStr.beginX) % 4 != 0
+			if ((pos.x + formattedStr.beginX) % GetTabWidth() != 0
 				&& GetRawIndex(formattedStr, pos) > 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
 			{
 				const auto nowRawIndex = GetRawIndex(formattedStr, pos);
 
-				if ((direction == Left || (direction == None && pos.x % 4 <= 1)) && nowRawIndex >= 2 && formattedStr.rawStr[nowRawIndex - 2] != '\t')
+				if ((direction == Left || (direction == None && pos.x % GetTabWidth() < GetTabWidth() / 2)) && nowRawIndex >= 2 && formattedStr.rawStr[nowRawIndex - 2] != '\t')
 					pos = GetFormattedPos(formattedStr, nowRawIndex - 1);
 				else
 				{
 					if (direction == Left)
-						pos.x = (pos.x + formattedStr.beginX) / 4 * 4 - formattedStr.beginX;
+						pos.x = (pos.x + formattedStr.beginX) / GetTabWidth() * GetTabWidth() - formattedStr.beginX;
 					else if (direction == Right)
-						pos.x = (pos.x + formattedStr.beginX) / 4 * 4 + 4 - formattedStr.beginX;
+						pos.x = (pos.x + formattedStr.beginX) / GetTabWidth() * GetTabWidth() + GetTabWidth() - formattedStr.beginX;
 					else
 					{
-						if (pos.x % 4 <= 1)
-							pos.x = (pos.x + formattedStr.beginX) / 4 * 4 - formattedStr.beginX;
+						if (pos.x % GetTabWidth() < GetTabWidth() / 2)
+							pos.x = (pos.x + formattedStr.beginX) / GetTabWidth() * GetTabWidth() - formattedStr.beginX;
 						else
-							pos.x = (pos.x + formattedStr.beginX) / 4 * 4 + 4 - formattedStr.beginX;
+							pos.x = (pos.x + formattedStr.beginX) / GetTabWidth() * GetTabWidth() + GetTabWidth() - formattedStr.beginX;
 					}
 				}
 			}
@@ -431,6 +442,11 @@ export namespace NylteJ
 		size_t GetLineIndex(wstring_view rawStr, size_t index) const
 		{
 			return count(rawStr.begin(), rawStr.begin() + index, '\n');
+		}
+
+		DefaultFormatter(const SettingMap& settingMap)
+			:settingMap(settingMap)
+		{
 		}
 	};
 }

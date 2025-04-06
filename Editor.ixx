@@ -1003,10 +1003,12 @@ export namespace NylteJ
 			console.HideCursor();
 		}
 
-		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,const SettingMap& settingMap,
-			shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
+		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, const SettingMap& settingMap,
+			shared_ptr<FormatterBase> formatter = nullptr)
 			:UIComponent(drawRange), console(console), fileData(fileData), formatter(formatter), settingMap(settingMap)
 		{
+			if (formatter == nullptr)
+				this->formatter = make_shared<DefaultFormatter>(settingMap);
 		}
 };
 }

@@ -40,6 +40,18 @@ export namespace NylteJ
 
 		chrono::time_point<chrono::steady_clock> lastSaveTime = chrono::steady_clock::now();
 	private:
+		ConsoleRect WindowDrawRangeNormalSize() const
+		{
+			return ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} };
+		}
+		ConsoleRect WindowDrawRangeLargeSize() const
+		{
+			return ConsoleRect{ {handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
+								{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} };
+		}
+
+
 		void WhenFileSaved(bool reSave = false)
 		{
 			size_t nowDataHash = hash<wstring_view>{}(editor->GetData());
@@ -75,8 +87,7 @@ export namespace NylteJ
 		{
 			PrintFooter(L"打开文件......"s);
 			auto window = make_shared<OpenFileWindow>(handlers.console,
-				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				WindowDrawRangeNormalSize(),
 				encoding,
 				handlers.settings,
 				bind(&UI::WhenFileOpened, this));
@@ -104,8 +115,7 @@ export namespace NylteJ
 		void AskIfSave(auto&& callback)
 		{
 			auto window = make_shared<SaveOrNotWindow>(handlers.console,
-				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+				WindowDrawRangeNormalSize(),
 				callback);
 			uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 			uiHandler.GiveFocusTo(window);
@@ -139,8 +149,7 @@ export namespace NylteJ
 				&& !filesystem::is_empty(autoSaveFileName))
 			{
 				auto window = make_shared<LoadAutoSaveOrNotWindow>(handlers.console,
-					ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-									{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+					WindowDrawRangeNormalSize(),
 					[&, autoSaveFileName]
 					(size_t choice)
 					{
@@ -418,8 +427,7 @@ export namespace NylteJ
 										{
 											footerText = L"选择保存路径......"s;
 											auto window = make_shared<SaveFileWindow>(handlers.console,
-											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+												WindowDrawRangeNormalSize(),
 												settingMap,
 												bind(&UI::WhenFileSaved, this, true));
 											uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
@@ -482,8 +490,7 @@ export namespace NylteJ
 									else if (message.key == P)	// 设置
 									{
 										auto window = make_shared<SettingWindow>(handlers.console,
-											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
-															{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
+											WindowDrawRangeLargeSize(),
 											settingMap);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
@@ -491,8 +498,7 @@ export namespace NylteJ
 									else if (message.key == L)	// 历史记录
 									{
 										auto window = make_shared<HistoryWindow>(handlers.console,
-											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+											WindowDrawRangeNormalSize(),
 											*editor);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);

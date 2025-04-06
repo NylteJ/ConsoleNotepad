@@ -27,14 +27,14 @@ int main(int argc, char** argv)
 		println("本程序可以通过命令行调用, 参数详解如下:"sv);
 		println("1. \"-o\" / \"--open\" 表示打开, 后接要打开的文件路径"sv);
 		println("2. \"-e\" / \"--encoding\" 表示编码, 后接编码名称"sv);
-		println("	- 有防呆设计, 比如 \"utf-8\", \"UTF-8\", \"UTF 8\", \"utf8\" 都能定位到 UTF-8"sv);
+		println("    - 有防呆设计, 比如 \"utf-8\", \"UTF-8\", \"UTF 8\", \"utf8\" 都能定位到 UTF-8"sv);
 		println("3. \"-h\" / \"--help\" / \"/?\" 可以输出帮助, 会覆盖其它一切参数"sv);
 		println("4. 只需要指定打开文件路径时, 可以直接作为参数附加, 无需带 \"-o\" / \"--open\""sv);
 		println("5. 示例: "sv);
-		println("	1. {} 1.txt"sv, exeName);
-		println("	2. {} -o 1.txt -e UTF-8"sv, exeName);
-		println("	3. {} --encoding \"gb 2312\" -o 1.txt"sv, exeName);
-		println("	4. {} /?"sv, exeName);
+		println("    1. {} 1.txt"sv, exeName);
+		println("    2. {} -o 1.txt -e UTF-8"sv, exeName);
+		println("    3. {} --encoding \"gb 2312\" -o 1.txt"sv, exeName);
+		println("    4. {} /?"sv, exeName);
 		return 0;
 	}
 

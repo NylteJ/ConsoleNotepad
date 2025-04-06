@@ -13,7 +13,7 @@ export namespace NylteJ
 {
 	class Editor;
 
-	// 这里不能直接写出来 (using UIComponentPtr = shared_ptr<UIComponent>), 否则也会循环依赖
+	// 这里不能直接写出来 (using UIComponentPtr = shared_ptr<UIComponent>), 否则也会循环依赖 (这个没办法, 这里甚至没法用不完整类型)
 	// 还有 Editor 也是......好在只传引用所以还好解决
 	template<typename UIComponentPtr>
 	class UIHandler
@@ -21,9 +21,10 @@ export namespace NylteJ
 	private:
 		using Depth = int;
 	public:
+		// 其实这里本来是想写成类似光栅渲染器的效果的 (指根据深度裁切, 实时渲染画面), 但后面写着写着就完全没往那方面写了, 最后写成了完全惰性绘制的效果
+		// 所以这个深度现在用处不大了, 虽然还有一丢丢用
 		constexpr static Depth mainEditorDepth = 0;
 		constexpr static Depth normalWindowDepth = 10;
-		constexpr static Depth hideDepth = numeric_limits<Depth>::lowest();		// 特殊处理, 直接不显示
 	public:
 		multimap<Depth, UIComponentPtr> components;
 

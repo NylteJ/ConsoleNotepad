@@ -165,68 +165,72 @@ export namespace NylteJ
 				lineEndIter = find(lineEndIter + 1, rawStrView.end(), '\n');
 			}
 
-			for (auto& [index, str, lineIndex] : ret.datas)
 			{
-				size_t beginIndex = -1;
+				const atomic tabWidth = GetTabWidth();
+				const atomic beginXAtomic = beginX;
+				const atomic maxWidthAtomic = maxWidth;
 
-				size_t doubleLengthCharCount = 0, beforeBeginDoubleLenCharCount = 0;	// beforeBeginDoubleLenCharCount 仅用于对齐 Tab
-				size_t nowIndex = 0;
-				for (; nowIndex < str.size();)
-				{
-					if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginX)
+				// 多少还是加了个并行, 也算优化吧
+				for_each(execution::par, ret.datas.begin(), ret.datas.end(),
+					[&tabWidth, &beginXAtomic, &maxWidthAtomic](auto&& line)
 					{
-						beginIndex = nowIndex;
-						if (nowIndex + doubleLengthCharCount > beginX)	// 目前只可能是汉字被截断了一半
+						auto&& str = line.lineData;
+
+						size_t beginIndex = -1;
+
+						size_t doubleLengthCharCount = 0, beforeBeginDoubleLenCharCount = 0;	// beforeBeginDoubleLenCharCount 仅用于对齐 Tab
+						size_t nowIndex = 0;
+						for (; nowIndex < str.size();)
 						{
-							str.replace_with_range(str.begin() + nowIndex - 1, str.begin() + nowIndex, L"  "sv);
-							doubleLengthCharCount--;
+							if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginXAtomic)
+							{
+								beginIndex = nowIndex;
+								if (nowIndex + doubleLengthCharCount > beginXAtomic)	// 目前只可能是汉字被截断了一半
+								{
+									str.replace_with_range(str.begin() + nowIndex - 1, str.begin() + nowIndex, L"  "sv);
+									doubleLengthCharCount--;
+								}
+								beforeBeginDoubleLenCharCount = doubleLengthCharCount;
+								doubleLengthCharCount = 0;
+							}
+
+							if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidthAtomic + beginIndex)
+								break;
+
+							if (str[nowIndex] == '\t')
+							{
+								str.replace_with_range(str.begin() + nowIndex, str.begin() + nowIndex + 1,
+									ranges::views::repeat(L' ', tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth));
+
+								nowIndex += tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth;
+
+								if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginXAtomic)
+								{
+									beginIndex = beginXAtomic - doubleLengthCharCount;
+									beforeBeginDoubleLenCharCount = doubleLengthCharCount;
+									doubleLengthCharCount = 0;
+								}
+								if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidthAtomic + beginIndex)
+								{
+									nowIndex = maxWidthAtomic + beginIndex - doubleLengthCharCount;
+									break;
+								}
+							}
+							else
+								nowIndex++;
+
+							if (IsWideChar(str[nowIndex - 1]))
+								doubleLengthCharCount++;
 						}
-						beforeBeginDoubleLenCharCount = doubleLengthCharCount;
-						doubleLengthCharCount = 0;
-					}
 
-					if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidth + beginIndex)
-						break;
+						if (nowIndex + doubleLengthCharCount > maxWidthAtomic + beginIndex)
+							nowIndex--;
 
-					if (str[nowIndex] == '\t')
-					{
-						str.replace_with_range(str.begin() + nowIndex, str.begin() + nowIndex + 1,
-							ranges::views::repeat(L' ', GetTabWidth() - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % GetTabWidth()));
-
-						nowIndex += GetTabWidth() - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % GetTabWidth();
-
-						if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginX)
-						{
-							beginIndex = beginX - doubleLengthCharCount;
-							beforeBeginDoubleLenCharCount = doubleLengthCharCount;
-							doubleLengthCharCount = 0;
-						}
-						if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidth + beginIndex)
-						{
-							nowIndex = maxWidth + beginIndex - doubleLengthCharCount;
-							break;
-						}
-					}
-					else
-						nowIndex++;
-
-					if (IsWideChar(str[nowIndex - 1]))
-						doubleLengthCharCount++;
-				}
-
-				if (nowIndex + doubleLengthCharCount > maxWidth + beginIndex)
-					nowIndex--;
-
-				if (beginIndex == -1)
-				{
-					str.clear();
-					//index += rawSize;	// 行尾可能有影响
-				}
-				else
-				{
-					str = wstring{ str.begin() + beginIndex,str.begin() + nowIndex };
-					//index += beginIndex;
-				}
+						if (beginIndex == -1)
+							str.clear();
+						else
+							str = wstring{ str.begin() + beginIndex,str.begin() + nowIndex };
+					});
 			}
 
 			ret.rawStr = { rawStrView.begin(),lineEndIter };

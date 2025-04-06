@@ -3,7 +3,7 @@
 // 只维护一个哈希表, 用于快速查找对应设置项
 // 只需要把这个的引用到处传就可以了, 这样也不用担心循环引用
 // (因为 SettingsHandler 里很难不 import Editor 等 UI 组件, 所以只能再套一层后端了)
-// 使用了不少 (至少对我来说) 相当酷炫的模板技巧
+// 使用了不少 (至少对我来说) 相当酷炫的模板技巧 (但我还是要说宏是模板它爷爷, 没有宏的话这里的各种打表会不可避免地吃屎)
 // 原则上对设置上的查询都直接走这个表, 因为哈希表的查询本来也是 O(1) 的, 效率上和缓存一个变量是一样的, 还更加即时
 export module SettingMap;
 
@@ -21,7 +21,7 @@ export namespace NylteJ
 	public:
 		// 用于在文件中区分不同设置项
 		// 不应该改变现有项的值, 这样就算未来删除了某些项, 也不会影响到现有的设置文件
-		// 也是考虑到这一点, 没有做成字符串的形式, 因为字符串总是会让人有改的欲望, 直接改成一个枚举数就不会了
+		// 也是考虑到这一点, 没有做成字符串的形式, 因为字符串总是会让人有改的欲望, 直接改成一个枚举数就不会了 (至少枚举的值不会)
 		enum class ID :uint16_t	// 必须这么指定, 不然 x86 和 x64 的配置文件还不能通用
 		{
 			DefaultBehaviorWhenErrorEncoding = 0,
@@ -108,11 +108,11 @@ export namespace NylteJ
 		{
 			auto last = GenerateVariantSizeArray<depth - 1>();
 
+			// 反正是 consteval, 效率拉稀一点无所谓
 			array<size_t, depth> ret;
 			for (size_t i = 0; i < last.size(); i++)
-			{
 				ret[i] = last[i];
-			}
+
 			ret.back() = sizeof(variant_alternative_t<depth - 1, StoreType>);
 
 			return ret;
@@ -144,30 +144,22 @@ export namespace NylteJ
 		{
 			switch (id)
 			{
-			case DefaultBehaviorWhenErrorEncoding:
-				return DataType<DefaultBehaviorWhenErrorEncoding>{ 1 };
-			case AutoSavingDuration:
-				return DataType<AutoSavingDuration>{ 180 };
-			case MaxUndoStep:
-				return DataType<MaxUndoStep>{ 1024 };
-			case MaxRedoStep:
-				return DataType<MaxRedoStep>{ 1024 };
-			case MaxMergeCharUndoRedo:
-				return DataType<MaxMergeCharUndoRedo>{ 16 };
-			case AutoSaveFileExtension:
-				return DataType<AutoSaveFileExtension>{ L".autosave"s };
-			case NewFileAutoSaveName:
-				return DataType<NewFileAutoSaveName>{ L"__Unnamed_NewFile"s };
-			case CloseHistoryWindowAfterEnter:
-				return DataType<CloseHistoryWindowAfterEnter>{ 0 };
-			case SplitUndoStrWhenEnter:
-				return DataType<SplitUndoStrWhenEnter>{ 1 };
-			case NormalExitWhenDoubleEsc:
-				return DataType<NormalExitWhenDoubleEsc>{ 0 };
-			case LineIndexWidth:
-				return DataType<LineIndexWidth>{ 3 };
-			case TabWidth:
-				return DataType<TabWidth>{ 4 };
+#define SET_DEFAULT_VALUE(id_, value_) case id_: return DataType<id_>{ value_ };
+
+				SET_DEFAULT_VALUE(DefaultBehaviorWhenErrorEncoding, 1)
+				SET_DEFAULT_VALUE(AutoSavingDuration, 180)
+				SET_DEFAULT_VALUE(MaxUndoStep, 1024)
+				SET_DEFAULT_VALUE(MaxRedoStep, 1024)
+				SET_DEFAULT_VALUE(MaxMergeCharUndoRedo, 16)
+				SET_DEFAULT_VALUE(AutoSaveFileExtension, L".autosave"s)
+				SET_DEFAULT_VALUE(NewFileAutoSaveName, L"__Unnamed_NewFile"s)
+				SET_DEFAULT_VALUE(CloseHistoryWindowAfterEnter, 0)
+				SET_DEFAULT_VALUE(SplitUndoStrWhenEnter, 1)
+				SET_DEFAULT_VALUE(NormalExitWhenDoubleEsc, 0)
+				SET_DEFAULT_VALUE(LineIndexWidth, 3)
+				SET_DEFAULT_VALUE(TabWidth, 4)
+					
+#undef SET_DEFAULT_VALUE
 			}
 			unreachable();
 		}

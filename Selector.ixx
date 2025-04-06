@@ -69,8 +69,8 @@ export namespace NylteJ
 			nowChoose = chooseIndex;
 		}
 
-		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override {}
-		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}
+		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
 		{
 			using enum InputHandler::MessageKeyboard::Key;
 
@@ -84,7 +84,7 @@ export namespace NylteJ
 				return;
 			}
 		}
-		void ManageInput(const InputHandler::MessageMouse& message, UnionHandlerInterface<shared_ptr<UIComponent>>& handlers) override
+		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			if (message.LeftClick())
 				if (message.position == drawRange.leftTop)

@@ -1,6 +1,7 @@
 // SettingsHandler.ixx
 // 掌管各种设置的存储和访问
 // 是 SettingWindow 的后端
+// (我说宏孩儿是模板祖宗你二龙吗)
 export module SettingsHandler;
 
 import std;
@@ -21,7 +22,7 @@ using namespace std;
 export namespace NylteJ
 {
 	// 考虑到可拓展性, 内部使用一套效率略慢但理论上向前、向后都能兼容的方式
-	// (向前兼容指的是读新版本的设置仍然能读出大部分共有设置, 而且保存设置时也不会覆盖新版本特有的设置)
+	// (向前兼容指的是读新版本的设置仍然能读出共有设置)
 	class SettingsHandler
 	{
 	public:
@@ -184,34 +185,24 @@ export namespace NylteJ
 
 			using enum SettingItem::ID;
 
-			settingList.emplace_back(L"默认编码无法打开文件时的行为:"s, DefaultBehaviorWhenErrorEncoding,
-				make_shared<Selector>(console, drawRange,
-					vector{ L"直接手动选择编码"s, L"先尝试自动选择, 失败再手动选择"s, L"直接自动选择, 失败则强制打开"s }));
-			settingList.emplace_back(L"自动保存间隔:"s, AutoSavingDuration,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"撤销 (Ctrl + Z) 步数上限 (各个编辑器单独计算):"s, MaxUndoStep,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"重做 (Ctrl + Y) 步数上限 (各个编辑器单独计算):"s, MaxRedoStep,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"撤销 / 重做时的字符融合上限 (各个编辑器单独计算):"s, MaxMergeCharUndoRedo,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"自动保存文件的后缀名:"s, AutoSaveFileExtension,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"新文件的自动保存文件名:"s, NewFileAutoSaveName,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"按下回车后是否关闭历史记录窗口:"s, CloseHistoryWindowAfterEnter,
-				make_shared<Selector>(console, drawRange,
-					vector{ L"不关闭"s, L"关闭"s }));
-			settingList.emplace_back(L"换行时是否融合撤销 / 重做操作:"s, SplitUndoStrWhenEnter,
-				make_shared<Selector>(console, drawRange,
-					vector{ L"永不融合"s, L"仅在连续换行时融合"s, L"融合"s}));
-			settingList.emplace_back(L"未保存并双击 Esc 强制退出时:"s, NormalExitWhenDoubleEsc,
-				make_shared<Selector>(console, drawRange,
-					vector{ L"视作异常退出 (保留自动保存文件)"s, L"视作正常退出 (删除自动保存文件)"s }));
-			settingList.emplace_back(L"行号宽度 (不含竖线, 设置为 0 以关闭行号显示):"s, LineIndexWidth,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
-			settingList.emplace_back(L"Tab 宽度 (至少为 1):"s, TabWidth,
-				make_shared<Editor>(console, L""s, drawRange, settingMap));
+#define EDITOR_CASE(id_, tipText_) settingList.emplace_back(L##tipText_##s, id_, make_shared<Editor>(console, L""s, drawRange, settingMap))
+#define SELECTOR_CASE(id_, tipText_, ...) settingList.emplace_back(L##tipText_##s, id_, make_shared<Selector>(console, drawRange, vector{ __VA_ARGS__ }))
+
+			SELECTOR_CASE(DefaultBehaviorWhenErrorEncoding, "默认编码无法打开文件时的行为:", L"直接手动选择编码"s, L"先尝试自动选择, 失败再手动选择"s, L"直接自动选择, 失败则强制打开"s);
+			EDITOR_CASE(AutoSavingDuration, "自动保存间隔:");
+			EDITOR_CASE(MaxUndoStep, "撤销 (Ctrl + Z) 步数上限 (各个编辑器单独计算):");
+			EDITOR_CASE(MaxRedoStep, "重做 (Ctrl + Y) 步数上限 (各个编辑器单独计算):");
+			EDITOR_CASE(MaxMergeCharUndoRedo, "撤销 / 重做时的单步字符融合上限:");
+			EDITOR_CASE(AutoSaveFileExtension, "自动保存文件的后缀名:");
+			EDITOR_CASE(NewFileAutoSaveName, "新文件的自动保存文件名:");
+			SELECTOR_CASE(CloseHistoryWindowAfterEnter, "按下回车后是否关闭历史记录窗口:", L"不关闭"s, L"关闭"s);
+			SELECTOR_CASE(SplitUndoStrWhenEnter, "换行时是否融合撤销 / 重做操作:", L"永不融合"s, L"仅在连续换行时融合"s, L"融合"s);
+			SELECTOR_CASE(NormalExitWhenDoubleEsc, "未保存并双击 Esc 强制退出时:", L"视作异常退出 (保留自动保存文件)"s, L"视作正常退出 (删除自动保存文件)"s);
+			EDITOR_CASE(LineIndexWidth, "行号宽度 (不含竖线, 设置为 0 以关闭行号显示):");
+			EDITOR_CASE(TabWidth, "Tab 宽度 (至少为 1):");
+
+#undef SELECTOR_CASE
+#undef EDITOR_CASE
 
 			ReloadAll();
 		}

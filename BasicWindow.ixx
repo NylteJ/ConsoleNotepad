@@ -71,8 +71,8 @@ export namespace NylteJ
 		}
 
 		BasicWindow(ConsoleHandler& console, const ConsoleRect& drawRange)
-			:console(console),
-			UIComponent(drawRange)
+			:UIComponent(drawRange),
+			console(console)
 		{
 		}
 

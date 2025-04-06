@@ -720,7 +720,7 @@ export namespace NylteJ
 					callback();
 				};
 
-			wstring tipText = L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "s;
+			wstring encodingSelectTipText = L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "s;
 
 			if (behavior == 1 || behavior == 2)	// 先尝试自动识别
 			{
@@ -739,14 +739,14 @@ export namespace NylteJ
 					funcToOpen(FORCE);
 					return;
 				}
-				tipText = L"编码自动识别失败, 请手动选择编码: "s;
+				encodingSelectTipText = L"编码自动识别失败, 请手动选择编码: "s;
 			}
 
 			auto window = make_shared<EncodingSelectWindow>(handlers.console,
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
 								{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
 				funcToOpen,
-				tipText
+				encodingSelectTipText
 				);
 			handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
 			handlers.ui.GiveFocusTo(window);

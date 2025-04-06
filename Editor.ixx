@@ -781,6 +781,9 @@ export namespace NylteJ
 			}
 
 			Undo();
+			// 前面几次 Undo 不检查行号变化, 所以如果前几次 Undo 了换行, 但最后一次又没有, 行号显示就会出问题
+			// 补偿性地, 这里不加检查地重绘行号, 下 (Redo) 同
+			lineIndexPrinter();
 		}
 
 		template<bool direct = false>
@@ -817,6 +820,7 @@ export namespace NylteJ
 			}
 
 			Redo();
+			lineIndexPrinter();
 		}
 
 		auto& GetUndoDeque() const
@@ -843,6 +847,16 @@ export namespace NylteJ
 		void SetLineIndexPrinter(function<void(void)> printer)
 		{
 			lineIndexPrinter = printer;
+		}
+
+		ConsolePosition GetAbsCursorPos() const
+		{
+			return cursorPos + ConsolePosition{ beginX,fileDataLineIndex };
+		}
+
+		size_t GetNowLineCharCount() const
+		{
+			return cursorIndex - formatter->SearchLineBeginIndex(fileData, cursorIndex);
 		}
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
@@ -991,7 +1005,7 @@ export namespace NylteJ
 
 		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange,const SettingMap& settingMap,
 			shared_ptr<FormatterBase> formatter = make_shared<DefaultFormatter>())
-			:console(console), fileData(fileData), UIComponent(drawRange), settingMap(settingMap), formatter(formatter)
+			:UIComponent(drawRange), console(console), fileData(fileData), formatter(formatter), settingMap(settingMap)
 		{
 		}
 };

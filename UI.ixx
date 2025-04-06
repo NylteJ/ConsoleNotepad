@@ -99,7 +99,9 @@ export namespace NylteJ
 			PrintFooter(L"已新建文件!"sv);
 		}
 
-		void AskIfSave(function<void(size_t)> callback)
+		// 神必 bug, 这个 callback 必须用引用传, 否则会爆
+		// 死活查不出原因, 太酷炫力!
+		void AskIfSave(auto&& callback)
 		{
 			auto window = make_shared<SaveOrNotWindow>(handlers.console,
 				ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
@@ -271,7 +273,7 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.94   made by NylteJ"s)
+			const wstring& title = L"ConsoleNotepad ver. 0.95   made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
@@ -292,7 +294,7 @@ export namespace NylteJ
 
 			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 
-			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message)
+			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message, size_t)	// 与次数无关, 直接不用管第二个参数就好
 				{
 					// 貌似老式的 conhost 有蜜汁兼容问题, 有时会返回控制台有 9001 行......
 					// 但是直接 handlers.console.GetConsoleSize() 返回的又是正常的.
@@ -322,10 +324,13 @@ export namespace NylteJ
 					nowFocusPtr->ManageInput(newMessage, handlers);
 				});
 
-			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message)
+			inputHandler.SubscribeMessage([&](const InputHandler::MessageKeyboard& message, size_t count)
 				{
 					using enum InputHandler::MessageKeyboard::Key;
 
+					// 先朴实无华地循环 count 次, 后面需要优化时再改
+					for (size_t i = 0; i < count; i++)
+					{
 						try
 						{
 							if (lastIsEsc)
@@ -368,7 +373,7 @@ export namespace NylteJ
 											PrintFooter(L"选择保存路径......"sv);
 											auto window = make_shared<SaveFileWindow>(handlers.console,
 											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-																{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
 												settingMap,
 												bind(&UI::WhenFileSaved, this, true));
 											uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
@@ -431,8 +436,8 @@ export namespace NylteJ
 									else if (message.key == P)	// 设置
 									{
 										auto window = make_shared<SettingWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
-														{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
+											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.15,handlers.console.GetConsoleSize().height * 0.15},
+															{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} },
 											settingMap);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
@@ -440,8 +445,8 @@ export namespace NylteJ
 									else if (message.key == L)	// 历史记录
 									{
 										auto window = make_shared<HistoryWindow>(handlers.console,
-										ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
-														{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
+											ConsoleRect{	{handlers.console.GetConsoleSize().width * 0.25,handlers.console.GetConsoleSize().height * 0.33},
+															{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
 											*editor);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
@@ -468,9 +473,10 @@ export namespace NylteJ
 						{
 							PrintFooter(L"发生异常: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// 这里不能再抛异常了, 不然 terminate 了
 						}
+					}
 				});
 
-			inputHandler.SubscribeMessage([&](const InputHandler::MessageMouse& message)
+			inputHandler.SubscribeMessage([&](const InputHandler::MessageMouse& message, size_t count)
 				{
 					using enum InputHandler::MessageMouse::Type;
 
@@ -486,10 +492,21 @@ export namespace NylteJ
 								PrintTitle();
 							}
 						}
+						// 前面的部分与 count 无关
 
 						shared_ptr nowFocusPtr = uiHandler.nowFocus;
 
-						nowFocusPtr->ManageInput(message, handlers);
+						// 暂时只处理鼠标滚轮的情况 (这个优化很有用, 在快速滚屏幕时能极其显著地提升性能, 同时快速滚屏幕又是非常常见的需求)
+						if (message.type == VWheeled && count > 1)
+						{
+							auto newMessage = message;
+							newMessage.wheelMove *= count;
+
+							nowFocusPtr->ManageInput(newMessage, handlers);
+						}
+						else
+							for (size_t i = 0; i < count; i++)
+								nowFocusPtr->ManageInput(message, handlers);
 					}
 					catch (Exception& e)
 					{

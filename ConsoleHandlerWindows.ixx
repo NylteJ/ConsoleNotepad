@@ -183,14 +183,24 @@ export namespace NylteJ
 #pragma push_macro("SendMessage")	// 唉, 宏定义
 #undef SendMessage
 
+			constexpr size_t bufferSize = 32;
+
+			array<INPUT_RECORD, bufferSize> inputBuffer;	// 这里把 buffer 调大主要是处理滚轮用的, 其它时候 (包括脸滚键盘的时候) inputNum 几乎总是 1
+			DWORD inputNum;
+
+			array<variant<	InputHandler::MessageKeyboard,
+							InputHandler::MessageMouse,
+							InputHandler::MessageWindowSizeChanged>, bufferSize * 5> messageBuffer;		// *5 是因为 keyboardMessage 会有重复, 至多 5 次
+			size_t messageCount = 0;
+
 			while (true)
 			{
-				INPUT_RECORD input;
-				DWORD inputNum;
+				bool success = ReadConsoleInput(consoleInputHandle, inputBuffer.data(), inputBuffer.size(), &inputNum);
 
-				bool sucess = ReadConsoleInput(consoleInputHandle, &input, 1, &inputNum);
+				if (!success)
+					continue;
 
-				if (sucess && inputNum > 0)
+				for (auto&& input : inputBuffer | ranges::views::take(inputNum))
 				{
 					switch (input.EventType)
 					{
@@ -207,9 +217,13 @@ export namespace NylteJ
 
 							message.inputChar = input.Event.KeyEvent.uChar.UnicodeChar;
 
-							inputHandler.SendMessage(message, input.Event.KeyEvent.wRepeatCount);
+							while (input.Event.KeyEvent.wRepeatCount > 0)
+							{
+								messageBuffer[messageCount] = message;
 
-							input.Event.KeyEvent.wRepeatCount--;
+								messageCount++;
+								input.Event.KeyEvent.wRepeatCount--;
+							}
 						}
 						break;
 					case MOUSE_EVENT:
@@ -252,16 +266,23 @@ export namespace NylteJ
 						if (message.wheelMove != 0 && !(input.Event.MouseEvent.dwControlKeyState & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)))
 							message.wheelMove *= 3;
 
-						inputHandler.SendMessage(message);
+						messageBuffer[messageCount] = message;
+						messageCount++;
 					}
 						break;
 					case WINDOW_BUFFER_SIZE_EVENT:
-						inputHandler.SendMessage({ .newSize = { static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
-																static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.Y)} });
+						messageBuffer[messageCount] = InputHandler::MessageWindowSizeChanged
+														{ .newSize = {	static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
+																		static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.Y)} };
+						messageCount++;
 						break;
 					default:break;
 					}
 				}
+
+				inputHandler.SendMessages(messageBuffer | ranges::views::take(messageCount));
+
+				messageCount = 0;
 
 				//WaitForSingleObject(consoleInputHandle, INFINITE);	// 用不着等待, ReadConsoleInput 在读到足够的数据前不会返回
 

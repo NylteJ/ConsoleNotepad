@@ -578,6 +578,7 @@ export namespace NylteJ
 					| ranges::views::reverse
 					| ranges::views::drop_while([](auto&& chr) {return chr == '\n'; })
 					| ranges::views::reverse
+					| ranges::views::take(drawRange.Width() - 4)	// 考虑到目前的 DisplayLength 总是不短于 size, 直接先裁剪一次, 这样当字符串特别长时能显著优化性能 (非常显著)
 					| ranges::to<wstring>();
 
 				// 只保留第一行

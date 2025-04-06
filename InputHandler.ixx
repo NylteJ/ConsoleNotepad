@@ -19,10 +19,10 @@ export namespace NylteJ
 		class MessageDatas
 		{
 		public:
-			queue<MessageType> messagesQueue;
+			deque<MessageType> messagesQueue;
 			mutex messagesMutex;
 
-			vector<function<void(const MessageType&)>> callbacks;
+			vector<function<void(const MessageType&, size_t)>> callbacks;
 			mutex callbacksMutex;
 		public:
 		};
@@ -31,6 +31,8 @@ export namespace NylteJ
 		{
 		public:
 			ConsoleSize newSize;
+		public:
+			bool operator==(const MessageWindowSizeChanged&) const = default;
 		};
 		class MessageKeyboard
 		{
@@ -121,8 +123,12 @@ export namespace NylteJ
 				{
 					return data;
 				}
+
+				bool operator==(const ExtraKeys&) const = default;
 			} extraKeys;
 			wchar_t inputChar = L'\0';
+		public:
+			bool operator==(const MessageKeyboard&) const = default;
 		};
 		class MessageMouse
 		{
@@ -157,6 +163,8 @@ export namespace NylteJ
 			{
 				return wheelMove;
 			}
+
+			bool operator==(const MessageMouse&) const = default;
 		};
 	private:
 		MessageDatas<MessageWindowSizeChanged> windowSizeChangedMessages;
@@ -170,10 +178,13 @@ export namespace NylteJ
 
 			while (!messageDatas.messagesQueue.empty())
 			{
-				for (auto& func : messageDatas.callbacks)
-					func(messageDatas.messagesQueue.front());
+				const auto firstNotSameIter = ranges::find_if(messageDatas.messagesQueue | ranges::views::drop(1),
+						[&](auto&& message) { return message != messageDatas.messagesQueue.front(); });
 
-				messageDatas.messagesQueue.pop();
+				for (auto& func : messageDatas.callbacks)
+					func(messageDatas.messagesQueue.front(), firstNotSameIter - messageDatas.messagesQueue.begin());
+
+				messageDatas.messagesQueue.erase(messageDatas.messagesQueue.begin(), firstNotSameIter);
 			}
 		}
 
@@ -186,19 +197,32 @@ export namespace NylteJ
 				DoDistuibute(mouseMessages);
 			}
 		}
+
+		void SendMessageWithoutLock(const MessageWindowSizeChanged& message)
+		{
+			windowSizeChangedMessages.messagesQueue.emplace_back(message);
+		}
+		void SendMessageWithoutLock(const MessageKeyboard& message)
+		{
+			keyboardMessages.messagesQueue.emplace_back(message);
+		}
+		void SendMessageWithoutLock(const MessageMouse& message)
+		{
+			mouseMessages.messagesQueue.emplace_back(message);
+		}
 	public:
 		// TODO: 把这一堆复制粘贴用更优雅的方式实现
-		void SubscribeMessage(function<void(const MessageWindowSizeChanged&)> callback)
+		void SubscribeMessage(function<void(const MessageWindowSizeChanged&, size_t)> callback)
 		{
 			lock_guard callbackLock{ windowSizeChangedMessages.callbacksMutex };
 			windowSizeChangedMessages.callbacks.emplace_back(callback);
 		}
-		void SubscribeMessage(function<void(const MessageKeyboard&)> callback)
+		void SubscribeMessage(function<void(const MessageKeyboard&, size_t)> callback)
 		{
 			lock_guard callbackLock{ keyboardMessages.callbacksMutex };
 			keyboardMessages.callbacks.emplace_back(callback);
 		}
-		void SubscribeMessage(function<void(const MessageMouse&)> callback)
+		void SubscribeMessage(function<void(const MessageMouse&, size_t)> callback)
 		{
 			lock_guard callbackLock{ mouseMessages.callbacksMutex };
 			mouseMessages.callbacks.emplace_back(callback);
@@ -207,19 +231,27 @@ export namespace NylteJ
 		void SendMessage(const MessageWindowSizeChanged& message)
 		{
 			lock_guard messagesLock{ windowSizeChangedMessages.messagesMutex };
-			windowSizeChangedMessages.messagesQueue.emplace(message);
+			SendMessageWithoutLock(message);
 		}
-		void SendMessage(const MessageKeyboard& message, size_t count = 1)
+		void SendMessage(const MessageKeyboard& message)
 		{
 			lock_guard messagesLock{ keyboardMessages.messagesMutex };
-
-			for (size_t i = 0; i < count; i++)
-				keyboardMessages.messagesQueue.emplace(message);
+			SendMessageWithoutLock(message);
 		}
 		void SendMessage(const MessageMouse& message)
 		{
 			lock_guard messagesLock{ mouseMessages.messagesMutex };
-			mouseMessages.messagesQueue.emplace(message);
+			SendMessageWithoutLock(message);
+		}
+
+		void SendMessages(const auto&& messages)
+		{
+			lock_guard	windowSizeMessagesLock{ windowSizeChangedMessages.messagesMutex },
+						keyboardMessagesLock{ keyboardMessages.messagesMutex },
+						mouseMessagesLock{ mouseMessages.messagesMutex };
+
+			for (auto&& message : messages)
+				visit([&](auto&& msg) {SendMessageWithoutLock(msg); }, message);
 		}
 
 		InputHandler()

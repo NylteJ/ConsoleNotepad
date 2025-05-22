@@ -41,13 +41,13 @@ export namespace NylteJ
 			static auto getEncodingByStr = [](string_view str)->optional<Encoding>
 				{
 					auto normalizedStr = str
-						| ranges::views::transform([](auto&& chr)->char
+						| views::transform([](auto&& chr)->char
 							{
 								if (chr >= 'a' && chr <= 'z')
 									return chr - 'a' + 'A';
 								return chr;
 							})
-						| ranges::views::filter([](auto&& chr) {return chr != '-' && chr != ' '; })
+						| views::filter([](auto&& chr) {return chr != '-' && chr != ' '; })
 						| ranges::to<string>();
 
 					using enum Encoding;

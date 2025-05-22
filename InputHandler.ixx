@@ -178,7 +178,7 @@ export namespace NylteJ
 
 			while (!messageDatas.messagesQueue.empty())
 			{
-				const auto firstNotSameIter = ranges::find_if(messageDatas.messagesQueue | ranges::views::drop(1),
+				const auto firstNotSameIter = ranges::find_if(messageDatas.messagesQueue | views::drop(1),
 						[&](auto&& message) { return message != messageDatas.messagesQueue.front(); });
 
 				for (auto& func : messageDatas.callbacks)

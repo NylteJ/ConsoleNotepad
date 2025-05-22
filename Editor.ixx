@@ -14,6 +14,7 @@ import Formatter;
 import BasicColors;
 import UIComponent;
 import SettingMap;
+import InputHandler;
 
 using namespace std;
 
@@ -342,7 +343,7 @@ export namespace NylteJ
 					console.Print(formattedStrs[y], nowCursorPos);
 
 				if (formattedStrs[y].DisplaySize() < drawRange.Width())
-					console.Print(ranges::to<wstring>(ranges::views::repeat(' ', drawRange.Width() - formattedStrs[y].DisplaySize())));
+					console.Print(ranges::to<wstring>(views::repeat(' ', drawRange.Width() - formattedStrs[y].DisplaySize())));
 
 				nowCursorPos.y++;
 				if (nowCursorPos.y > drawRange.rightBottom.y)
@@ -351,7 +352,7 @@ export namespace NylteJ
 
 			while (nowCursorPos.y <= drawRange.rightBottom.y)	// 后面的空白也要覆写
 			{
-				console.Print(ranges::to<wstring>(ranges::views::repeat(' ', drawRange.Width())), nowCursorPos);
+				console.Print(ranges::to<wstring>(views::repeat(' ', drawRange.Width())), nowCursorPos);
 
 				nowCursorPos.y++;
 			}
@@ -1008,9 +1009,16 @@ export namespace NylteJ
 			console.HideCursor();
 		}
 
-		Editor(ConsoleHandler& console, const wstring& fileData, const ConsoleRect& drawRange, const SettingMap& settingMap,
-			shared_ptr<FormatterBase> formatter = nullptr)
-			:UIComponent(drawRange), console(console), fileData(fileData), formatter(formatter), settingMap(settingMap)
+		Editor(ConsoleHandler& console,
+			   const wstring& fileData,
+			   const ConsoleRect& drawRange,
+			   const SettingMap& settingMap,
+			   shared_ptr<FormatterBase> formatter = nullptr)
+			:UIComponent(drawRange),
+			console(console),
+			fileData(fileData),
+			formatter(formatter),
+			settingMap(settingMap)
 		{
 			if (formatter == nullptr)
 				this->formatter = make_shared<DefaultFormatter>(settingMap);

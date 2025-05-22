@@ -13,6 +13,10 @@ import StringEncoder;
 import Exceptions;
 import Utils;
 import SettingMap;
+import FileHandler;
+import ConsoleHandler;
+import InputHandler;
+import ClipboardHandler;
 
 import UIComponent;
 import Editor;
@@ -193,8 +197,8 @@ export namespace NylteJ
 			const auto lineIndexs = editor->GetLineIndexs();
 			const auto drawHeight = min(static_cast<size_t>(handlers.console.GetConsoleSize().height - 2), lineIndexs.size());
 
-			const auto stringToLong = (ranges::views::repeat(L'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
-			const auto stringNull = (ranges::views::repeat(L' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
+			const auto stringToLong = (views::repeat(L'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
+			const auto stringNull = (views::repeat(L' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
 
 			for (size_t i = 0; i < drawHeight; i++)
 			{
@@ -215,7 +219,7 @@ export namespace NylteJ
 		{
 			handlers.console.HideCursor();
 
-			handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width) | ranges::to<wstring>(), { 0,0 }, BasicColors::black, BasicColors::yellow);
+			handlers.console.Print(views::repeat(' ', handlers.console.GetConsoleSize().width) | ranges::to<wstring>(), { 0,0 }, BasicColors::black, BasicColors::yellow);
 
 			handlers.console.Print(title, { 0,0 }, BasicColors::black, BasicColors::yellow);
 
@@ -289,7 +293,7 @@ export namespace NylteJ
 								nowIndex++;
 							}
 
-							filename = filename | ranges::views::take(nowIndex) | ranges::to<wstring>();
+							filename = filename | views::take(nowIndex) | ranges::to<wstring>();
 							filename += L"..."s;
 						}
 
@@ -305,7 +309,7 @@ export namespace NylteJ
 			const size_t leftTextLen = GetDisplayLength(extraText);
 
 			if (rightTextLen + leftTextLen < handlers.console.GetConsoleSize().width)
-				handlers.console.Print(ranges::views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<wstring>(),
+				handlers.console.Print(views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<wstring>(),
 					{ leftTextLen,handlers.console.GetConsoleSize().height - 1 },
 					BasicColors::black, BasicColors::yellow);
 

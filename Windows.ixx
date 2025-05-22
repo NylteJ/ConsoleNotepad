@@ -15,6 +15,8 @@ import InputHandler;
 import UIComponent;
 import Selector;
 import SettingMap;
+import Utils;
+import UnionHandler;
 
 import StringEncoder;
 import Exceptions;
@@ -43,7 +45,7 @@ export namespace NylteJ
 		{
 			// 顺便做个防呆设计, 防止有大聪明给路径加引号和双反斜杠
 			wstring ret = editor.GetData()
-				| ranges::views::filter([](auto&& chr) {return chr != L'\"'; })
+				| views::filter([](auto&& chr) {return chr != L'\"'; })
 				| ranges::to<wstring>();
 
 			size_t pos = 0;
@@ -158,10 +160,10 @@ export namespace NylteJ
 								wstring inputFilename = nowPath.filename().wstring();
 
 								wstring nowFilenameLower = nowFilename
-									| ranges::views::transform([](auto&& chr) {return towlower(chr); })
+									| views::transform([](auto&& chr) {return towlower(chr); })
 									| ranges::to<wstring>();
 								wstring inputFilenameLower = inputFilename
-									| ranges::views::transform([](auto&& chr) {return towlower(chr); })
+									| views::transform([](auto&& chr) {return towlower(chr); })
 									| ranges::to<wstring>();
 
 								if (nowFilenameLower.starts_with(inputFilenameLower))
@@ -277,7 +279,7 @@ export namespace NylteJ
 
 					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
 					if (restLength > 0)
-						console.Print(ranges::views::repeat(L' ', restLength) | ranges::to<wstring>());
+						console.Print(views::repeat(L' ', restLength) | ranges::to<wstring>());
 				}
 				else
 				{
@@ -285,7 +287,7 @@ export namespace NylteJ
 
 					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
 					if (restLength > 0)
-						console.Print(ranges::views::repeat(L' ', restLength) | ranges::to<wstring>(), BasicColors::inverseColor, BasicColors::inverseColor);
+						console.Print(views::repeat(L' ', restLength) | ranges::to<wstring>(), BasicColors::inverseColor, BasicColors::inverseColor);
 				}
 			}
 		}
@@ -342,6 +344,8 @@ export namespace NylteJ
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
 		{
 			BasicWindow::ManageInput(message, handlers);
+
+			using enum InputHandler::MessageMouse::Type;
 
 			if (message.LeftClick() && drawRange.Contain(message.position))
 			{
@@ -451,6 +455,8 @@ export namespace NylteJ
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
 		{
+			using enum Encoding;
+
 			if (choiceIndex + 1 == choices.size())	// 取消
 				return;
 			if (choiceIndex + 2 == choices.size())	// 强制打开
@@ -458,8 +464,6 @@ export namespace NylteJ
 				callback(FORCE);
 				return;
 			}
-
-			using enum Encoding;
 
 			if (choiceIndex + 3 == choices.size())	//自动识别
 			{
@@ -573,12 +577,12 @@ export namespace NylteJ
 				// 制表符直接删掉. 历史记录需要的是具体信息, 只要能从短短的几个字符中看出这次操作都做了什么就可以了, 制表符不用留
 				// 开头和结尾的换行同理
 				wstring nowOperationData = *operation.data
-					| ranges::views::filter([](auto&& chr) {return chr != '\t' && chr != '\r'; })
-					| ranges::views::drop_while([](auto&& chr) {return chr == '\n'; })
-					| ranges::views::reverse
-					| ranges::views::drop_while([](auto&& chr) {return chr == '\n'; })
-					| ranges::views::reverse
-					| ranges::views::take(drawRange.Width() - 4)	// 考虑到目前的 DisplayLength 总是不短于 size, 直接先裁剪一次, 这样当字符串特别长时能显著优化性能 (非常显著)
+					| views::filter([](auto&& chr) {return chr != '\t' && chr != '\r'; })
+					| views::drop_while([](auto&& chr) {return chr == '\n'; })
+					| views::reverse
+					| views::drop_while([](auto&& chr) {return chr == '\n'; })
+					| views::reverse
+					| views::take(drawRange.Width() - 4)	// 考虑到目前的 DisplayLength 总是不短于 size, 直接先裁剪一次, 这样当字符串特别长时能显著优化性能 (非常显著)
 					| ranges::to<wstring>();
 
 				// 只保留第一行
@@ -668,16 +672,16 @@ export namespace NylteJ
 			:SelectWindow(console, drawRange, {}, L"选择要撤销到的历史记录......"s)
 		{
 			// 别忘了 undoDeque 里存的都是反转后的原操作, 以及 deque 的读取顺序
-			MakeChoices(mainEditor.GetUndoDeque() | ranges::views::reverse, true);
+			MakeChoices(mainEditor.GetUndoDeque() | views::reverse, true);
 
 			// 当前状况
 			const auto tipTextNowSituation = L"当前状况"s;
 			const auto allSpaceWidth = drawRange.Width() - 2 - GetDisplayLength(tipTextNowSituation);
 			const auto lineHalfWidth = allSpaceWidth / 2;
 			choices.emplace_back(
-				(ranges::views::repeat(L'-', lineHalfWidth) | ranges::to<wstring>())
+				(views::repeat(L'-', lineHalfWidth) | ranges::to<wstring>())
 				+ tipTextNowSituation
-				+ (ranges::views::repeat(L'-', allSpaceWidth - lineHalfWidth) | ranges::to<wstring>()));
+				+ (views::repeat(L'-', allSpaceWidth - lineHalfWidth) | ranges::to<wstring>()));
 			ChangeChoose(choices.size() - 1);
 
 			MakeChoices(mainEditor.GetRedoDeque(), false);
@@ -721,6 +725,8 @@ export namespace NylteJ
 				};
 
 			wstring encodingSelectTipText = L"文件无法通过 UTF-8 编码打开, 请手动选择编码: "s;
+
+			using enum Encoding;
 
 			if (behavior == 1 || behavior == 2)	// 先尝试自动识别
 			{

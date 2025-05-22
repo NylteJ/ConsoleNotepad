@@ -81,7 +81,7 @@ export namespace NylteJ
 
 			string buffer;
 
-			if (fileSizeByte >= 1024LL * 1024LL * 1024LL)	// 1GB
+			if (fileSizeByte >= 1024LL * 1024LL * 1024LL * 1024LL)	// 1TB
 				throw "TODO: Large File Input";
 
 			buffer.resize(fileSizeByte);

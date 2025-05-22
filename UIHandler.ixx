@@ -32,12 +32,12 @@ export namespace NylteJ
 
 		Editor& mainEditor;
 	public:
-		void GiveFocusTo(UIComponentPtr compontentPtr)
+		void GiveFocusTo(UIComponentPtr componentPtr)
 		{
 			if (nowFocus != nullptr)
 				nowFocus->WhenUnfocused();
 
-			nowFocus = compontentPtr;
+			nowFocus = componentPtr;
 
 			if (nowFocus != nullptr)
 				nowFocus->WhenFocused();
@@ -49,15 +49,15 @@ export namespace NylteJ
 				nowFocus->WhenRefocused();
 		}
 
-		void EraseComponent(auto&& compontentPtr)
+		void EraseComponent(auto&& componentPtr)
 		{
 			for (auto iter = components.begin(); iter != components.end();)
-				if (iter->second.get() == compontentPtr)
+				if (iter->second == componentPtr)
 					iter = components.erase(iter);
 				else
 					++iter;
 
-			if (nowFocus.get() == compontentPtr)
+			if (nowFocus == componentPtr)
 				if (components.empty())
 					GiveFocusTo(nullptr);
 				else

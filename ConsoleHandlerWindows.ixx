@@ -200,7 +200,7 @@ export namespace NylteJ
 				if (!success)
 					continue;
 
-				for (auto&& input : inputBuffer | ranges::views::take(inputNum))
+				for (auto&& input : inputBuffer | views::take(inputNum))
 				{
 					switch (input.EventType)
 					{
@@ -280,7 +280,7 @@ export namespace NylteJ
 					}
 				}
 
-				inputHandler.SendMessages(messageBuffer | ranges::views::take(messageCount));
+				inputHandler.SendMessages(messageBuffer | views::take(messageCount));
 
 				messageCount = 0;
 

@@ -200,7 +200,7 @@ export namespace NylteJ
 							if (str[nowIndex] == '\t')
 							{
 								str.replace_with_range(str.begin() + nowIndex, str.begin() + nowIndex + 1,
-									ranges::views::repeat(L' ', tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth));
+									views::repeat(L' ', tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth));
 
 								nowIndex += tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth;
 

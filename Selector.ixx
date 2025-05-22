@@ -11,6 +11,7 @@ import ConsoleHandler;
 import Exceptions;
 import BasicColors;
 import Utils;
+import InputHandler;
 
 using namespace std;
 
@@ -31,7 +32,7 @@ export namespace NylteJ
 			auto color = highLight ? BasicColors::inverseColor : BasicColors::stayOldColor;
 
 			console.Print(L"<", drawRange.leftTop, color, color);
-			console.Print(ranges::views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), color, color);
+			console.Print(views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), color, color);
 			console.Print(L">", color, color);
 
 			size_t beginX = 0;

@@ -10,6 +10,8 @@ import FileHandlerWindows;
 static_assert(false, "Not implemented yet");
 #endif
 
+import StringEncoder;
+
 using namespace std;
 
 export namespace NylteJ
@@ -52,10 +54,10 @@ export namespace NylteJ
 		}
 		wstring ReadAll(Encoding encoding)
 		{
-			if (encoding != FORCE)
+			if (encoding != Encoding::FORCE)
 				nowEncoding = encoding;
 
-			return ReadAll(encoding == FORCE);
+			return ReadAll(encoding == Encoding::FORCE);
 		}
 
 		string ReadAsBytes() const
@@ -83,7 +85,7 @@ export namespace NylteJ
 		}
 		void Write(wstring_view data, Encoding encoding)
 		{
-			if (encoding != FORCE)
+			if (encoding != Encoding::FORCE)
 				nowEncoding = encoding;
 
 			Write(data);

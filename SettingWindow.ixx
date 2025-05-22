@@ -16,6 +16,9 @@ import StringEncoder;
 import FileHandler;
 import SettingsHandler;
 import SettingMap;
+import InputHandler;
+import UnionHandler;
+import ConsoleHandler;
 
 using namespace std;
 
@@ -41,8 +44,8 @@ export namespace NylteJ
 		constexpr auto NowVisibleSettingList() const
 		{
 			return settings.settingList
-				| ranges::views::drop(nowBeginSettingIndex)
-				| ranges::views::take(MaxSettingInScreen());
+				| views::drop(nowBeginSettingIndex)
+				| views::take(MaxSettingInScreen());
 		}
 
 		void PrintSelf() const
@@ -56,7 +59,7 @@ export namespace NylteJ
 
 			for (auto&& settingItem : NowVisibleSettingList())
 			{
-				console.Print(ranges::views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), nowPos);
+				console.Print(views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), nowPos);
 				console.Print(settingItem.tipText, nowPos);
 				nowPos.y++;
 				settingItem.component->SetDrawRange({ nowPos,{drawRange.rightBottom.x - 1,nowPos.y} });

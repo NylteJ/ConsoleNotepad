@@ -7,19 +7,20 @@ import std;
 import ConsoleHandler;
 import InputHandler;
 import UIComponent;
+import ConsoleTypedef;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	class BasicWindow :public UIComponent
+	class BasicWindow :public UIComponent, public enable_shared_from_this<BasicWindow>
 	{
 	protected:
 		ConsoleHandler& console;
 	protected:
 		void EraseThis(UnionHandler& handlers)
 		{
-			handlers.ui.EraseComponent(this);
+			handlers.ui.EraseComponent(shared_from_this());
 		}
 	public:
 		void PrintFrame() const
@@ -29,12 +30,12 @@ export namespace NylteJ
 
 			console.HideCursor();
 
-			console.Print(L'©°' + (ranges::views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©´', drawRange.leftTop);
+			console.Print(L'©°' + (views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©´', drawRange.leftTop);
 
 			for (auto y = drawRange.leftTop.y + 1; y < drawRange.rightBottom.y; y++)
-				console.Print(L'©¦' + (ranges::views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¦', { drawRange.leftTop.x,y });
+				console.Print(L'©¦' + (views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¦', { drawRange.leftTop.x,y });
 
-			console.Print(L'©¸' + (ranges::views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¼', { drawRange.leftTop.x,drawRange.rightBottom.y });
+			console.Print(L'©¸' + (views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¼', { drawRange.leftTop.x,drawRange.rightBottom.y });
 
 			console.ShowCursor();
 		}

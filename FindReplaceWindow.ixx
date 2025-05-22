@@ -13,6 +13,7 @@ import UIComponent;
 import Selector;
 import BasicWindow;
 import SettingMap;
+import UnionHandler;
 
 import Exceptions;
 
@@ -120,11 +121,11 @@ export namespace NylteJ
 				{
 					if constexpr (inverse)
 						return table
-						| ranges::views::reverse
-						| ranges::views::transform([](auto&& x) {return pair{ x.second,x.first }; });
+						| views::reverse
+						| views::transform([](auto&& x) {return pair{ x.second,x.first }; });
 					else
 						return table
-						| ranges::views::all;
+						| views::all;
 				};
 
 			for (auto&& [source, target] : getView())

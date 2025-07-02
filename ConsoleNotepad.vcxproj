@@ -217,33 +217,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BasicColors.ixx" />
-    <ClCompile Include="BasicWindow.ixx" />
-    <ClCompile Include="ClipboardHandler.ixx" />
-    <ClCompile Include="ClipboardHandlerWindows.ixx" />
-    <ClCompile Include="ConsoleArgumentsAnalyzer.ixx" />
-    <ClCompile Include="ConsoleHandler.ixx" />
-    <ClCompile Include="ConsoleHandlerWindows.ixx" />
     <ClCompile Include="ConsoleTypedef.ixx" />
-    <ClCompile Include="Editor.ixx" />
-    <ClCompile Include="Exceptions.ixx" />
-    <ClCompile Include="FileHandler.ixx" />
-    <ClCompile Include="FileHandlerWindows.ixx" />
-    <ClCompile Include="FindReplaceWindow.ixx" />
-    <ClCompile Include="Formatter.ixx" />
-    <ClCompile Include="Selector.ixx" />
-    <ClCompile Include="SettingMap.ixx" />
-    <ClCompile Include="SettingsHandler.ixx" />
-    <ClCompile Include="SettingWindow.ixx" />
-    <ClCompile Include="StringEncoder.ixx" />
-    <ClCompile Include="UIComponent.ixx" />
+    <ClCompile Include="Interfaces\UIComponent.ixx" />
+    <ClCompile Include="PlatformRelated\ClipboardHandler\ClipboardHandler.ixx" />
+    <ClCompile Include="PlatformRelated\ClipboardHandler\ClipboardHandlerWindows.ixx" />
+    <ClCompile Include="PlatformRelated\ConsoleHandler\ConsoleHandler.ixx" />
+    <ClCompile Include="PlatformRelated\ConsoleHandler\ConsoleHandlerWindows.ixx" />
+    <ClCompile Include="PlatformRelated\FileHandler\FileHandler.ixx" />
+    <ClCompile Include="PlatformRelated\FileHandler\FileHandlerWindows.ixx" />
+    <ClCompile Include="PlatformRelated\StringEncoder.ixx" />
     <ClCompile Include="InputHandler.ixx" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="UI.ixx" />
-    <ClCompile Include="UIHandler.ixx" />
-    <ClCompile Include="UnionHandler.ixx" />
-    <ClCompile Include="Utils.ixx" />
-    <ClCompile Include="Windows.ixx" />
+    <ClCompile Include="UI\Editor.ixx" />
+    <ClCompile Include="UI\Formatter.ixx" />
+    <ClCompile Include="UI\Selector.ixx" />
+    <ClCompile Include="UI\UI.ixx" />
+    <ClCompile Include="UI\Windows\BasicWindow.ixx" />
+    <ClCompile Include="UI\Windows\FindReplaceWindow.ixx" />
+    <ClCompile Include="UI\Windows\SettingWindow.ixx" />
+    <ClCompile Include="UI\Windows\Windows.ixx" />
+    <ClCompile Include="Utils\BasicColors.ixx" />
+    <ClCompile Include="Utils\ConsoleArgumentsAnalyzer.ixx" />
+    <ClCompile Include="Utils\Exceptions.ixx" />
+    <ClCompile Include="Utils\SettingMap.ixx" />
+    <ClCompile Include="Utils\SettingsHandler.ixx" />
+    <ClCompile Include="Utils\UIHandler.ixx" />
+    <ClCompile Include="Utils\UnionHandler.ixx" />
+    <ClCompile Include="Utils\Utils.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

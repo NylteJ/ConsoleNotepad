@@ -42,82 +42,82 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ConsoleHandler.ixx">
-      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="ConsoleHandlerWindows.ixx">
-      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
-    </ClCompile>
     <ClCompile Include="ConsoleTypedef.ixx">
-      <Filter>头文件</Filter>
-    </ClCompile>
-    <ClCompile Include="BasicColors.ixx">
-      <Filter>头文件</Filter>
-    </ClCompile>
-    <ClCompile Include="UI.ixx">
-      <Filter>头文件\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Editor.ixx">
-      <Filter>头文件\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="Formatter.ixx">
       <Filter>头文件</Filter>
     </ClCompile>
     <ClCompile Include="InputHandler.ixx">
       <Filter>头文件</Filter>
     </ClCompile>
-    <ClCompile Include="FileHandler.ixx">
-      <Filter>头文件\PlatformRelated\FileHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="FileHandlerWindows.ixx">
-      <Filter>头文件\PlatformRelated\FileHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="ClipboardHandler.ixx">
-      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="ClipboardHandlerWindows.ixx">
-      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="UIComponent.ixx">
+    <ClCompile Include="Interfaces\UIComponent.ixx">
       <Filter>头文件\Interfaces</Filter>
     </ClCompile>
-    <ClCompile Include="UnionHandler.ixx">
-      <Filter>头文件\Utils</Filter>
+    <ClCompile Include="PlatformRelated\ClipboardHandler\ClipboardHandler.ixx">
+      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
     </ClCompile>
-    <ClCompile Include="UIHandler.ixx">
-      <Filter>头文件\Utils</Filter>
+    <ClCompile Include="PlatformRelated\ClipboardHandler\ClipboardHandlerWindows.ixx">
+      <Filter>头文件\PlatformRelated\ClipboardHandler</Filter>
     </ClCompile>
-    <ClCompile Include="StringEncoder.ixx">
+    <ClCompile Include="PlatformRelated\ConsoleHandler\ConsoleHandler.ixx">
+      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformRelated\ConsoleHandler\ConsoleHandlerWindows.ixx">
+      <Filter>头文件\PlatformRelated\ConsoleHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformRelated\FileHandler\FileHandler.ixx">
+      <Filter>头文件\PlatformRelated\FileHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformRelated\FileHandler\FileHandlerWindows.ixx">
+      <Filter>头文件\PlatformRelated\FileHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="PlatformRelated\StringEncoder.ixx">
       <Filter>头文件\PlatformRelated</Filter>
     </ClCompile>
-    <ClCompile Include="Exceptions.ixx">
-      <Filter>头文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils.ixx">
-      <Filter>头文件\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="ConsoleArgumentsAnalyzer.ixx">
-      <Filter>头文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Selector.ixx">
+    <ClCompile Include="UI\Editor.ixx">
       <Filter>头文件\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Windows.ixx">
+    <ClCompile Include="UI\Selector.ixx">
+      <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UI.ixx">
+      <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\Windows\FindReplaceWindow.ixx">
       <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
-    <ClCompile Include="FindReplaceWindow.ixx">
+    <ClCompile Include="UI\Windows\SettingWindow.ixx">
       <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
-    <ClCompile Include="BasicWindow.ixx">
+    <ClCompile Include="UI\Windows\Windows.ixx">
       <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
-    <ClCompile Include="SettingWindow.ixx">
+    <ClCompile Include="UI\Windows\BasicWindow.ixx">
       <Filter>头文件\UI\Windows</Filter>
     </ClCompile>
-    <ClCompile Include="SettingsHandler.ixx">
+    <ClCompile Include="Utils\SettingsHandler.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="SettingMap.ixx">
+    <ClCompile Include="Utils\UIHandler.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\UnionHandler.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Utils.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\SettingMap.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\BasicColors.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Exceptions.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\Formatter.ixx">
+      <Filter>头文件\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\ConsoleArgumentsAnalyzer.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
   </ItemGroup>

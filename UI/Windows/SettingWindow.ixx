@@ -1,7 +1,7 @@
 // SettingWindow.ixx
-// ÉèÖÃÒ³Ãæ
-// ÆäÊµÔÚÊµÏÖÁË Editor ºÍ Selector ºóÒÑ¾­²»ÄÑÊµÏÖÁË
-// ÊÇ SettingsHandler µÄÇ°¶Ë
+// è®¾ç½®é¡µé¢
+// å…¶å®åœ¨å®ç°äº† Editor å’Œ Selector åå·²ç»ä¸éš¾å®ç°äº†
+// æ˜¯ SettingsHandler çš„å‰ç«¯
 export module SettingWindow;
 
 import std;
@@ -19,6 +19,7 @@ import SettingMap;
 import InputHandler;
 import UnionHandler;
 import ConsoleHandler;
+import String;
 
 using namespace std;
 
@@ -27,8 +28,8 @@ export namespace NylteJ
 	class SettingWindow :public BasicWindow
 	{
 	private:
-		constexpr static wstring_view titleText = L"ÉèÖÃ"sv;
-		constexpr static wstring_view tipText = L"°´»Ø³µ¼ü±£´æ²¢ÍË³ö, °´ Esc ¼ü²»±£´æÍË³ö. ÓÃ·½Ïò¼üÇĞ»»ÉèÖÃÏî, Ò²Ö§³ÖÊó±ê²Ù×÷."sv;
+		constexpr static StringView titleText = u8"è®¾ç½®"sv;
+		constexpr static StringView tipText = u8"æŒ‰å›è½¦é”®ä¿å­˜å¹¶é€€å‡º, æŒ‰ Esc é”®ä¸ä¿å­˜é€€å‡º. ç”¨æ–¹å‘é”®åˆ‡æ¢è®¾ç½®é¡¹, ä¹Ÿæ”¯æŒé¼ æ ‡æ“ä½œ."sv;
 	private:
 		size_t nowBeginSettingIndex = 0;
 
@@ -52,14 +53,14 @@ export namespace NylteJ
 		{
 			console.Print(titleText, { drawRange.leftTop.x + (drawRange.Width() - 2 - GetDisplayLength(titleText)) / 2 + 1,
 				drawRange.leftTop.y + 1 });
-			console.Print(tipText, { drawRange.leftTop.x + (drawRange.Width() - 2 - GetDisplayLength(tipText)) / 2 + 1,
-				drawRange.rightBottom.y - 1 });
+            console.Print(tipText, { drawRange.leftTop.x + (drawRange.Width() - 2 - GetDisplayLength(tipText)) / 2 + 1,
+                drawRange.rightBottom.y - 1 });
 
 			ConsolePosition nowPos = { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 };
 
 			for (auto&& settingItem : NowVisibleSettingList())
 			{
-				console.Print(views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), nowPos);
+				console.Print(views::repeat(u8' ', drawRange.Width() - 2) | ranges::to<String>(), nowPos);
 				console.Print(settingItem.tipText, nowPos);
 				nowPos.y++;
 				settingItem.component->SetDrawRange({ nowPos,{drawRange.rightBottom.x - 1,nowPos.y} });
@@ -94,7 +95,7 @@ export namespace NylteJ
 		{
 			using enum InputHandler::MessageKeyboard::Key;
 
-			if (message.key == Esc)	// µÃÀ¹½Øµô
+			if (message.key == Esc)	// å¾—æ‹¦æˆªæ‰
 			{
 				settings.ReloadAll();
 				EraseThis(handlers);
@@ -106,10 +107,10 @@ export namespace NylteJ
 			if (message.key == Enter)
 			{
 				settings.SaveAll();
-				settings.ReloadAll();	// Êµ¼ÊÉÏÊÇÒ»¸ö¹æ·¶»¯µÄ¹ı³Ì, ±ÈÈç mins / minutes -> min
+				settings.ReloadAll();	// å®é™…ä¸Šæ˜¯ä¸€ä¸ªè§„èŒƒåŒ–çš„è¿‡ç¨‹, æ¯”å¦‚ mins / minutes -> min
 
-				// ÕâÀïÒªÖØÔØÖ÷ Editor µÄ drawRange, ·ÀÖ¹ĞĞºÅ¿í¶È¸Ä±ä´øÀ´µÄÆæ¹ÖµÄÏÔÊ¾ÎÊÌâ
-				// TODO: Ğ´Ò»¸ö²»ÄÇÃ´³óÂªµÄ·½·¨
+				// è¿™é‡Œè¦é‡è½½ä¸» Editor çš„ drawRange(æˆ–è€…è¯´é‡ç»˜æ•´ä¸ª UI), é˜²æ­¢è¡Œå·å®½åº¦æ”¹å˜å¸¦æ¥çš„å¥‡æ€ªçš„æ˜¾ç¤ºé—®é¢˜
+				// TODO: å†™ä¸€ä¸ªä¸é‚£ä¹ˆä¸‘é™‹çš„æ–¹æ³•
 				handlers.input.SendMessage(InputHandler::MessageWindowSizeChanged{ handlers.console.GetConsoleSize() });
 				handlers.ui.mainEditor.MoveCursor(Direction::None);
 
@@ -195,7 +196,7 @@ export namespace NylteJ
 						settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 				}
 
-				return;	// À¹½Ø¹öÂÖ
+				return;	// æ‹¦æˆªæ»šè½®
 			}
 
 			settings.settingList[nowFocusedSettingIndex].component->ManageInput(message, handlers);
@@ -221,7 +222,7 @@ export namespace NylteJ
 			settings(console, settings)
 		{
 			if (drawRange.Height() < 6)
-				throw Exception{ L"´°¿ÚÌ«Ğ¡!"sv };
+				throw Exception{ u8"çª—å£å¤ªå°!"sv };
 		}
 	};
 }

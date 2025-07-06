@@ -1,6 +1,6 @@
 // UnionHandler.ixx
-// ¼òµ¥µØÍ³Ò»ÄÇÒ»´ó¶Ñ Handler
-// Ö÷ÒªÊÇÎªÁË¿ÉÍØÕ¹µØ´«¸ø UIComponent Ö®ÀàµÄ
+// ç®€å•åœ°ç»Ÿä¸€é‚£ä¸€å¤§å † Handler
+// ä¸»è¦æ˜¯ä¸ºäº†å¯æ‹“å±•åœ°ä¼ ç»™ UIComponent ä¹‹ç±»çš„
 export module UnionHandler;
 
 import std;
@@ -25,7 +25,7 @@ export namespace NylteJ
 		InputHandler& input;
 		FileHandler& file;
 		ClipboardHandler& clipboard;
-		UIHandler<shared_ptr<UIComponent>>& ui;		// shared_ptr ¿ÉÒÔÊ¹ÓÃ²»ÍêÕûÀàĞÍ, ËùÒÔÕâÀïÖ±½ÓÓÃ¾Í¿ÉÒÔÁË
+		UIHandler<shared_ptr<UIComponent>>& ui;		// shared_ptr å¯ä»¥ä½¿ç”¨ä¸å®Œæ•´ç±»å‹, æ‰€ä»¥è¿™é‡Œç›´æ¥ç”¨å°±å¯ä»¥äº†
 		SettingMap& settings;
 	public:
 		UnionHandler(auto&& consoleHandler, auto&& inputHandler, auto&& fileHandler, auto&& clipboardHandler, auto&& uiHandler, auto&& settings)

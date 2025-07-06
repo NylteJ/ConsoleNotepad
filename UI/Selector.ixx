@@ -1,6 +1,6 @@
 // Selector.ixx
-// Ò»¸öÓÃ×ó / ÓÒ·½Ïò¼ü½øĞĞÑ¡ÔñµÄ UI Ä£¿é
-// Ö»ÊÊÅäµ¥ĞĞµÄÇé¿ö
+// ä¸€ä¸ªç”¨å·¦ / å³æ–¹å‘é”®è¿›è¡Œé€‰æ‹©çš„ UI æ¨¡å—
+// åªé€‚é…å•è¡Œçš„æƒ…å†µ
 export module Selector;
 
 import std;
@@ -12,6 +12,7 @@ import Exceptions;
 import BasicColors;
 import Utils;
 import InputHandler;
+import String;
 
 using namespace std;
 
@@ -22,7 +23,7 @@ export namespace NylteJ
 	private:
 		ConsoleHandler& console;
 
-		vector<wstring> choices;
+		vector<String> choices;
 		size_t nowChoose = 0;
 	private:
 		void Print(bool highLight = true)
@@ -31,9 +32,9 @@ export namespace NylteJ
 
 			auto color = highLight ? BasicColors::inverseColor : BasicColors::stayOldColor;
 
-			console.Print(L"<", drawRange.leftTop, color, color);
-			console.Print(views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>(), color, color);
-			console.Print(L">", color, color);
+			console.Print(u8"<"sv, drawRange.leftTop, color, color);
+			console.Print(String(u8' ', drawRange.Width() - 2), color, color);
+			console.Print(u8">"sv, color, color);
 
 			size_t beginX = 0;
 			if (GetDisplayLength(choices[nowChoose]) <= drawRange.Width())
@@ -100,7 +101,7 @@ export namespace NylteJ
 
 			Print();
 		}
-		void WhenRefocused() override	// ËüµÄ Refocus Ò²ĞèÒªÖØ»æ, ÒòÎª Refocus ¾ÍÒâÎ¶×ÅÔø¾­ Unfocus ¹ı, ËùÒÔÒªÖØĞÂ±äÒ»´ÎÉ«
+		void WhenRefocused() override	// å®ƒçš„ Refocus ä¹Ÿéœ€è¦é‡ç»˜, å› ä¸º Refocus å°±æ„å‘³ç€æ›¾ç» Unfocus è¿‡, æ‰€ä»¥è¦é‡æ–°å˜ä¸€æ¬¡è‰²
 		{
 			WhenFocused();
 		}
@@ -117,17 +118,17 @@ export namespace NylteJ
 		void SetDrawRange(const ConsoleRect& newRange)
 		{
 			if (drawRange.Width() <= 2 || drawRange.Height() <= 0)
-				throw Exception{ L"Selector ¿Ø¼şÌ«Ğ¡ÁË"sv };
-			drawRange = newRange;
+				throw Exception{ u8"Selector æ§ä»¶å¤ªå°äº†"sv };
+            drawRange = newRange;
 		}
 
-		Selector(ConsoleHandler& console, ConsoleRect drawRange, const vector<wstring>& choices, size_t nowChooseIndex = 0)
+		Selector(ConsoleHandler& console, ConsoleRect drawRange, const vector<String>& choices, size_t nowChooseIndex = 0)
 			:console(console), UIComponent(drawRange), choices(choices), nowChoose(nowChooseIndex)
 		{
 			if (choices.empty())
-				throw Exception{ L"Ñ¡Ïî²»¿ÉÎª¿Õ"sv };
+				throw Exception{ u8"é€‰é¡¹ä¸å¯ä¸ºç©º"sv };
 			if (drawRange.Width() <= 2 || drawRange.Height() <= 0)
-				throw Exception{ L"Selector ¿Ø¼şÌ«Ğ¡ÁË"sv };
+				throw Exception{ u8"Selector æ§ä»¶å¤ªå°äº†"sv };
 		}
 	};
 }

@@ -1,5 +1,5 @@
 // BasicColors.ixx
-// 预先定义好的一系列颜色
+// 棰勫厛瀹氫箟濂界殑涓�绯诲垪棰滆壊
 export module BasicColors;
 
 import ConsoleTypedef;

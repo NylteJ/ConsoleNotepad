@@ -1,5 +1,5 @@
 // ConsoleTypedef.ixx
-// 用于定义一些与控制台相关的类型别名（和类）
+// 鐢ㄤ簬瀹氫箟涓�浜涗笌鎺у埗鍙扮浉鍏崇殑绫诲瀷鍒悕锛堝拰绫伙級
 export module ConsoleTypedef;
 
 import std;
@@ -57,7 +57,7 @@ export namespace NylteJ
 	public:
 		constexpr auto Width() const
 		{
-			return rightBottom.x - leftTop.x + 1;
+            return rightBottom.x - leftTop.x + 1;
 		}
 		constexpr auto Height() const
 		{

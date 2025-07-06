@@ -1,6 +1,6 @@
 // UI.ixx
-// UI Ö÷½çÃæ
-// »ù±¾¾ÍÊÇ¸ö½ºË®
+// UI ä¸»ç•Œé¢
+// åŸºæœ¬å°±æ˜¯ä¸ªèƒ¶æ°´
 export module UI;
 
 import std;
@@ -17,6 +17,7 @@ import FileHandler;
 import ConsoleHandler;
 import InputHandler;
 import ClipboardHandler;
+import String;
 
 import UIComponent;
 import Editor;
@@ -34,13 +35,13 @@ export namespace NylteJ
 
 		FileHandler autoSaveFile = { true };
 
-		shared_ptr<Editor> editor;	// editor ±ØĞëÔÚ uiHandler Ç°¡¢handlers ºó±»³õÊ¼»¯ (·ñÔò»á¿ÕÒıÓÃ)
+		shared_ptr<Editor> editor;	// editor å¿…é¡»åœ¨ uiHandler å‰ã€handlers åè¢«åˆå§‹åŒ– (å¦åˆ™ä¼šç©ºå¼•ç”¨)
 
 		UIHandler<shared_ptr<UIComponent>> uiHandler;
 
-		wstring title;
+		String title;
 		
-		size_t lastSaveDataHash = hash<wstring_view>{}(L""sv);	// Ö»´æ Hash
+		size_t lastSaveDataHash = hash<u8string_view>{}(u8""sv);	// åªå­˜ Hash
 
 		chrono::time_point<chrono::steady_clock> lastSaveTime = chrono::steady_clock::now();
 	private:
@@ -58,38 +59,38 @@ export namespace NylteJ
 
 		void WhenFileSaved(bool reSave = false)
 		{
-			size_t nowDataHash = hash<wstring_view>{}(editor->GetData());
+			size_t nowDataHash = hash<StringView>{}(editor->GetData());
 
 			if (reSave || nowDataHash != lastSaveDataHash)
 			{
 				lastSaveDataHash = nowDataHash;
 				lastSaveTime = chrono::steady_clock::now();
 
-				wstring filename = handlers.file.nowFilePath.filename();
+				String filename = handlers.file.nowFilePath.filename();
 
-				PrintFooter(format(L"ÒÑ±£´æµ½ {} !"sv, filename));
+				PrintFooter(String::Format("å·²ä¿å­˜åˆ° {} !"sv, filename));
 			}
 		}
 		void WhenFileOpened()
 		{
-			lastSaveDataHash = hash<wstring_view>{}(editor->GetData());
+			lastSaveDataHash = hash<u8string_view>{}(editor->GetData().ToUTF8());
 			lastSaveTime = chrono::steady_clock::now();
 
-			wstring filename = handlers.file.nowFilePath.filename();
+			String filename = handlers.file.nowFilePath.filename();
 
 			ManageAutoSaveFile();
 
-			PrintFooter(format(L"ÒÑ´ò¿ª {} !"sv, filename));
+			PrintFooter(String::Format("å·²æ‰“å¼€ {} !"sv, filename));
 		}
 
 		bool IsFileSaved()
 		{
-			return hash<wstring_view>{}(editor->GetData()) == lastSaveDataHash;
+			return hash<u8string_view>{}(editor->GetData().ToUTF8()) == lastSaveDataHash;
 		}
 
 		void OpenFile(Encoding encoding = Encoding::UTF8)
 		{
-			PrintFooter(L"´ò¿ªÎÄ¼ş......"s);
+			PrintFooter(u8"æ‰“å¼€æ–‡ä»¶......"s);
 			auto window = make_shared<OpenFileWindow>(handlers.console,
 				WindowDrawRangeNormalSize(),
 				encoding,
@@ -101,21 +102,21 @@ export namespace NylteJ
 
 		void NewFile()
 		{
-			editor->SetData(L""sv);
+			editor->SetData(u8""sv);
 			editor->ResetCursor();
 
 			handlers.file.CloseFile();
 
 			ManageAutoSaveFile(handlers.settings.Get<SettingID::NewFileAutoSaveName>());
 
-			lastSaveDataHash = hash<wstring_view>{}(L""sv);
+			lastSaveDataHash = hash<u8string_view>{}(u8""sv);
 			lastSaveTime = chrono::steady_clock::now();
 
-			PrintFooter(L"ÒÑĞÂ½¨ÎÄ¼ş!"s);
+			PrintFooter(String{ u8"å·²æ–°å»ºæ–‡ä»¶!"s });
 		}
 
-		// Éñ±Ø bug, Õâ¸ö callback ±ØĞëÓÃÒıÓÃ´«, ·ñÔò»á±¬
-		// ËÀ»î²é²»³öÔ­Òò, Ì«¿áìÅÁ¦!
+		// ç¥å¿… bug, è¿™ä¸ª callback å¿…é¡»ç”¨å¼•ç”¨ä¼ , å¦åˆ™ä¼šçˆ†
+		// æ­»æ´»æŸ¥ä¸å‡ºåŸå› , å¤ªé…·ç‚«åŠ›!
 		void AskIfSave(auto&& callback)
 		{
 			auto window = make_shared<SaveOrNotWindow>(handlers.console,
@@ -127,8 +128,8 @@ export namespace NylteJ
 
 		void Exit(bool forced = false)
 		{
-			handlers.console.ClearConsole();		// Èç¹ûÊÇÍ¨¹ıÃüÁîĞĞÔËĞĞµÄ, ÄÇÍË³öÊ±»¹ÊÇÓĞ±ØÒªÇåÆÁµÄ
-			handlers.console.~ConsoleHandler();		// exit ²»»áµ÷ÓÃ¸ÃÎö¹¹º¯Êı, µ«Ä¿Ç°µÄ³ÌĞò¼Ü¹¹ÏÂÕâ¸öº¯ÊıĞèÒª±»µ÷ÓÃ (ËäÈ»ÎÒ¸Ğ¾õÕâÖÖ¼Ü¹¹²»Ì«ºÏÀí, ²»¹ı¿ÉÒÔÁÙÊ±ÏÈ¶¥×Å)
+			handlers.console.ClearConsole();		// å¦‚æœæ˜¯é€šè¿‡å‘½ä»¤è¡Œè¿è¡Œçš„, é‚£é€€å‡ºæ—¶è¿˜æ˜¯æœ‰å¿…è¦æ¸…å±çš„
+			handlers.console.~ConsoleHandler();		// exit ä¸ä¼šè°ƒç”¨è¯¥ææ„å‡½æ•°, ä½†ç›®å‰çš„ç¨‹åºæ¶æ„ä¸‹è¿™ä¸ªå‡½æ•°éœ€è¦è¢«è°ƒç”¨ (è™½ç„¶æˆ‘æ„Ÿè§‰è¿™ç§æ¶æ„ä¸å¤ªåˆç†, ä¸è¿‡å¯ä»¥ä¸´æ—¶å…ˆé¡¶ç€)
 
 			if (!forced)
 				autoSaveFile.~FileHandler();
@@ -197,15 +198,20 @@ export namespace NylteJ
 			const auto lineIndexs = editor->GetLineIndexs();
 			const auto drawHeight = min(static_cast<size_t>(handlers.console.GetConsoleSize().height - 2), lineIndexs.size());
 
-			const auto stringToLong = (views::repeat(L'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
-			const auto stringNull = (views::repeat(L' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<wstring>()) + L"©¦"s;
+			const auto stringToLong = (views::repeat(u8'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"â”‚"s;
+			const auto stringNull = (views::repeat(u8' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"â”‚"s;
+
+            bool alreadyTooLong = false;    // è¡Œå·æœ‰å•è°ƒæ€§, ç¬¬ä¸€ä¸ªè¿‡é•¿çš„è¡Œå·åé¢çš„è¡Œå·ä¸€å®šéƒ½æ˜¯è¿‡é•¿çš„, ç¼“å­˜ä¸€ä¸‹é¿å…å¤šæ¬¡ O(N) è®¡ç®— Size()
 
 			for (size_t i = 0; i < drawHeight; i++)
 			{
-				auto&& outputStr = format(L"{:>{}}©¦"sv, lineIndexs[i] + 1, handlers.settings.Get<SettingID::LineIndexWidth>());
+				String outputStr = String::Format("{:>{}}â”‚"sv, lineIndexs[i] + 1, handlers.settings.Get<SettingID::LineIndexWidth>());
 
-				if (outputStr.size() > handlers.settings.Get<SettingID::LineIndexWidth>() + 1)
-					outputStr = stringToLong;
+				if (alreadyTooLong || outputStr.Size() > handlers.settings.Get<SettingID::LineIndexWidth>() + 1)
+				{
+				    outputStr = stringToLong;
+                    alreadyTooLong = true;
+				}
 
 				handlers.console.Print(outputStr, { 0,i + 1 }, color);
 			}
@@ -215,11 +221,11 @@ export namespace NylteJ
 			uiHandler.Refocus();
 		}
 	public:
-		void PrintTitle(wstring_view extraText = L""sv)
+		void PrintTitle(StringView extraText = u8""sv)
 		{
 			handlers.console.HideCursor();
 
-			handlers.console.Print(views::repeat(' ', handlers.console.GetConsoleSize().width) | ranges::to<wstring>(), { 0,0 }, BasicColors::black, BasicColors::yellow);
+			handlers.console.Print(views::repeat(u8' ', handlers.console.GetConsoleSize().width) | ranges::to<String>(), { 0,0 }, BasicColors::black, BasicColors::yellow);
 
 			handlers.console.Print(title, { 0,0 }, BasicColors::black, BasicColors::yellow);
 
@@ -237,71 +243,74 @@ export namespace NylteJ
 			uiHandler.Refocus();
 		}
 
-		// Ò»ÑùµÄÄ³ÖÖÉñ±Ø bug, ÎÒÊÇÕæµÄ»³ÒÉÊÇ MSVC µÄ¹øÁË
-		void PrintFooter(wstring&& extraText = L""s)
+		// ä¸€æ ·çš„æŸç§ç¥å¿… bug, æˆ‘æ˜¯çœŸçš„æ€€ç–‘æ˜¯ MSVC çš„é”…äº†
+		void PrintFooter(String&& extraText = u8""s)
 		{
 			handlers.console.HideCursor();
 
-			wstring rightText;
+			String rightText;
 
 			auto leftTime = chrono::steady_clock::now() - lastSaveTime;
 			auto saveDuration = handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s;
 
 			if (leftTime >= 1min)
-				rightText = format(L"ÉÏ´Î±£´æ: {} Ç°. "sv, chrono::duration_cast<chrono::minutes>(leftTime));
+				rightText = String::Format("ä¸Šæ¬¡ä¿å­˜: {} å‰. "sv, chrono::duration_cast<chrono::minutes>(leftTime));
 			else
-				rightText = format(L"ÉÏ´Î±£´æ: {} Ç°. "sv, chrono::duration_cast<chrono::seconds>(leftTime));
+				rightText = String::Format("ä¸Šæ¬¡ä¿å­˜: {} å‰. "sv, chrono::duration_cast<chrono::seconds>(leftTime));
 
-			if (saveDuration >= 1h)
-				rightText += format(L"×Ô¶¯±£´æÖÜÆÚ: {}"sv, chrono::duration_cast<chrono::hours>(saveDuration));
+            if (saveDuration >= 1h)
+                rightText += String::Format("è‡ªåŠ¨ä¿å­˜å‘¨æœŸ: {}"sv, chrono::duration_cast<chrono::hours>(saveDuration));
 			else if (saveDuration >= 1min)
-				rightText += format(L"×Ô¶¯±£´æÖÜÆÚ: {}"sv, chrono::duration_cast<chrono::minutes>(saveDuration));
+				rightText += String::Format("è‡ªåŠ¨ä¿å­˜å‘¨æœŸ: {}"sv, chrono::duration_cast<chrono::minutes>(saveDuration));
 			else
-				rightText += format(L"×Ô¶¯±£´æÖÜÆÚ: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration));
+				rightText += String::Format("è‡ªåŠ¨ä¿å­˜å‘¨æœŸ: {}"sv, chrono::duration_cast<chrono::seconds>(saveDuration));
 
-			// ÕâÒ»¿éÒ²¸Ä³ÉÊºÉ½ÁË (±¯)
+			// è¿™ä¸€å—ä¹Ÿæ”¹æˆå±å±±äº† (æ‚²)
 			const size_t rightTextLen = GetDisplayLength(rightText);
 
-			if (extraText.empty())	// ¸ÄÎªÏÔÊ¾¹â±êÎ»ÖÃ¡¢ÎÄ¼şÃûµÈ
+			if (extraText.empty())	// æ”¹ä¸ºæ˜¾ç¤ºå…‰æ ‡ä½ç½®ã€æ–‡ä»¶åç­‰
 			{
-				wstring cursorInfos = format(L"   ¹â±êÎ»ÖÃ: ({},{})  ĞĞ×Ö·û: {}"sv,
+				String cursorInfos = String::Format("   å…‰æ ‡ä½ç½®: ({},{})  è¡Œå­—ç¬¦: {}"sv,
 					editor->GetAbsCursorPos().x, editor->GetAbsCursorPos().y + 1,
 					editor->GetNowLineCharCount());
 
 				if (!handlers.file.nowFilePath.empty())
 				{
-					wstring filename = handlers.file.nowFilePath.filename().wstring();
+					String filename = handlers.file.nowFilePath.filename();
 
-					constexpr auto tipText = L"µ±Ç°ÎÄ¼ş: {}"sv;
+					constexpr auto tipText = "å½“å‰æ–‡ä»¶: {}"sv;
 
-					const auto othersWidth = rightTextLen + GetDisplayLength(tipText) + GetDisplayLength(cursorInfos) + 8;
+					const auto othersWidth = rightTextLen + GetDisplayLength(String{ tipText }) + GetDisplayLength(cursorInfos) + 8;
 
 					if (othersWidth < handlers.console.GetConsoleSize().width)
 					{
 						if (GetDisplayLength(filename) + othersWidth > handlers.console.GetConsoleSize().width)
 						{
-							size_t nowIndex = 0;
 							size_t nowDisplayLength = 0;
 
-							while (nowDisplayLength < handlers.console.GetConsoleSize().width - othersWidth)
+							auto iter = filename.begin();
+							while (true)
 							{
-								if (IsWideChar(filename[nowIndex]))
+								if (IsWideChar(*iter))
 									nowDisplayLength += 2;
 								else
 									nowDisplayLength++;
 
-								nowIndex++;
+								if (nowDisplayLength >= handlers.console.GetConsoleSize().width - othersWidth)
+									break;
+
+								++iter;
 							}
 
-							filename = filename | views::take(nowIndex) | ranges::to<wstring>();
-							filename += L"..."s;
+							filename.erase(iter, filename.end());
+							filename += u8"..."s;
 						}
 
-						extraText = format(tipText, filename);
+                        extraText = String::Format(tipText, filename);
 					}
 				}
 				else
-					extraText = L"µ±Ç°ÎÄ¼ş: (Î´ÃüÃûĞÂÎÄ¼ş)"s;
+					extraText = u8"å½“å‰æ–‡ä»¶: (æœªå‘½åæ–°æ–‡ä»¶)"s;
 
 				extraText += cursorInfos;
 			}
@@ -309,7 +318,7 @@ export namespace NylteJ
 			const size_t leftTextLen = GetDisplayLength(extraText);
 
 			if (rightTextLen + leftTextLen < handlers.console.GetConsoleSize().width)
-				handlers.console.Print(views::repeat(' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<wstring>(),
+				handlers.console.Print(views::repeat(u8' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<String>(),
 					{ leftTextLen,handlers.console.GetConsoleSize().height - 1 },
 					BasicColors::black, BasicColors::yellow);
 
@@ -325,12 +334,12 @@ export namespace NylteJ
 		}
 
 		UI(ConsoleHandler& consoleHandler,
-			wstring& editorData,
+			String& editorData,
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const wstring& title = L"ConsoleNotepad ver. 0.96   made by NylteJ"s)
+			const String& title = u8"ConsoleNotepad ver. 0.96b  made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
 																				{ handlers.console.GetConsoleSize().width - 1,
@@ -349,14 +358,14 @@ export namespace NylteJ
 			PrintLineIndex();
 			editor->SetLineIndexPrinter(bind(&UI::PrintLineIndex, this));
 
-			static bool lastIsEsc = false;	// Õâ¸öÅĞ¶¨Ä¿Ç°»¹ÓĞµã¼òÂª, µ«ÖÁÉÙ²»ÖÁÓÚÈÃÈËÍË²»³öÀ´ (ÕæËæ»ú×Ö·û´®µÄ»ñÈ¡·½Ê½.jpg)
+			static bool lastIsEsc = false;	// è¿™ä¸ªåˆ¤å®šç›®å‰è¿˜æœ‰ç‚¹ç®€é™‹, ä½†è‡³å°‘ä¸è‡³äºè®©äººé€€ä¸å‡ºæ¥ (çœŸéšæœºå­—ç¬¦ä¸²çš„è·å–æ–¹å¼.jpg)
 
-			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message, size_t)	// Óë´ÎÊıÎŞ¹Ø, Ö±½Ó²»ÓÃ¹ÜµÚ¶ş¸ö²ÎÊı¾ÍºÃ
+			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message, size_t)	// ä¸æ¬¡æ•°æ— å…³, ç›´æ¥ä¸ç”¨ç®¡ç¬¬äºŒä¸ªå‚æ•°å°±å¥½
 				{
-					// Ã²ËÆÀÏÊ½µÄ conhost ÓĞÃÛÖ­¼æÈİÎÊÌâ, ÓĞÊ±»á·µ»Ø¿ØÖÆÌ¨ÓĞ 9001 ĞĞ......
-					// µ«ÊÇÖ±½Ó handlers.console.GetConsoleSize() ·µ»ØµÄÓÖÊÇÕı³£µÄ.
-					// ÕâÀïÏÈÓÃÒ»¸ö dirty µãµÄ½â¾ö·½°¸°É
-					// Ë³±ãÒ»ÌáÀÏÊ½µÄ conhost ĞèÒªÀ­×óÓÒ±ß¿ò²Å»á´¥·¢Õâ¸öÊÂ¼ş, À­ÉÏÏÂ±ß¿òÊÇ²»´¥·¢µÄ, ºÜÃÔ
+					// è²Œä¼¼è€å¼çš„ conhost æœ‰èœœæ±å…¼å®¹é—®é¢˜, æœ‰æ—¶ä¼šè¿”å›æ§åˆ¶å°æœ‰ 9001 è¡Œ......
+					// ä½†æ˜¯ç›´æ¥ handlers.console.GetConsoleSize() è¿”å›çš„åˆæ˜¯æ­£å¸¸çš„.
+					// è¿™é‡Œå…ˆç”¨ä¸€ä¸ª dirty ç‚¹çš„è§£å†³æ–¹æ¡ˆå§
+					// é¡ºä¾¿ä¸€æè€å¼çš„ conhost éœ€è¦æ‹‰å·¦å³è¾¹æ¡†æ‰ä¼šè§¦å‘è¿™ä¸ªäº‹ä»¶, æ‹‰ä¸Šä¸‹è¾¹æ¡†æ˜¯ä¸è§¦å‘çš„, å¾ˆè¿·
 					InputHandler::MessageWindowSizeChanged newMessage = message;
 
 					if (newMessage.newSize.height >= 1000)
@@ -385,7 +394,7 @@ export namespace NylteJ
 				{
 					using enum InputHandler::MessageKeyboard::Key;
 
-					// ÏÈÆÓÊµÎŞ»ªµØÑ­»· count ´Î, ºóÃæĞèÒªÓÅ»¯Ê±ÔÙ¸Ä
+					// å…ˆæœ´å®æ— ååœ°å¾ªç¯ count æ¬¡, åé¢éœ€è¦ä¼˜åŒ–æ—¶å†æ”¹
 					for (size_t i = 0; i < count; i++)
 					{
 						try
@@ -402,7 +411,7 @@ export namespace NylteJ
 							if (chrono::steady_clock::now() - lastSaveTime >= handlers.settings.Get<SettingID::AutoSavingDuration>() * 1s)
 								AutoSave();
 
-							wstring footerText;
+							String footerText;
 
 							if (uiHandler.nowFocus == editor)
 							{
@@ -412,14 +421,14 @@ export namespace NylteJ
 									lastIsEsc = true;
 
 									if (IsFileSaved())
-										PrintTitle(L"ÔÙ°´Ò»´Î Esc ÒÔÍË³ö (µ±Ç°ÄÚÈİÒÑ±£´æ)"s);
+										PrintTitle(u8"å†æŒ‰ä¸€æ¬¡ Esc ä»¥é€€å‡º (å½“å‰å†…å®¹å·²ä¿å­˜)"sv);
 									else
 									{
-										PrintTitle(L"ÔÙ°´Ò»´Î Esc ÒÔÇ¿ÖÆÍË³ö (µ±Ç°ÄÚÈİÎ´±£´æ!!!)"s);
+										PrintTitle(u8"å†æŒ‰ä¸€æ¬¡ Esc ä»¥å¼ºåˆ¶é€€å‡º (å½“å‰å†…å®¹æœªä¿å­˜!!!)"sv);
 
 										AskIfSave([&](size_t) {Exit(); });
 
-										return;		// À¹½Øµô´Ë´Î Esc, ²»È»µ¯³öµÄ´°¿Ú»áÖ±½ÓÇ÷ÊÆ
+										return;		// æ‹¦æˆªæ‰æ­¤æ¬¡ Esc, ä¸ç„¶å¼¹å‡ºçš„çª—å£ä¼šç›´æ¥è¶‹åŠ¿
 									}
 								}
 
@@ -427,13 +436,13 @@ export namespace NylteJ
 								{
 									if (message.key == S)
 									{
-										if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S »òÊÇĞÂÎÄ¼ş
+										if (message.extraKeys.Shift() || !handlers.file.Valid())	// Ctrl + Shift + S æˆ–æ˜¯æ–°æ–‡ä»¶
 										{
-											footerText = L"Ñ¡Ôñ±£´æÂ·¾¶......"s;
+											footerText = u8"é€‰æ‹©ä¿å­˜è·¯å¾„......"s;
 											auto window = make_shared<SaveFileWindow>(handlers.console,
-												WindowDrawRangeNormalSize(),
-												settingMap,
-												bind(&UI::WhenFileSaved, this, true));
+																					  WindowDrawRangeNormalSize(),
+																					  settingMap,
+																					  bind(&UI::WhenFileSaved, this, true));
 											uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 											uiHandler.GiveFocusTo(window);
 										}
@@ -461,7 +470,7 @@ export namespace NylteJ
 										}
 										NewFile();
 									}
-									else if (message.key == F)	// ²éÕÒÒ²·Åµ½ UI ÀïÁË, ÒòÎªµ¯³öµÄ²éÕÒ¿òÀïÒ²ÓĞ Editor, ²éÕÒ¹¦ÄÜ·Åµ½ Editor Àï»áÑ­»·ÒÀÀµ. ¶øÇÒÒ²Ö»ÓĞ×îÍâ²ãµÄ Editor ĞèÒª½øĞĞ²éÕÒ
+									else if (message.key == F)	// æŸ¥æ‰¾ä¹Ÿæ”¾åˆ° UI é‡Œäº†, å› ä¸ºå¼¹å‡ºçš„æŸ¥æ‰¾æ¡†é‡Œä¹Ÿæœ‰ Editor, æŸ¥æ‰¾åŠŸèƒ½æ”¾åˆ° Editor é‡Œä¼šå¾ªç¯ä¾èµ–. è€Œä¸”ä¹Ÿåªæœ‰æœ€å¤–å±‚çš„ Editor éœ€è¦è¿›è¡ŒæŸ¥æ‰¾
 									{
 										ConsoleRect windowRange = { {handlers.console.GetConsoleSize().width * 0.65,1},
 																	{handlers.console.GetConsoleSize().width - 1,handlers.console.GetConsoleSize().height * 0.35} };
@@ -469,10 +478,10 @@ export namespace NylteJ
 											windowRange.rightBottom.y = windowRange.leftTop.y + 8;
 
 										auto window = make_shared<FindReplaceWindow>(handlers.console,
-											windowRange,
-											settingMap,
-											editor->GetSelectedStr() | ranges::to<wstring>(),
-											true);
+																					 windowRange,
+																					 settingMap,
+																					 editor->GetSelectedStr() | ranges::to<String>(),
+																					 true);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
@@ -484,33 +493,33 @@ export namespace NylteJ
 											windowRange.rightBottom.y = windowRange.leftTop.y + 10;
 
 										auto window = make_shared<FindReplaceWindow>(handlers.console,
-											windowRange,
-											settingMap,
-											editor->GetSelectedStr() | ranges::to<wstring>(),
-											false);
+																					 windowRange,
+																					 settingMap,
+																					 editor->GetSelectedStr() | ranges::to<String>(),
+																					 false);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
-									else if (message.key == P)	// ÉèÖÃ
+									else if (message.key == P)	// è®¾ç½®
 									{
 										auto window = make_shared<SettingWindow>(handlers.console,
-											WindowDrawRangeLargeSize(),
-											settingMap);
+																				 WindowDrawRangeLargeSize(),
+																				 settingMap);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
-									else if (message.key == L)	// ÀúÊ·¼ÇÂ¼
+									else if (message.key == L)	// å†å²è®°å½•
 									{
 										auto window = make_shared<HistoryWindow>(handlers.console,
-											WindowDrawRangeNormalSize(),
-											*editor);
+																				 WindowDrawRangeNormalSize(),
+																				 *editor);
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}
 								}
 							}
 
-							shared_ptr nowFocusPtr = uiHandler.nowFocus;	// ·ÀÖ¹ÌáÇ°Îö¹¹, ·Ç³£ÖØÒª
+							shared_ptr nowFocusPtr = uiHandler.nowFocus;	// é˜²æ­¢æå‰ææ„, éå¸¸é‡è¦
 
 							nowFocusPtr->WhenRefocused();
 							nowFocusPtr->ManageInput(message, handlers);
@@ -519,11 +528,11 @@ export namespace NylteJ
 						}
 						catch (Exception& e)
 						{
-							PrintFooter(L"·¢ÉúÒì³£: "s + e.What());
+							PrintFooter(String::Format("å‘ç”Ÿå¼‚å¸¸: {}", e.What()));
 						}
 						catch (exception& e)
 						{
-							PrintFooter(L"·¢ÉúÒì³£: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// ÕâÀï²»ÄÜÔÙÅ×Òì³£ÁË, ²»È» terminate ÁË
+							PrintFooter(String::Format("å‘ç”Ÿå¼‚å¸¸: {}", e.what()));
 						}
 					}
 				});
@@ -536,7 +545,7 @@ export namespace NylteJ
 					{
 						shared_ptr nowFocusPtr = uiHandler.nowFocus;
 
-						// ÔİÊ±Ö»´¦ÀíÊó±ê¹öÂÖµÄÇé¿ö (Õâ¸öÓÅ»¯ºÜÓĞÓÃ, ÔÚ¿ìËÙ¹öÆÁÄ»Ê±ÄÜ¼«ÆäÏÔÖøµØÌáÉıĞÔÄÜ, Í¬Ê±¿ìËÙ¹öÆÁÄ»ÓÖÊÇ·Ç³£³£¼ûµÄĞèÇó)
+						// æš‚æ—¶åªå¤„ç†é¼ æ ‡æ»šè½®çš„æƒ…å†µ (è¿™ä¸ªä¼˜åŒ–å¾ˆæœ‰ç”¨, åœ¨å¿«é€Ÿæ»šå±å¹•æ—¶èƒ½æå…¶æ˜¾è‘—åœ°æå‡æ€§èƒ½, åŒæ—¶å¿«é€Ÿæ»šå±å¹•åˆæ˜¯éå¸¸å¸¸è§çš„éœ€æ±‚)
 						if (message.type == VWheeled && count > 1)
 						{
 							auto newMessage = message;
@@ -562,11 +571,11 @@ export namespace NylteJ
 					}
 					catch (Exception& e)
 					{
-						PrintFooter(L"·¢ÉúÒì³£: "s + e.What());
+						PrintFooter(String::Format("å‘ç”Ÿå¼‚å¸¸: {}", e.What()));
 					}
 					catch (exception& e)
 					{
-						PrintFooter(L"·¢ÉúÒì³£: "s + StrToWStr(e.what(), Encoding::GB2312, true));	// ÕâÀï²»ÄÜÔÙÅ×Òì³£ÁË, ²»È» terminate ÁË
+						PrintFooter(String::Format("å‘ç”Ÿå¼‚å¸¸: {}", e.what()));
 					}
 				});
 
@@ -580,7 +589,7 @@ export namespace NylteJ
 				catch (WrongEncodingException&)
 				{
 					NewFile();
-					PrintFooter(L"±àÂë´íÎó, ÎÄ¼şÃ»ÄÜ´ò¿ª, ÒÑ×Ô¶¯ĞÂ½¨ÎÄ¼ş!"s);
+					PrintFooter(u8"ç¼–ç é”™è¯¯, æ–‡ä»¶æ²¡èƒ½æ‰“å¼€, å·²è‡ªåŠ¨æ–°å»ºæ–‡ä»¶!"s);
 				}
 			}
 			else

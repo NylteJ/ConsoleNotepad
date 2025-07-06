@@ -7,6 +7,7 @@ import InputHandler;
 import FileHandler;
 import ClipboardHandler;
 import SettingMap;
+import String;
 
 import ConsoleArgumentsAnalyzer;
 import Exceptions;
@@ -24,13 +25,13 @@ int main(int argc, char** argv)
 	{
 		const auto exeName = arguments.ExePath().filename().replace_extension().string();
 
-		println("±¾³ÌĞò¿ÉÒÔÍ¨¹ıÃüÁîĞĞµ÷ÓÃ, ²ÎÊıÏê½âÈçÏÂ:"sv);
-		println("1. \"-o\" / \"--open\" ±íÊ¾´ò¿ª, ºó½ÓÒª´ò¿ªµÄÎÄ¼şÂ·¾¶"sv);
-		println("2. \"-e\" / \"--encoding\" ±íÊ¾±àÂë, ºó½Ó±àÂëÃû³Æ"sv);
-		println("    - ÓĞ·À´ôÉè¼Æ, ±ÈÈç \"utf-8\", \"UTF-8\", \"UTF 8\", \"utf8\" ¶¼ÄÜ¶¨Î»µ½ UTF-8"sv);
-		println("3. \"-h\" / \"--help\" / \"/?\" ¿ÉÒÔÊä³ö°ïÖú, »á¸²¸ÇÆäËüÒ»ÇĞ²ÎÊı"sv);
-		println("4. Ö»ĞèÒªÖ¸¶¨´ò¿ªÎÄ¼şÂ·¾¶Ê±, ¿ÉÒÔÖ±½Ó×÷Îª²ÎÊı¸½¼Ó, ÎŞĞè´ø \"-o\" / \"--open\""sv);
-		println("5. Ê¾Àı: "sv);
+		println("æœ¬ç¨‹åºå¯ä»¥é€šè¿‡å‘½ä»¤è¡Œè°ƒç”¨, å‚æ•°è¯¦è§£å¦‚ä¸‹:"sv);
+		println("1. \"-o\" / \"--open\" è¡¨ç¤ºæ‰“å¼€, åæ¥è¦æ‰“å¼€çš„æ–‡ä»¶è·¯å¾„"sv);
+		println("2. \"-e\" / \"--encoding\" è¡¨ç¤ºç¼–ç , åæ¥ç¼–ç åç§°"sv);
+		println("    - æœ‰é˜²å‘†è®¾è®¡, æ¯”å¦‚ \"utf-8\", \"UTF-8\", \"UTF 8\", \"utf8\" éƒ½èƒ½å®šä½åˆ° UTF-8"sv);
+		println("3. \"-h\" / \"--help\" / \"/?\" å¯ä»¥è¾“å‡ºå¸®åŠ©, ä¼šè¦†ç›–å…¶å®ƒä¸€åˆ‡å‚æ•°"sv);
+		println("4. åªéœ€è¦æŒ‡å®šæ‰“å¼€æ–‡ä»¶è·¯å¾„æ—¶, å¯ä»¥ç›´æ¥ä½œä¸ºå‚æ•°é™„åŠ , æ— éœ€å¸¦ \"-o\" / \"--open\""sv);
+		println("5. ç¤ºä¾‹: "sv);
 		println("    1. {} 1.txt"sv, exeName);
 		println("    2. {} -o 1.txt -e UTF-8"sv, exeName);
 		println("    3. {} --encoding \"gb 2312\" -o 1.txt"sv, exeName);
@@ -42,7 +43,7 @@ int main(int argc, char** argv)
 
 	FileHandler file;
 
-	wstring str;
+	String str;
 
 	InputHandler inputHandler;
 
@@ -62,11 +63,11 @@ int main(int argc, char** argv)
 		catch (FileOpenFailedException&) {}
 	}
 
-	UI ui{ console,str,inputHandler,file,clipboardHandler,settings };
+    UI ui{ console,str,inputHandler,file,clipboardHandler,settings };
 
 	console.BeginMonitorInput(inputHandler);
 
-	this_thread::sleep_for(114514h);	// Ë¯ÃÀÈËËµÊÇ
+	this_thread::sleep_for(114514h);	// ç¡ç¾äººè¯´æ˜¯
 	
 	return 0;
 }

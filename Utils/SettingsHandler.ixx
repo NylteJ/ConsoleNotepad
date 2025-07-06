@@ -1,7 +1,7 @@
 // SettingsHandler.ixx
-// ÕÆ¹Ü¸÷ÖÖÉèÖÃµÄ´æ´¢ºÍ·ÃÎÊ
-// ÊÇ SettingWindow µÄºó¶Ë
-// (ÎÒËµºêº¢¶ùÊÇÄ£°å×æ×ÚÄã¶şÁúÂğ)
+// æŒç®¡å„ç§è®¾ç½®çš„å­˜å‚¨å’Œè®¿é—®
+// æ˜¯ SettingWindow çš„åç«¯
+// (æˆ‘è¯´å®å­©å„¿æ˜¯æ¨¡æ¿ç¥–å®—ä½ äºŒé¾™å—)
 export module SettingsHandler;
 
 import std;
@@ -16,17 +16,18 @@ import StringEncoder;
 import UIComponent;
 import ConsoleHandler;
 import SettingMap;
+import String;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	// ¿¼ÂÇµ½¿ÉÍØÕ¹ĞÔ, ÄÚ²¿Ê¹ÓÃÒ»Ì×Ğ§ÂÊÂÔÂıµ«ÀíÂÛÉÏÏòÇ°¡¢Ïòºó¶¼ÄÜ¼æÈİµÄ·½Ê½
-	// (ÏòÇ°¼æÈİÖ¸µÄÊÇ¶ÁĞÂ°æ±¾µÄÉèÖÃÈÔÈ»ÄÜ¶Á³ö¹²ÓĞÉèÖÃ)
+	// è€ƒè™‘åˆ°å¯æ‹“å±•æ€§, å†…éƒ¨ä½¿ç”¨ä¸€å¥—æ•ˆç‡ç•¥æ…¢ä½†ç†è®ºä¸Šå‘å‰ã€å‘åéƒ½èƒ½å…¼å®¹çš„æ–¹å¼
+	// (å‘å‰å…¼å®¹æŒ‡çš„æ˜¯è¯»æ–°ç‰ˆæœ¬çš„è®¾ç½®ä»ç„¶èƒ½è¯»å‡ºå…±æœ‰è®¾ç½®)
 	class SettingsHandler
 	{
 	public:
-		// Éè¶¨Ïî
+		// è®¾å®šé¡¹
 		class SettingItem
 		{
 		public:
@@ -35,7 +36,7 @@ export namespace NylteJ
 			template<ID id>
 			using DataType = SettingMap::DataType<id>;
 		public:
-			const wstring tipText;
+			const String tipText;
 			const ID id;
 			const shared_ptr<UIComponent> component;
 		public:
@@ -60,45 +61,48 @@ export namespace NylteJ
 					{
 					case AutoSavingDuration:
 					{
-						wistringstream strStream{ static_pointer_cast<Editor>(component)->GetData() | ranges::to<wstring>() };
+						// TODO: ä¼˜åŒ–è¿™æ®µé…·ç‚«è½¬æ¢
+						istringstream strStream{ string{ reinterpret_cast<const char*>(static_pointer_cast<Editor>(component)->GetData().ToUTF8().data())} };
+						strStream.imbue(locale{ ".UTF8" });	// TODO: è¿™ä¸ªä¼¼ä¹ä¸æ˜¯æ ‡å‡† C++ çš„ä¸€éƒ¨åˆ†
 						DataType<AutoSavingDuration> duration;
-						wstring unit;
-						strStream >> duration >> unit;
+						string unitTemp;
+						strStream >> duration >> unitTemp;
+						u8string unit = reinterpret_cast<const char8_t*>(unitTemp.data());
 
-						if (strStream.bad())
-							throw Exception{ L"´íÎóµÄÊ±¼ä¸ñÊ½! ²»Ö§³ÖĞ¡Êıµã!"sv };
+						if (strStream.bad() || (!unitTemp.empty() && unitTemp.front() == use_facet<numpunct<char>>(strStream.getloc()).decimal_point()))
+							throw Exception{ u8"é”™è¯¯çš„æ—¶é—´æ ¼å¼! ä¸æ”¯æŒå°æ•°ç‚¹!"sv };
 
-						if (unit == L""sv || unit == L"s"sv || unit == L"sec"sv || unit == L"secs"sv
-							|| unit == L"second"sv || unit == L"seconds"sv)
+						if (unit.empty() || unit == u8"s"sv || unit == u8"sec"sv || unit == u8"secs"sv
+							|| unit == u8"second"sv || unit == u8"seconds"sv)
 							return duration;
-						else if (unit == L"min"sv || unit == L"mins"sv || unit == L"minute" || unit == L"minutes")
+						else if (unit == u8"min"sv || unit == u8"mins"sv || unit == u8"minute" || unit == u8"minutes")
 							return duration * 60;
-						else if (unit == L"h"sv || unit == L"hour"sv || unit == L"hours"sv)
+						else if (unit == u8"h"sv || unit == u8"hour"sv || unit == u8"hours"sv)
 							return duration * 3600;
 
-						throw Exception{ L"Î´ÖªµÄÊ±¼äµ¥Î»! Ö»Ö§³ÖÊ± / ·Ö / ÃëÈıÖÖÓ¢ÎÄµ¥Î»!"sv };
+						throw Exception{ u8"æœªçŸ¥çš„æ—¶é—´å•ä½! åªæ”¯æŒæ—¶ / åˆ† / ç§’ä¸‰ç§è‹±æ–‡å•ä½!"sv };
 					}
 
 #define NORMAL_CASE(id_) case id_:\
 {\
 	DataType<id_> ret;\
-	wistringstream strStream{ static_pointer_cast<Editor>(component)->GetData() | ranges::to<wstring>() };\
-	strStream>>ret;\
-	if(strStream.bad())\
-		throw Exception{ L"´íÎóµÄÊı¾İ¸ñÊ½!"sv };\
+	wistringstream strStream{ U8StrToWStr(static_pointer_cast<Editor>(component)->GetData().ToUTF8()) };\
+	strStream >> ret;\
+	if (strStream.bad())\
+		throw Exception{ u8"é”™è¯¯çš„æ•°æ®æ ¼å¼!"sv };\
 	return ret;\
 }
-#define WSTRING_CASE(id_) case id_: return static_pointer_cast<Editor>(component)->GetData() | ranges::to<wstring>();
+#define STRING_CASE(id_) case id_: return (static_pointer_cast<Editor>(component)->GetData() | ranges::to<String>()).ToUTF8();
 
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
 						NORMAL_CASE(MaxMergeCharUndoRedo)
-						WSTRING_CASE(AutoSaveFileExtension)
-						WSTRING_CASE(NewFileAutoSaveName)
+						STRING_CASE(AutoSaveFileExtension)
+						STRING_CASE(NewFileAutoSaveName)
 						NORMAL_CASE(LineIndexWidth)
 						NORMAL_CASE(TabWidth)
 
-#undef WSTRING_CASE
+#undef STRING_CASE
 #undef NORMAL_CASE
 					}
 				unreachable();
@@ -128,33 +132,33 @@ export namespace NylteJ
 						DataType<AutoSavingDuration> duration = settingMap.Get<AutoSavingDuration>();
 
 						if (duration % 3600 == 0)
-							static_pointer_cast<Editor>(component)->SetData(format(L"{} h"sv, duration / 3600));
+							static_pointer_cast<Editor>(component)->SetData(String::Format("{} h"sv, duration / 3600));
 						else if (duration % 60 == 0)
-							static_pointer_cast<Editor>(component)->SetData(format(L"{} min"sv, duration / 60));
+							static_pointer_cast<Editor>(component)->SetData(String::Format("{} min"sv, duration / 60));
 						else
-							static_pointer_cast<Editor>(component)->SetData(format(L"{} s"sv, duration));
+							static_pointer_cast<Editor>(component)->SetData(String::Format("{} s"sv, duration));
 						
-						return;
+                        return;
 					}
-#define NORMAL_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(to_wstring(settingMap.Get<id_>()));return;
-#define WSTRING_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(settingMap.Get<id_>());return;
+#define NORMAL_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(String::Format("{}", settingMap.Get<id_>()));return;
+#define STRING_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(String(settingMap.Get<id_>()));return;
 
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
 						NORMAL_CASE(MaxMergeCharUndoRedo)
-						WSTRING_CASE(AutoSaveFileExtension)
-						WSTRING_CASE(NewFileAutoSaveName)
+						STRING_CASE(AutoSaveFileExtension)
+						STRING_CASE(NewFileAutoSaveName)
 						NORMAL_CASE(LineIndexWidth)
 						NORMAL_CASE(TabWidth)
 
-#undef WSTRING_CASE
+#undef STRING_CASE
 #undef NORMAL_CASE
 					}
 
 				unreachable();
 			}
 
-			SettingItem(wstring_view tipText, ID id, shared_ptr<UIComponent> component)
+			SettingItem(StringView tipText, ID id, shared_ptr<UIComponent> component)
 				:tipText(tipText), id(id), component(component)
 			{
 			}
@@ -180,26 +184,26 @@ export namespace NylteJ
 		SettingsHandler(ConsoleHandler& console, SettingMap& settingMap)
 			:settingMap(settingMap)
 		{
-			// ÏÂÃæµÄ drawRange ¶¼ÊÇÕ¼Î»·û, Êµ¼ÊµÄ drawRange »áÔÚÃ¿´ÎÖØ»æÊ±ÔÚ PrintSelf Àï¼ÆËã
+			// ä¸‹é¢çš„ drawRange éƒ½æ˜¯å ä½ç¬¦, å®é™…çš„ drawRange ä¼šåœ¨æ¯æ¬¡é‡ç»˜æ—¶åœ¨ PrintSelf é‡Œè®¡ç®—
 			ConsoleRect drawRange = { {0,0},{console.GetConsoleSize().width,console.GetConsoleSize().height} };
 
 			using enum SettingItem::ID;
 
-#define EDITOR_CASE(id_, tipText_) settingList.emplace_back(L##tipText_##s, id_, make_shared<Editor>(console, L""s, drawRange, settingMap))
-#define SELECTOR_CASE(id_, tipText_, ...) settingList.emplace_back(L##tipText_##s, id_, make_shared<Selector>(console, drawRange, vector{ __VA_ARGS__ }))
+#define EDITOR_CASE(id_, tipText_) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_shared<Editor>(console, u8""s, drawRange, settingMap))
+#define SELECTOR_CASE(id_, tipText_, ...) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_shared<Selector>(console, drawRange, MakeVector<String>(__VA_ARGS__)))
 
-			SELECTOR_CASE(DefaultBehaviorWhenErrorEncoding, "Ä¬ÈÏ±àÂëÎŞ·¨´ò¿ªÎÄ¼şÊ±µÄĞĞÎª:", L"Ö±½ÓÊÖ¶¯Ñ¡Ôñ±àÂë"s, L"ÏÈ³¢ÊÔ×Ô¶¯Ñ¡Ôñ, Ê§°ÜÔÙÊÖ¶¯Ñ¡Ôñ"s, L"Ö±½Ó×Ô¶¯Ñ¡Ôñ, Ê§°ÜÔòÇ¿ÖÆ´ò¿ª"s);
-			EDITOR_CASE(AutoSavingDuration, "×Ô¶¯±£´æ¼ä¸ô:");
-			EDITOR_CASE(MaxUndoStep, "³·Ïú (Ctrl + Z) ²½ÊıÉÏÏŞ (¸÷¸ö±à¼­Æ÷µ¥¶À¼ÆËã):");
-			EDITOR_CASE(MaxRedoStep, "ÖØ×ö (Ctrl + Y) ²½ÊıÉÏÏŞ (¸÷¸ö±à¼­Æ÷µ¥¶À¼ÆËã):");
-			EDITOR_CASE(MaxMergeCharUndoRedo, "³·Ïú / ÖØ×öÊ±µÄµ¥²½×Ö·ûÈÚºÏÉÏÏŞ:");
-			EDITOR_CASE(AutoSaveFileExtension, "×Ô¶¯±£´æÎÄ¼şµÄºó×ºÃû:");
-			EDITOR_CASE(NewFileAutoSaveName, "ĞÂÎÄ¼şµÄ×Ô¶¯±£´æÎÄ¼şÃû:");
-			SELECTOR_CASE(CloseHistoryWindowAfterEnter, "°´ÏÂ»Ø³µºóÊÇ·ñ¹Ø±ÕÀúÊ·¼ÇÂ¼´°¿Ú:", L"²»¹Ø±Õ"s, L"¹Ø±Õ"s);
-			SELECTOR_CASE(SplitUndoStrWhenEnter, "»»ĞĞÊ±ÊÇ·ñÈÚºÏ³·Ïú / ÖØ×ö²Ù×÷:", L"ÓÀ²»ÈÚºÏ"s, L"½öÔÚÁ¬Ğø»»ĞĞÊ±ÈÚºÏ"s, L"ÈÚºÏ"s);
-			SELECTOR_CASE(NormalExitWhenDoubleEsc, "Î´±£´æ²¢Ë«»÷ Esc Ç¿ÖÆÍË³öÊ±:", L"ÊÓ×÷Òì³£ÍË³ö (±£Áô×Ô¶¯±£´æÎÄ¼ş)"s, L"ÊÓ×÷Õı³£ÍË³ö (É¾³ı×Ô¶¯±£´æÎÄ¼ş)"s);
-			EDITOR_CASE(LineIndexWidth, "ĞĞºÅ¿í¶È (²»º¬ÊúÏß, ÉèÖÃÎª 0 ÒÔ¹Ø±ÕĞĞºÅÏÔÊ¾):");
-			EDITOR_CASE(TabWidth, "Tab ¿í¶È (ÖÁÉÙÎª 1):");
+			SELECTOR_CASE(DefaultBehaviorWhenErrorEncoding, "é»˜è®¤ç¼–ç æ— æ³•æ‰“å¼€æ–‡ä»¶æ—¶çš„è¡Œä¸º:", u8"ç›´æ¥æ‰‹åŠ¨é€‰æ‹©ç¼–ç "s, u8"å…ˆå°è¯•è‡ªåŠ¨é€‰æ‹©, å¤±è´¥å†æ‰‹åŠ¨é€‰æ‹©"s, u8"ç›´æ¥è‡ªåŠ¨é€‰æ‹©, å¤±è´¥åˆ™å¼ºåˆ¶æ‰“å¼€"s);
+			EDITOR_CASE(AutoSavingDuration, "è‡ªåŠ¨ä¿å­˜é—´éš”:");
+			EDITOR_CASE(MaxUndoStep, "æ’¤é”€ (Ctrl + Z) æ­¥æ•°ä¸Šé™ (å„ä¸ªç¼–è¾‘å™¨å•ç‹¬è®¡ç®—):");
+			EDITOR_CASE(MaxRedoStep, "é‡åš (Ctrl + Y) æ­¥æ•°ä¸Šé™ (å„ä¸ªç¼–è¾‘å™¨å•ç‹¬è®¡ç®—):");
+			EDITOR_CASE(MaxMergeCharUndoRedo, "æ’¤é”€ / é‡åšæ—¶çš„å•æ­¥å­—ç¬¦èåˆä¸Šé™:");
+			EDITOR_CASE(AutoSaveFileExtension, "è‡ªåŠ¨ä¿å­˜æ–‡ä»¶çš„åç¼€å:");
+			EDITOR_CASE(NewFileAutoSaveName, "æ–°æ–‡ä»¶çš„è‡ªåŠ¨ä¿å­˜æ–‡ä»¶å:");
+			SELECTOR_CASE(CloseHistoryWindowAfterEnter, "æŒ‰ä¸‹å›è½¦åæ˜¯å¦å…³é—­å†å²è®°å½•çª—å£:", u8"ä¸å…³é—­"s, u8"å…³é—­"s);
+			SELECTOR_CASE(SplitUndoStrWhenEnter, "æ¢è¡Œæ—¶æ˜¯å¦èåˆæ’¤é”€ / é‡åšæ“ä½œ:", u8"æ°¸ä¸èåˆ"s, u8"ä»…åœ¨è¿ç»­æ¢è¡Œæ—¶èåˆ"s, u8"èåˆ"s);
+			SELECTOR_CASE(NormalExitWhenDoubleEsc, "æœªä¿å­˜å¹¶åŒå‡» Esc å¼ºåˆ¶é€€å‡ºæ—¶:", u8"è§†ä½œå¼‚å¸¸é€€å‡º (ä¿ç•™è‡ªåŠ¨ä¿å­˜æ–‡ä»¶)"s, u8"è§†ä½œæ­£å¸¸é€€å‡º (åˆ é™¤è‡ªåŠ¨ä¿å­˜æ–‡ä»¶)"s);
+			EDITOR_CASE(LineIndexWidth, "è¡Œå·å®½åº¦ (ä¸å«ç«–çº¿, è®¾ç½®ä¸º 0 ä»¥å…³é—­è¡Œå·æ˜¾ç¤º):");
+			EDITOR_CASE(TabWidth, "Tab å®½åº¦ (è‡³å°‘ä¸º 1):");
 
 #undef SELECTOR_CASE
 #undef EDITOR_CASE

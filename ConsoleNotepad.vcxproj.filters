@@ -69,9 +69,6 @@
     <ClCompile Include="PlatformRelated\FileHandler\FileHandlerWindows.ixx">
       <Filter>头文件\PlatformRelated\FileHandler</Filter>
     </ClCompile>
-    <ClCompile Include="PlatformRelated\StringEncoder.ixx">
-      <Filter>头文件\PlatformRelated</Filter>
-    </ClCompile>
     <ClCompile Include="UI\Editor.ixx">
       <Filter>头文件\UI</Filter>
     </ClCompile>
@@ -118,6 +115,12 @@
       <Filter>头文件\UI</Filter>
     </ClCompile>
     <ClCompile Include="Utils\ConsoleArgumentsAnalyzer.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\String.ixx">
+      <Filter>头文件\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\StringEncoder.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
   </ItemGroup>

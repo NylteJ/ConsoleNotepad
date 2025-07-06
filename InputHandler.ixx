@@ -1,12 +1,13 @@
 // Inputhandler.ixx
-// ÓÃÓÚ´¦ÀíÊäÈëµÄÄ£¿é
-// ÊÇ¿çÆ½Ì¨µÄ
-// Ê¹ÓÃ»Øµ÷º¯Êı·¢ËÍÊı¾İ
+// ç”¨äºå¤„ç†è¾“å…¥çš„æ¨¡å—
+// æ˜¯è·¨å¹³å°çš„
+// ä½¿ç”¨å›è°ƒå‡½æ•°å‘é€æ•°æ®
 export module InputHandler;
 
 import std;
 
 import ConsoleTypedef;
+import String;
 
 using namespace std;
 
@@ -32,7 +33,7 @@ export namespace NylteJ
 		public:
 			ConsoleSize newSize;
 		public:
-			bool operator==(const MessageWindowSizeChanged&) const = default;
+            bool operator==(const MessageWindowSizeChanged&) const = default;
 		};
 		class MessageKeyboard
 		{
@@ -126,7 +127,7 @@ export namespace NylteJ
 
 				bool operator==(const ExtraKeys&) const = default;
 			} extraKeys;
-			wchar_t inputChar = L'\0';
+			Codepoint inputChar = 0;
 		public:
 			bool operator==(const MessageKeyboard&) const = default;
 		};
@@ -156,7 +157,7 @@ export namespace NylteJ
 			}
 			bool RightClick() const
 			{
-				return buttonStatus[1] && (type == Type::Clicked || type == Type::DoubleClicked);	// µÚ¶ş´Îµã»÷±»±ê¼ÇÎªË«»÷¶ø·Çµ¥»÷
+				return buttonStatus[1] && (type == Type::Clicked || type == Type::DoubleClicked);	// ç¬¬äºŒæ¬¡ç‚¹å‡»è¢«æ ‡è®°ä¸ºåŒå‡»è€Œéå•å‡»
 			}
 
 			int WheelMove() const
@@ -172,9 +173,9 @@ export namespace NylteJ
 		MessageDatas<MessageMouse> mouseMessages;
 	private:
 		template<typename MessageType>
-		void DoDistuibute(MessageDatas<MessageType>& messageDatas)
+		void DoDistribute(MessageDatas<MessageType>& messageDatas)
 		{
-			scoped_lock locker{ messageDatas.messagesMutex,messageDatas.callbacksMutex };	// ±ÈÆğ·Ö³ÉÁ½¸ö lock_guard, ÕâÑù²»»áËÀËø
+			scoped_lock locker{ messageDatas.messagesMutex,messageDatas.callbacksMutex };	// æ¯”èµ·åˆ†æˆä¸¤ä¸ª lock_guard, è¿™æ ·ä¸ä¼šæ­»é”
 
 			while (!messageDatas.messagesQueue.empty())
 			{
@@ -192,9 +193,9 @@ export namespace NylteJ
 		{
 			while (true)
 			{
-				DoDistuibute(windowSizeChangedMessages);
-				DoDistuibute(keyboardMessages);
-				DoDistuibute(mouseMessages);
+				DoDistribute(windowSizeChangedMessages);
+				DoDistribute(keyboardMessages);
+				DoDistribute(mouseMessages);
 			}
 		}
 
@@ -211,7 +212,7 @@ export namespace NylteJ
 			mouseMessages.messagesQueue.emplace_back(message);
 		}
 	public:
-		// TODO: °ÑÕâÒ»¶Ñ¸´ÖÆÕ³ÌùÓÃ¸üÓÅÑÅµÄ·½Ê½ÊµÏÖ
+		// TODO: æŠŠè¿™ä¸€å †å¤åˆ¶ç²˜è´´ç”¨æ›´ä¼˜é›…çš„æ–¹å¼å®ç°
 		void SubscribeMessage(function<void(const MessageWindowSizeChanged&, size_t)> callback)
 		{
 			lock_guard callbackLock{ windowSizeChangedMessages.callbacksMutex };

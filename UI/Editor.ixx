@@ -1,9 +1,9 @@
 // Editor.ixx
-// ±à¼­Æ÷ UI ×é¼ş, ºÁÎŞÒÉÎÊµÄºËĞÄ²¿·Ö
-// µ«ĞèÒª×¢ÒâµÄÊÇ²»Ö»ÓĞ UI µÄºËĞÄÄ£¿éÓÃµ½ÁËËü
-// µÃÒæÓÚÄ£¿é»¯µÄ´úÂë, ÈÎºÎĞèÒªÊäÈëÎÄ±¾µÄµØ·½¶¼ÄÜÓÃËü (yysy, ËäÈ»ÄÚ²¿·Ç³£ÊºÉ½, µ«¼¸ºõ²»ÓÃÔõÃ´¸Ä´úÂë¾ÍÄÜÖ±½ÓÄÃÀ´µ½´¦ÓÃ, Ö»ÄÜËµ OOP Èü¸ß)
-// µ±È»´ó²¿·ÖµØ·½ÓÃ²»µ½ÆäÈ«²¿µÄ¹¦ÄÜ, µ« Editor ×ÔÉí²»¶Ô´Ë×ö´¦Àí, ĞëÓÉµ÷ÓÃ·½×ÔĞĞ×èÀ¹»»ĞĞ¡¢¹öÆÁµÈ²Ù×÷ (Ô­ÒòÎŞËû, ÊµÔÚ²»Ïë¸ÄÊºÉ½ÁË)
-// ±£´æµÈÓë ¡°ÊäÈëÎÄ±¾¡± ²»Ö±½ÓÏà¹ØµÄ´úÂë±»ÒÆ³öÈ¥ÁË (ËäÈ»ºóÃæ´úÂëÔ½Ğ´Ô½ÊºÉ½µ¼ÖÂ»¹ÊÇÓĞºÜ¶à²»Ó¦¸ÃĞ´ÔÚÀïÃæµÄ¹¦ÄÜ±»Ğ´½øÈ¥ÁË)
+// ç¼–è¾‘å™¨ UI ç»„ä»¶, æ¯«æ— ç–‘é—®çš„æ ¸å¿ƒéƒ¨åˆ†
+// ä½†éœ€è¦æ³¨æ„çš„æ˜¯ä¸åªæœ‰ UI çš„æ ¸å¿ƒæ¨¡å—ç”¨åˆ°äº†å®ƒ
+// å¾—ç›Šäºæ¨¡å—åŒ–çš„ä»£ç , ä»»ä½•éœ€è¦è¾“å…¥æ–‡æœ¬çš„åœ°æ–¹éƒ½èƒ½ç”¨å®ƒ (yysy, è™½ç„¶å†…éƒ¨éå¸¸å±å±±, ä½†å‡ ä¹ä¸ç”¨æ€ä¹ˆæ”¹ä»£ç å°±èƒ½ç›´æ¥æ‹¿æ¥åˆ°å¤„ç”¨, åªèƒ½è¯´ OOP èµ›é«˜)
+// å½“ç„¶å¤§éƒ¨åˆ†åœ°æ–¹ç”¨ä¸åˆ°å…¶å…¨éƒ¨çš„åŠŸèƒ½, ä½† Editor è‡ªèº«ä¸å¯¹æ­¤åšå¤„ç†, é¡»ç”±è°ƒç”¨æ–¹è‡ªè¡Œé˜»æ‹¦æ¢è¡Œã€æ»šå±ç­‰æ“ä½œ (åŸå› æ— ä»–, å®åœ¨ä¸æƒ³æ”¹å±å±±äº†)
+// ä¿å­˜ç­‰ä¸ â€œè¾“å…¥æ–‡æœ¬â€ ä¸ç›´æ¥ç›¸å…³çš„ä»£ç è¢«ç§»å‡ºå»äº† (è™½ç„¶åé¢ä»£ç è¶Šå†™è¶Šå±å±±å¯¼è‡´è¿˜æ˜¯æœ‰å¾ˆå¤šä¸åº”è¯¥å†™åœ¨é‡Œé¢çš„åŠŸèƒ½è¢«å†™è¿›å»äº†)
 export module Editor;
 
 import std;
@@ -15,6 +15,7 @@ import BasicColors;
 import UIComponent;
 import SettingMap;
 import InputHandler;
+import String;
 
 using namespace std;
 
@@ -23,14 +24,14 @@ export namespace NylteJ
 	class Editor :public UIComponent
 	{
 	public:
-		// ÓÃÓÚ Ctrl + Z / Y
-		// ´æ´¢Ò» / ¶à²½²Ù×÷ (±ÈÈçÏàÁÚµÄ²åÈë / É¾³ı»á±»ËãÔÚÒ»Æğ, ²»È»°¤×Ö·û Ctrl + Z ÊµÔÚÊÇÍ´¿à)
+		// ç”¨äº Ctrl + Z / Y
+		// å­˜å‚¨ä¸€ / å¤šæ­¥æ“ä½œ (æ¯”å¦‚ç›¸é‚»çš„æ’å…¥ / åˆ é™¤ä¼šè¢«ç®—åœ¨ä¸€èµ·, ä¸ç„¶æŒ¨å­—ç¬¦ Ctrl + Z å®åœ¨æ˜¯ç—›è‹¦)
 		class EditOperation
 		{
 		public:
 			enum class Type
 			{
-				Insert, Erase	// Ñ¡Ôñ²»Ëã²Ù×÷
+				Insert, Erase	// é€‰æ‹©ä¸ç®—æ“ä½œ
 			};
 			using enum Type;
 		public:
@@ -38,9 +39,9 @@ export namespace NylteJ
 
 			size_t index;
 
-			shared_ptr<wstring> data;	// ÓÃÓÚ Insert, ¿¼ÂÇµ½ Ctrl + Z / Y µÄ»¥»», Erase Ò²²»µÃ²»±£´æ, ²»¹ı¶şÕß¹²ÏíÒ»·İ¾Í¿ÉÒÔÁË
+			shared_ptr<String> data;	// ç”¨äº Insert, è€ƒè™‘åˆ° Ctrl + Z / Y çš„äº’æ¢, Erase ä¹Ÿä¸å¾—ä¸ä¿å­˜, ä¸è¿‡äºŒè€…å…±äº«ä¸€ä»½å°±å¯ä»¥äº†
 		public:
-			void ReserveOperation()	// Äæ¹ı³Ì, ÓÃÀ´½»»» Ctrl + Z / Y µÄ
+			void ReserveOperation()	// é€†è¿‡ç¨‹, ç”¨æ¥äº¤æ¢ Ctrl + Z / Y çš„
 			{
 				switch (type)
 				{
@@ -63,16 +64,16 @@ export namespace NylteJ
 				return ret;
 			}
 
-			// Ö±½Ó¶Ô×Ö·û´®½øĞĞ²Ù×÷, Ö÷ÒªÓÃÔÚÁ¬ĞøµÄ Undo / Redo Àï
-			void DoOperationDirect(wstring& str) const
+			// ç›´æ¥å¯¹å­—ç¬¦ä¸²è¿›è¡Œæ“ä½œ, ä¸»è¦ç”¨åœ¨è¿ç»­çš„ Undo / Redo é‡Œ
+			void DoOperationDirect(String& str) const
 			{
 				switch (type)
 				{
 				case Insert:
-					str.insert_range(str.begin() + index, *data);
+					str.insert_range(str.AtByteIndex(index), *data);
 					return;
 				case Erase:
-					str.erase(str.begin() + index, str.begin() + index + data->size());
+					str.erase(str.AtByteIndex(index), str.AtByteIndex(index + data->ByteSize()));
 					return;
 				default:
 					unreachable();
@@ -80,25 +81,25 @@ export namespace NylteJ
 			}
 			void DoOperation(Editor& editor) const
 			{
-				// ÕâÀïÎŞĞèµ÷ÓÃ SetCursorPos »ò ScrollToIndex µÈ, ºóÃæ Erase / Insert »áµ÷ÓÃµÄ
+				// è¿™é‡Œæ— éœ€è°ƒç”¨ SetCursorPos æˆ– ScrollToIndex ç­‰, åé¢ Erase / Insert ä¼šè°ƒç”¨çš„
 
 				switch (type)
 				{
 				case Insert:
 					editor.cursorIndex = index;
-					editor.selectBeginIndex = editor.selectEndIndex = index;	// Ctrl + Z Ê±Èç¹û»¹Ñ¡ÖĞ×Å¶«Î÷¾ÍĞèÒªÈ¡ÏûÑ¡ÖĞ
+					editor.selectBeginIndex = editor.selectEndIndex = index;	// Ctrl + Z æ—¶å¦‚æœè¿˜é€‰ä¸­ç€ä¸œè¥¿å°±éœ€è¦å–æ¶ˆé€‰ä¸­
 
 					editor.Insert(*data, false);
-					if (data->size() > 1)		// Ö»ÓĞÒ»¸ö×Ö·ûÊ±»¹Ñ¡ÖĞ»á¿´ÆğÀ´ºÜÆæ¹Ö
+					if (!data->empty() && next(data->begin()) != data->end())		// å­—ç¬¦æ•°å¤§äº 1 æ—¶æ‰é€‰ä¸­
 					{
 						editor.selectBeginIndex = index;
-						editor.selectEndIndex = index + data->size();
+						editor.selectEndIndex = index + data->ByteSize();
 						editor.PrintData();
 					}
 					return;
 				case Erase:
 					editor.selectBeginIndex = index;
-					editor.selectEndIndex = index + data->size();
+					editor.selectEndIndex = index + data->ByteSize();
 					editor.Erase(false);
 					return;
 				default:
@@ -109,24 +110,24 @@ export namespace NylteJ
 	private:
 		ConsoleHandler& console;
 
-		wstring fileData;
+		String fileData;
 
-		size_t fileDataIndex = 0;	// Ä¿Ç°ÆÁÄ»ÉÏÏÔÊ¾µÄÇøÓòÊÇ´Ó fileData µÄÄÄ¸öÏÂ±ê¿ªÊ¼µÄ
-		size_t fileDataLineIndex = 0;	// ÀàËÆ, µ«´æ´¢µÄÊÇĞĞÊı, ´Ó 0 ¿ªÊ¼
+		size_t fileDataIndex = 0;	// ç›®å‰å±å¹•ä¸Šæ˜¾ç¤ºçš„åŒºåŸŸæ˜¯ä» fileData çš„å“ªä¸ªä¸‹æ ‡å¼€å§‹çš„
+		size_t fileDataLineIndex = 0;	// ç±»ä¼¼, ä½†å­˜å‚¨çš„æ˜¯è¡Œæ•°, ä» 0 å¼€å§‹
 
 		shared_ptr<FormatterBase> formatter;
 
-		ConsolePosition cursorPos = { 0,0 };	// µ±Ç°±à¼­Æ÷µÄ¹â±êÎ»ÖÃ, ÊÇÏà¶Ô drawRange ×óÉÏ½Ç¶øÑÔµÄ×ø±ê, ¿ÉÒÔ³¬³öÆÁÄ» (µ±È»´ËÊ±²»ÏÔÊ¾)
-		size_t cursorIndex = 0;		// ¶ÔÓ¦µÄ fileData ÖĞµÄÏÂ±ê, Ò²ÄÜÏÖ³¡Ëãµ«»º´æÒ»¸ö»á¸ü¼òµ¥
+		ConsolePosition cursorPos = { 0,0 };	// å½“å‰ç¼–è¾‘å™¨çš„å…‰æ ‡ä½ç½®, æ˜¯ç›¸å¯¹ drawRange å·¦ä¸Šè§’è€Œè¨€çš„åæ ‡, å¯ä»¥è¶…å‡ºå±å¹• (å½“ç„¶æ­¤æ—¶ä¸æ˜¾ç¤º)
+		size_t cursorIndex = 0;		// å¯¹åº”çš„ fileData ä¸­çš„ä¸‹æ ‡, ä¹Ÿèƒ½ç°åœºç®—ä½†ç¼“å­˜ä¸€ä¸ªä¼šæ›´ç®€å•
 
-		size_t	selectBeginIndex = fileDataIndex,		// ÕâÀïµÄ "Begin" Óë "End" ¶¼ÊÇÂß¼­ÉÏµÄ (´Ó Begin Ñ¡µ½ End), "End" Ö¸µ±Ç°¹â±êËùÔÚ/±ß½ç±ä»¯µÄÎ»ÖÃ
-				selectEndIndex = selectBeginIndex;		// ËùÒÔ Begin ÉõÖÁ¿ÉÒÔ´óÓÚ End (Í¨¹ı Shift + ×ó·½Ïò¼ü¼´¿ÉÊµÏÖ)
+		size_t	selectBeginIndex = fileDataIndex,		// è¿™é‡Œçš„ "Begin" ä¸ "End" éƒ½æ˜¯é€»è¾‘ä¸Šçš„ (ä» Begin é€‰åˆ° End), "End" æŒ‡å½“å‰å…‰æ ‡æ‰€åœ¨/è¾¹ç•Œå˜åŒ–çš„ä½ç½®
+				selectEndIndex = selectBeginIndex;		// æ‰€ä»¥ Begin ç”šè‡³å¯ä»¥å¤§äº End (é€šè¿‡ Shift + å·¦æ–¹å‘é”®å³å¯å®ç°)
 
-		ConsoleXPos beginX = 0;		// ÓÃÓÚºáÏò¹öÆÁ
+		ConsoleXPos beginX = 0;		// ç”¨äºæ¨ªå‘æ»šå±
 
 		deque<EditOperation> undoDeque;	// Ctrl + Z
 		deque<EditOperation> redoDeque;	// Ctrl + Y
-		// ÎªÊ²Ã´ÒªÓÃ deque ÄØ? ÒòÎª stack ²»ÄÜ pop Õ»µ×µÄÔªËØ, ÎŞ·¨¿ØÖÆ stack ´óĞ¡
+		// ä¸ºä»€ä¹ˆè¦ç”¨ deque å‘¢? å› ä¸º stack ä¸èƒ½ pop æ ˆåº•çš„å…ƒç´ , æ— æ³•æ§åˆ¶ stack å¤§å°
 
 		const SettingMap& settingMap;
 
@@ -141,9 +142,9 @@ export namespace NylteJ
 			return max(selectBeginIndex, selectEndIndex);
 		}
 
-		constexpr wstring_view NowFileData() const
+		constexpr StringView NowFileData() const
 		{
-			return { fileData.begin() + fileDataIndex,fileData.end() };
+			return { fileData.AtByteIndex(fileDataIndex),fileData.end() };
 		}
 
 		constexpr FormattedString GetFormattedString() const
@@ -158,7 +159,7 @@ export namespace NylteJ
 			lineIndexPrinter();
 		}
 
-		// ·µ»ØÖµ: ÊÇ·ñ½øĞĞÁË¹ö¶¯
+		// è¿”å›å€¼: æ˜¯å¦è¿›è¡Œäº†æ»šåŠ¨
 		constexpr bool ScrollToIndex(size_t index)
 		{
 			if (index < fileDataIndex)
@@ -187,7 +188,7 @@ export namespace NylteJ
 
 		constexpr bool ChangeBeginX(size_t index)
 		{
-			auto distToBegin = formatter->GetRawDisplaySize({ fileData.begin() + formatter->SearchLineBeginIndex(fileData, index),fileData.begin() + index });
+			auto distToBegin = formatter->GetRawDisplaySize({ fileData.AtByteIndex(formatter->SearchLineBeginIndex(fileData, index)),fileData.AtByteIndex(index) });
 			
 			if (distToBegin < beginX)
 			{
@@ -202,9 +203,9 @@ export namespace NylteJ
 			return false;
 		}
 
-		// Ö»ÓĞÕı³£½øĞĞµÄ²Ù×÷²ÅÓ¦µ±µ÷ÓÃÕâ¸öº¯ÊıÀ´¼ÇÂ¼, Í¨¹ı Ctrl + Z µÈ½øĞĞµÄ²Ù×÷²»Ó¦µ±Í¨¹ıÕâ¸ö¼ÇÂ¼, Ö±½Ó·Åµ½ redoDeque Àï¼´¿É
-		// (Õâ¸öº¯Êı»áÇå³ı redoDeque)
-		void LogOperation(EditOperation::Type type, size_t index, wstring_view data)
+		// åªæœ‰æ­£å¸¸è¿›è¡Œçš„æ“ä½œæ‰åº”å½“è°ƒç”¨è¿™ä¸ªå‡½æ•°æ¥è®°å½•, é€šè¿‡ Ctrl + Z ç­‰è¿›è¡Œçš„æ“ä½œä¸åº”å½“é€šè¿‡è¿™ä¸ªè®°å½•, ç›´æ¥æ”¾åˆ° redoDeque é‡Œå³å¯
+		// (è¿™ä¸ªå‡½æ•°ä¼šæ¸…é™¤ redoDeque)
+		void LogOperation(EditOperation::Type type, size_t index, StringView data)
 		{
 			redoDeque.clear();
 
@@ -225,7 +226,7 @@ export namespace NylteJ
 
 					operation.type = type;
 					operation.index = index;
-					operation.data = make_shared<wstring>(data.begin(), data.end());
+					operation.data = make_shared<String>(data.begin(), data.end());
 
 					operation.ReserveOperation();
 
@@ -240,30 +241,30 @@ export namespace NylteJ
 
 			if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Erase && type == EditOperation::Type::Insert
-				&& undoDeque.front().index + undoDeque.front().data->size() == index
-				&& data.size() == 1
-				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// ¶¼ÊÇ²åÈëÊ±, ÈÚºÏ!
+				&& undoDeque.front().index + undoDeque.front().data->ByteSize() == index
+				&& !data.empty() && next(data.begin()) == data.end()		// data.Size() == 1
+				&& undoDeque.front().data->Size() + data.Size() <= GetMaxMergeOperationStrLen())	// éƒ½æ˜¯æ’å…¥æ—¶, èåˆ!	// TODO: ç»™ Size åŠ ç¼“å­˜
 			{
 				if (undoDeque.front().data->back() != '\n'
-					|| settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 2)		// ×ÜÈÚºÏ
+					|| settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 2)		// æ€»èåˆ
 					mergeInsert();
 				else
-					if (settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 1)	// Ö»ÈÚºÏÁ¬Ğø»»ĞĞ
+					if (settingMap.Get<SettingID::SplitUndoStrWhenEnter>() == 1)	// åªèåˆè¿ç»­æ¢è¡Œ
 					{
-						if (data[0] == '\n'
+						if (data.front() == '\n'
 							&& all_of(undoDeque.front().data->begin(), undoDeque.front().data->end(), [](auto&& chr) {return chr == '\n'; }))
 							mergeInsert();
 						else
 							addOperation();
 					}
-					else	// ×Ü²»ÈÚºÏ
+					else	// æ€»ä¸èåˆ
 						addOperation();
 			}
 			else if (!undoDeque.empty()
 				&& undoDeque.front().type == EditOperation::Type::Insert && type == EditOperation::Type::Erase
-				&& data.size() == 1
-				&& index + data.size() == undoDeque.front().index
-				&& undoDeque.front().data->size() + data.size() <= GetMaxMergeOperationStrLen())	// ¶¼ÊÇÉ¾³ıÊ±, ÈÚºÏ!
+				&& !data.empty() && next(data.begin()) == data.end()		// data.Size() == 1
+				&& index + data.ByteSize() == undoDeque.front().index
+				&& undoDeque.front().data->Size() + data.Size() <= GetMaxMergeOperationStrLen())	// éƒ½æ˜¯åˆ é™¤æ—¶, èåˆ!	// TODO: ç»™ Size åŠ ç¼“å­˜
 				mergeErase();
 			else
 				addOperation();
@@ -282,28 +283,30 @@ export namespace NylteJ
 			return settingMap.Get<SettingID::MaxRedoStep>();
 		}
 	public:
-		// Êä³öÄÚÈİµÄÍ¬Ê±»á¸²¸Ç±³¾°
-		// Ã»´í, ËüÒ²±ä³ÉÊºÉ½Á¦ (±¯)
+		// è¾“å‡ºå†…å®¹çš„åŒæ—¶ä¼šè¦†ç›–èƒŒæ™¯
+		// æ²¡é”™, å®ƒä¹Ÿå˜æˆå±å±±åŠ› (æ‚²)
 		void PrintData()
 		{
 			console.HideCursor();
 
 			auto nowCursorPos = drawRange.leftTop;
 
-			// TODO: ³ä·ÖÀûÓÃ»º´æ, ²»ÒªÃ¿´Î¶¼ÖØĞÂËã
+			// TODO: å……åˆ†åˆ©ç”¨ç¼“å­˜, ä¸è¦æ¯æ¬¡éƒ½é‡æ–°ç®—
 			FormattedString formattedStrs = GetFormattedString();
 
 			ConsolePosition selectBegin = { 0,0 }, selectEnd = { 0,0 };
-			if (selectBeginIndex != selectEndIndex && MaxSelectIndex() >= fileDataIndex)
+			if (selectBeginIndex != selectEndIndex)
 			{
 				auto beginIndex = MinSelectIndex();
 				auto endIndex = MaxSelectIndex();
 				
 				const auto nowScreenEndIndex = formatter->SearchLineEndIndex(fileData, formattedStrs.datas.back().indexInRaw + fileDataIndex);
 
-				if (beginIndex > nowScreenEndIndex
-					|| endIndex < fileDataIndex)
-					endIndex = beginIndex = 0;
+				// TODO: bugfix
+
+                if (beginIndex > nowScreenEndIndex
+                    || endIndex < fileDataIndex)
+                    endIndex = beginIndex = 0;
 				else
 				{
 					if (beginIndex < fileDataIndex)
@@ -326,59 +329,59 @@ export namespace NylteJ
 			{
 				if (selectBegin.y <= y && y <= selectEnd.y)
 				{
-					size_t secondBegin = 0, secondEnd = formattedStrs[y].lineData.size();
+					size_t secondBegin = 0, secondEnd = formattedStrs[y].lineData.ByteSize();
 
 					if (selectEnd.y == y && selectEnd.x >= 0 && selectEnd.x <= formattedStrs[y].DisplaySize())
 						secondEnd = formatter->GetFormattedIndex(formattedStrs[y], selectEnd);
 					if (selectBegin.y == y && selectBegin.x >= 0 && selectBegin.x <= formattedStrs[y].DisplaySize())
 						secondBegin = formatter->GetFormattedIndex(formattedStrs[y], selectBegin);
 
-					console.Print(wstring_view{ formattedStrs[y].lineData.begin(),formattedStrs[y].lineData.begin() + secondBegin }, nowCursorPos);
+					console.Print(StringView{ formattedStrs[y].lineData.begin(),formattedStrs[y].lineData.AtByteIndex(secondBegin) }, nowCursorPos);
 
-					console.Print(wstring_view{ formattedStrs[y].lineData.begin() + secondBegin,formattedStrs[y].lineData.begin() + secondEnd }, BasicColors::inverseColor, BasicColors::inverseColor);
+					console.Print(StringView{ formattedStrs[y].lineData.AtByteIndex(secondBegin),formattedStrs[y].lineData.AtByteIndex(secondEnd) }, BasicColors::inverseColor, BasicColors::inverseColor);
 
-					console.Print(wstring_view{ formattedStrs[y].lineData.begin() + secondEnd,formattedStrs[y].lineData.end() });
+					console.Print(StringView{ formattedStrs[y].lineData.AtByteIndex(secondEnd),formattedStrs[y].lineData.end() });
 				}
 				else
 					console.Print(formattedStrs[y], nowCursorPos);
 
 				if (formattedStrs[y].DisplaySize() < drawRange.Width())
-					console.Print(ranges::to<wstring>(views::repeat(' ', drawRange.Width() - formattedStrs[y].DisplaySize())));
+					console.Print(String(u8' ', drawRange.Width() - formattedStrs[y].DisplaySize()));
 
 				nowCursorPos.y++;
 				if (nowCursorPos.y > drawRange.rightBottom.y)
 					break;
 			}
 
-			while (nowCursorPos.y <= drawRange.rightBottom.y)	// ºóÃæµÄ¿Õ°×Ò²Òª¸²Ğ´
+			while (nowCursorPos.y <= drawRange.rightBottom.y)	// åé¢çš„ç©ºç™½ä¹Ÿè¦è¦†å†™
 			{
-				console.Print(ranges::to<wstring>(views::repeat(' ', drawRange.Width())), nowCursorPos);
+				console.Print(String(u8' ', static_cast<size_t>(drawRange.Width())), nowCursorPos);
 
 				nowCursorPos.y++;
 			}
 
-			FlushCursor();		// ²»¼ÓÕâ¸öµÄ»°´ò×ÖµÄÊ±ºò¹â±êÓĞÊ±»áÂÒÉÁ
+			FlushCursor();		// ä¸åŠ è¿™ä¸ªçš„è¯æ‰“å­—çš„æ—¶å€™å…‰æ ‡æœ‰æ—¶ä¼šä¹±é—ª
 		}
 
-		wstring_view GetData() const
+		StringView GetData() const
 		{
 			return fileData;
 		}
-		void SetData(wstring_view newData)
+		void SetData(StringView newData)
 		{
-			// ÏÔÈ»Õâ»á³¹µ×µØÆÆ»µ Ctrl + Z µÈ
-			// ÒòÎªÂß¼­ÉÏÕâ²¢²»ÊÇÓÃ»§µÄ²Ù×÷, ¶øÊÇÆäËü´úÂëµÄ²Ù×÷, ´ËÊ±±¾À´Ò²²»Ó¦¸Ã±£Áô
-			// ËùÒÔÖ±½ÓÈ«É¾µô
+			// æ˜¾ç„¶è¿™ä¼šå½»åº•åœ°ç ´å Ctrl + Z ç­‰
+			// å› ä¸ºé€»è¾‘ä¸Šè¿™å¹¶ä¸æ˜¯ç”¨æˆ·çš„æ“ä½œ, è€Œæ˜¯å…¶å®ƒä»£ç çš„æ“ä½œ, æ­¤æ—¶æœ¬æ¥ä¹Ÿä¸åº”è¯¥ä¿ç•™
+			// æ‰€ä»¥ç›´æ¥å…¨åˆ æ‰
 			undoDeque.clear();
 			redoDeque.clear();
 
 			fileData = newData;
 
-			lineIndexPrinter();
+			//lineIndexPrinter();	// TODO
 		}
 
-		// ¼¤»î ¡°Õâ¸ö±à¼­Æ÷¡± µÄ¹â±ê
-		// »áÔÚºÏÊÊµÄÊ±ºòÏÔÊ¾ºÍÒş²Ø¹â±ê, ËùÒÔÎŞĞèÊÖ¶¯µ÷ÓÃ ShowCursor º¯Êı
+		// æ¿€æ´» â€œè¿™ä¸ªç¼–è¾‘å™¨â€ çš„å…‰æ ‡
+		// ä¼šåœ¨åˆé€‚çš„æ—¶å€™æ˜¾ç¤ºå’Œéšè—å…‰æ ‡, æ‰€ä»¥æ— éœ€æ‰‹åŠ¨è°ƒç”¨ ShowCursor å‡½æ•°
 		void FlushCursor() const
 		{
 			if (drawRange.Contain(drawRange.leftTop + cursorPos))
@@ -390,9 +393,9 @@ export namespace NylteJ
 				console.HideCursor();
 		}
 
-		// Õâ¸öº¯ÊıÊÇ´Ó±à¼­Æ÷µÄ½Ç¶ÈÒÆ¶¯¹â±ê, ËùÒÔ´ÓÂß¼­ÉÏÀ´ËµÏàµ±ÓÚÓÃ»§×Ô¼º°Ñ¹â±êÒÆµ½ÁËÄÇ¸öÎ»ÖÃ (Í¨¹ıÊó±êµÈ)
-		// Òò´ËËü»áÆÆ»µµ±Ç°Ñ¡ÔñÇøÓò
-		// TODO: ÊÇ²»ÊÇ²»¸ÃñîºÏµÃÕâÃ´ËÀ?
+		// è¿™ä¸ªå‡½æ•°æ˜¯ä»ç¼–è¾‘å™¨çš„è§’åº¦ç§»åŠ¨å…‰æ ‡, æ‰€ä»¥ä»é€»è¾‘ä¸Šæ¥è¯´ç›¸å½“äºç”¨æˆ·è‡ªå·±æŠŠå…‰æ ‡ç§»åˆ°äº†é‚£ä¸ªä½ç½® (é€šè¿‡é¼ æ ‡ç­‰)
+		// å› æ­¤å®ƒä¼šç ´åå½“å‰é€‰æ‹©åŒºåŸŸ
+		// TODO: æ˜¯ä¸æ˜¯ä¸è¯¥è€¦åˆå¾—è¿™ä¹ˆæ­»?
 		void SetCursorPos(const ConsolePosition& pos, bool selectMode = false)
 		{
 			if (drawRange.Contain(drawRange.leftTop + pos))
@@ -429,8 +432,8 @@ export namespace NylteJ
 			MoveCursor(Direction::None, selectMode);
 		}
 
-		// ÊÇµÄ, ÕâÒ»¿éµÄº¯ÊıÔÚ¼¸´Îµü´úºóÒÑ¾­±ä³ÉÊºÉ½ÁË
-		// TODO: ÖØ¹¹ÊºÉ½
+		// æ˜¯çš„, è¿™ä¸€å—çš„å‡½æ•°åœ¨å‡ æ¬¡è¿­ä»£åå·²ç»å˜æˆå±å±±äº†
+		// TODO: é‡æ„å±å±±
 		void MoveCursor(Direction direction, bool selectMode = false)
 		{
 			using enum Direction;
@@ -452,7 +455,7 @@ export namespace NylteJ
 			case Left:	newPos.x--; break;
 			}
 
-			// »»ĞĞ, ±¾À´ÔÚ RestrictPos ÀïÃæµÄ, µ«ÊÇÂß¼­ÉÏ·ÅÕâÀïºÏÊÊÒ»µã
+			// æ¢è¡Œ, æœ¬æ¥åœ¨ RestrictPos é‡Œé¢çš„, ä½†æ˜¯é€»è¾‘ä¸Šæ”¾è¿™é‡Œåˆé€‚ä¸€ç‚¹
 			if (direction == Left && newPos.x < 0
 				&& (newPos.y > 0 || fileDataLineIndex >= 1)
 				&& beginX == 0)
@@ -462,8 +465,8 @@ export namespace NylteJ
 				{
 					newPos.x = 0;
 					auto rawIndex = formatter->GetRawIndex(formattedStr, newPos);
-					newPos.x = formatter->GetRawDisplaySize({	fileData.begin() + formatter->SearchLineBeginIndex(fileData, rawIndex + fileDataIndex),
-																fileData.begin() + formatter->SearchLineEndIndex(fileData, rawIndex + fileDataIndex) });
+					newPos.x = formatter->GetRawDisplaySize({	fileData.AtByteIndex(formatter->SearchLineBeginIndex(fileData, rawIndex + fileDataIndex)),
+																fileData.AtByteIndex(formatter->SearchLineEndIndex(fileData, rawIndex + fileDataIndex)) });
 					auto nowBeginX = beginX;
 					needReprintData |= ChangeBeginX(formatter->SearchLineEndIndex(fileData, rawIndex + fileDataIndex));
 					newPos.x -= (beginX - nowBeginX);
@@ -472,8 +475,8 @@ export namespace NylteJ
 				}
 				else
 				{
-					fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: ÓÅ»¯
-					fileDataLineIndex--;	// Õâ¸öÎŞ·¨ÊÊÅä×Ô¶¯»»ĞĞ, ºóÃæ¼¸¸öÒ²ÊÇ, µ«ÏÖÔÚµÄÊºÉ½´úÂë±¾À´Ò²ºÜÄÑ¼Ó×Ô¶¯»»ĞĞ, ¹ÃÇÒÕâÃ´Ğ´×ÅÏÈ
+					fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: ä¼˜åŒ–
+					fileDataLineIndex--;	// è¿™ä¸ªæ— æ³•é€‚é…è‡ªåŠ¨æ¢è¡Œ, åé¢å‡ ä¸ªä¹Ÿæ˜¯, ä½†ç°åœ¨çš„å±å±±ä»£ç æœ¬æ¥ä¹Ÿå¾ˆéš¾åŠ è‡ªåŠ¨æ¢è¡Œ, å§‘ä¸”è¿™ä¹ˆå†™ç€å…ˆ
 					lineIndexPrinter();
 
 					formattedStr = GetFormattedString();
@@ -483,18 +486,18 @@ export namespace NylteJ
 
 					needReprintData = true;
 				}
-				direction = None;	// ÏòÉÏ»»ĞĞÖ±½ÓÔÚÕâÀï½øĞĞ, ÏòÏÂ»»ĞĞÔÚºóÃæ½øĞĞ. ÖÁÓÚÎªÊ²Ã´Äã±ğ¹Ü, ÄÜÅÜ¾ÍĞĞ
+				direction = None;	// å‘ä¸Šæ¢è¡Œç›´æ¥åœ¨è¿™é‡Œè¿›è¡Œ, å‘ä¸‹æ¢è¡Œåœ¨åé¢è¿›è¡Œ. è‡³äºä¸ºä»€ä¹ˆä½ åˆ«ç®¡, èƒ½è·‘å°±è¡Œ
 			}
 			if (direction == Right && newPos.x > formattedStr[newPos.y].DisplaySize()
-				&& formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex < fileData.size()
-				&& newPos.x + beginX > formatter->GetRawDisplaySize({ fileData.begin() + formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex),
-															fileData.begin() + formatter->SearchLineEndIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex) }))
-				// Êµ¼ÊÉÏ×îºóÒ»¸öÌõ¼şÒşº¬ÁËµÚ¶ş¸ö, µ«¿¼ÂÇµ½¿ªÏúÒÔ¼°³£ÓÃ³Ì¶È, »¹ÊÇ²»É¾µôµÚ¶ş¸öÁË
+				&& formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex < fileData.ByteSize()
+				&& newPos.x + beginX > formatter->GetRawDisplaySize({ fileData.AtByteIndex(formatter->SearchLineBeginIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex)),
+															fileData.AtByteIndex(formatter->SearchLineEndIndex(fileData, formatter->GetRawIndex(formattedStr, newPos) + fileDataIndex)) }))
+				// å®é™…ä¸Šæœ€åä¸€ä¸ªæ¡ä»¶éšå«äº†ç¬¬äºŒä¸ª, ä½†è€ƒè™‘åˆ°å¼€é”€ä»¥åŠå¸¸ç”¨ç¨‹åº¦, è¿˜æ˜¯ä¸åˆ æ‰ç¬¬äºŒä¸ªäº†
 			{
 				newPos.y++;
 				direction = Down;
 
-				if (beginX > 0)		// ´ËÊ±Ã»·¨ÇáÒ×ÅĞ¶ÏÊÇ²»ÊÇÒÑ¾­µ½ÎÄ¼şÎ²ÁË, ËùÒÔÖ±½ÓÑÓºó (µ«ÊÇ y ¿ÉÒÔÇÒ±ØĞëÖ±½Ó¼Ó, ÏÂÃæµÄÂß¼­ÂÒ³ÉÒÀÍĞÊ±ÁËËùÒÔÎÒ²»ÊÇºÜÏë½âÊÍµ«»ù±¾¾ÍÊÇÕâÑù)
+				if (beginX > 0)		// æ­¤æ—¶æ²¡æ³•è½»æ˜“åˆ¤æ–­æ˜¯ä¸æ˜¯å·²ç»åˆ°æ–‡ä»¶å°¾äº†, æ‰€ä»¥ç›´æ¥å»¶å (ä½†æ˜¯ y å¯ä»¥ä¸”å¿…é¡»ç›´æ¥åŠ , ä¸‹é¢çš„é€»è¾‘ä¹±æˆä¾æ‰˜æ—¶äº†æ‰€ä»¥æˆ‘ä¸æ˜¯å¾ˆæƒ³è§£é‡Šä½†åŸºæœ¬å°±æ˜¯è¿™æ ·)
 					delayToChangeBeginX = true;
 				else
 					newPos.x = 0;
@@ -536,7 +539,7 @@ export namespace NylteJ
 				formattedStr = GetFormattedString();
 			}
 
-			// ºáÏò¹öÆÁ
+			// æ¨ªå‘æ»šå±
 
 			auto nowBeginX = beginX;
 
@@ -555,11 +558,11 @@ export namespace NylteJ
 			return cursorPos;
 		}
 
-		// »ùÓÚµ±Ç°¹â±ê/Ñ¡ÇøÎ»ÖÃ²åÈë
-		void Insert(wstring_view str, bool log = true)
+		// åŸºäºå½“å‰å…‰æ ‡/é€‰åŒºä½ç½®æ’å…¥
+		void Insert(StringView str, bool log = true)
 		{
 			if (selectBeginIndex != selectEndIndex)
-				Erase();	// ±ãÓÚ Ctrl + Z, °Ñ ¡°Ìæ»»¡± ²Ù×÷¸Ä³ÉÉ¾³ı + ²åÈë
+				Erase();	// ä¾¿äº Ctrl + Z, æŠŠ â€œæ›¿æ¢â€ æ“ä½œæ”¹æˆåˆ é™¤ + æ’å…¥
 
 			ScrollToIndex(cursorIndex);
 			ChangeBeginX(cursorIndex);
@@ -567,15 +570,15 @@ export namespace NylteJ
 			if (log)
 				LogOperation(EditOperation::Insert, cursorIndex, str);
 
-			fileData.insert_range(fileData.begin() + cursorIndex, str);
+			fileData.insert_range(fileData.AtByteIndex(cursorIndex), str);
 
-			MoveCursorToIndex(cursorIndex + str.size(), cursorIndex + str.size());
+			MoveCursorToIndex(cursorIndex + str.ByteSize(), cursorIndex + str.ByteSize());
 
-			if (str.contains('\n'))
+			if (str.contains(u8'\n'))
 				lineIndexPrinter();
 		}
 
-		// »ùÓÚµ±Ç°¹â±ê/Ñ¡ÇøÎ»ÖÃÉ¾³ı (µÈ¼ÛÓÚ°´Ò»ÏÂ Backspace)
+		// åŸºäºå½“å‰å…‰æ ‡/é€‰åŒºä½ç½®åˆ é™¤ (ç­‰ä»·äºæŒ‰ä¸€ä¸‹ Backspace)
 		void Erase(bool log = true)
 		{
 			if (selectBeginIndex == selectEndIndex)
@@ -588,7 +591,7 @@ export namespace NylteJ
 				if (index == 0)
 					return;
 
-				index--;
+				index = fileData.GetByteIndex(prev(fileData.AtByteIndex(index)));
 
 				console.HideCursor();
 
@@ -596,21 +599,21 @@ export namespace NylteJ
 
 				MoveCursor(Direction::Left);
 
-				bool needReprintLineIndex = (fileData[index] == '\n');
+				bool needReprintLineIndex = (*fileData.AtByteIndex(index) == '\n');
 
-				if (index > 0 && fileData[index - 1] == '\r')
+				if (index > 0 && *prev(fileData.AtByteIndex(index)) == '\r')
 				{
 					if (log)
-						LogOperation(EditOperation::Erase, index, wstring_view{ fileData.begin() + index - 1,fileData.begin() + index + 1 });
+						LogOperation(EditOperation::Erase, index, StringView{ prev(fileData.AtByteIndex(index)),next(fileData.AtByteIndex(index)) });
 
-					fileData.erase(index - 1, 2);
+					fileData.erase(prev(fileData.AtByteIndex(index)), next(fileData.AtByteIndex(index)));
 				}
 				else
 				{
 					if (log)
-						LogOperation(EditOperation::Erase, index, wstring_view{ fileData.begin() + index,fileData.begin() + index + 1 });
+						LogOperation(EditOperation::Erase, index, StringView{ fileData.AtByteIndex(index),next(fileData.AtByteIndex(index)) });
 
-					fileData.erase(fileData.begin() + index);	// ÕâÀïÖ»´« index ¾Í»á°ÑºóÃæµÄÈ«É¾µô
+					fileData.erase(fileData.AtByteIndex(index));
 				}
 
 				PrintData();
@@ -623,11 +626,11 @@ export namespace NylteJ
 				ChangeBeginX(MinSelectIndex());
 
 				if (log)
-					LogOperation(EditOperation::Erase, MinSelectIndex(), wstring_view{ fileData.begin() + MinSelectIndex(),fileData.begin() + MaxSelectIndex() });
+					LogOperation(EditOperation::Erase, MinSelectIndex(), StringView{ fileData.AtByteIndex(MinSelectIndex()),fileData.AtByteIndex(MaxSelectIndex()) });
 
-				bool needReprintLineIndex = wstring_view{ fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex() }.contains('\n');
+				bool needReprintLineIndex = StringView{ fileData.AtByteIndex(MinSelectIndex()), fileData.AtByteIndex(MaxSelectIndex()) }.contains('\n');
 
-				fileData.erase(fileData.begin() + MinSelectIndex(), fileData.begin() + MaxSelectIndex());
+				fileData.erase(fileData.AtByteIndex(MinSelectIndex()), fileData.AtByteIndex(MaxSelectIndex()));
 
 				SetCursorPos(formatter->GetFormattedPos(formatter->Format(NowFileData(), drawRange.Width(), drawRange.Height(), beginX, fileDataLineIndex), MinSelectIndex() - fileDataIndex));
 
@@ -639,16 +642,20 @@ export namespace NylteJ
 		void SelectAll()
 		{
 			selectBeginIndex = 0;
-			selectEndIndex = fileData.size();
+			selectEndIndex = fileData.ByteSize();
 
 			PrintData();
 
-			FlushCursor();	// ËäÈ» VS ºÍ VSCode ÔÚÈ«Ñ¡Ê±¶¼»á°Ñ¹â±êÅ²µ½Ä©Î², µ«ÓĞÒ»ËµÒ»ÎÒ¾õµÃ²»¶¯¹â±êÔÚÕâÀï¸üºÃÓÃ (¶øÇÒ¸üºÃĞ´)
+			FlushCursor();	// è™½ç„¶ VS å’Œ VSCode åœ¨å…¨é€‰æ—¶éƒ½ä¼šæŠŠå…‰æ ‡æŒªåˆ°æœ«å°¾, ä½†æœ‰ä¸€è¯´ä¸€æˆ‘è§‰å¾—ä¸åŠ¨å…‰æ ‡åœ¨è¿™é‡Œæ›´å¥½ç”¨ (è€Œä¸”æ›´å¥½å†™)
 		}
 
-		wstring_view GetSelectedStr() const
+		StringView GetSelectedStr() const
 		{
-			return { fileData.begin() + MinSelectIndex(),fileData.begin() + MaxSelectIndex() };
+			return { fileData.AtByteIndex(MinSelectIndex()),fileData.AtByteIndex(MaxSelectIndex()) };
+		}
+		String::Iterator GetCursorIterator() const
+		{
+			return fileData.AtByteIndex(cursorIndex);
 		}
 
 		void ScrollScreen(int line)
@@ -662,7 +669,7 @@ export namespace NylteJ
 					return;
 				}
 
-				fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: ÓÅ»¯
+				fileDataIndex = formatter->SearchLineBeginIndex(fileData, fileDataIndex - 1);	// TODO: ä¼˜åŒ–
 				fileDataLineIndex--;
 
 				cursorPos.y++;
@@ -716,10 +723,10 @@ export namespace NylteJ
 			PrintData();
 		}
 
-		// ÍêÈ«ÖØÖÃ¹â±êµ½³õÊ¼Î»ÖÃ
+		// å®Œå…¨é‡ç½®å…‰æ ‡åˆ°åˆå§‹ä½ç½®
 		void ResetCursor()
 		{
-			// Õâ¸ö±È½ÏÌØÊâ, ¾Í²»ºÏ²¢µ½ÏÂÃæÁË
+			// è¿™ä¸ªæ¯”è¾ƒç‰¹æ®Š, å°±ä¸åˆå¹¶åˆ°ä¸‹é¢äº†
 			beginX = cursorIndex = fileDataIndex = selectBeginIndex = selectEndIndex = fileDataLineIndex = 0;
 			cursorPos = { 0,0 };
 			lineIndexPrinter();
@@ -729,14 +736,14 @@ export namespace NylteJ
 
 		void MoveCursorToIndex(size_t from, size_t to)
 		{
-			cursorIndex = (from + to) / 2;	// ÉñÈË½â¾ö·½°¸ TODO: ÏëÒ»¸ö²»ÄÇÃ´ÉñÈËµÄ
+			cursorIndex = (from + to) / 2;	// ç¥äººè§£å†³æ–¹æ¡ˆ TODO: æƒ³ä¸€ä¸ªä¸é‚£ä¹ˆç¥äººçš„
 
 			ChangeBeginX(cursorIndex);
 			ScrollToIndex(cursorIndex);
 
 			auto formattedStr = GetFormattedString();
 
-			SetCursorPos(formatter->RestrictPos(formattedStr, formatter->GetFormattedPos(formattedStr, cursorIndex - fileDataIndex), None));
+			SetCursorPos(formatter->RestrictPos(formattedStr, formatter->GetFormattedPos(formattedStr, cursorIndex - fileDataIndex), Direction::None));
 
 			selectBeginIndex = from;
 			selectEndIndex = cursorIndex = to;
@@ -750,7 +757,7 @@ export namespace NylteJ
 
 		void MoveCursorToEnd()
 		{
-			MoveCursorToIndex(fileData.size());
+			MoveCursorToIndex(fileData.ByteSize());
 		}
 
 		template<bool direct = false>
@@ -787,8 +794,8 @@ export namespace NylteJ
 			}
 
 			Undo();
-			// Ç°Ãæ¼¸´Î Undo ²»¼ì²éĞĞºÅ±ä»¯, ËùÒÔÈç¹ûÇ°¼¸´Î Undo ÁË»»ĞĞ, µ«×îºóÒ»´ÎÓÖÃ»ÓĞ, ĞĞºÅÏÔÊ¾¾Í»á³öÎÊÌâ
-			// ²¹³¥ĞÔµØ, ÕâÀï²»¼Ó¼ì²éµØÖØ»æĞĞºÅ, ÏÂ (Redo) Í¬
+			// å‰é¢å‡ æ¬¡ Undo ä¸æ£€æŸ¥è¡Œå·å˜åŒ–, æ‰€ä»¥å¦‚æœå‰å‡ æ¬¡ Undo äº†æ¢è¡Œ, ä½†æœ€åä¸€æ¬¡åˆæ²¡æœ‰, è¡Œå·æ˜¾ç¤ºå°±ä¼šå‡ºé—®é¢˜
+			// è¡¥å¿æ€§åœ°, è¿™é‡Œä¸åŠ æ£€æŸ¥åœ°é‡ç»˜è¡Œå·, ä¸‹ (Redo) åŒ
 			lineIndexPrinter();
 		}
 
@@ -862,10 +869,12 @@ export namespace NylteJ
 
 		size_t GetNowLineCharCount() const
 		{
-			return cursorIndex - formatter->SearchLineBeginIndex(fileData, cursorIndex);
+			// TODO: æ€§èƒ½ä¼˜åŒ–
+			return StringView{ fileData.AtByteIndex(formatter->SearchLineBeginIndex(fileData, cursorIndex)),
+							fileData.AtByteIndex(cursorIndex) }.Size();
 		}
 
-		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// ²»ÔÚÕâÀï´¦Àí
+		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// ä¸åœ¨è¿™é‡Œå¤„ç†
 		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
 		{
 			using enum InputHandler::MessageKeyboard::Key;
@@ -902,15 +911,15 @@ export namespace NylteJ
 				Erase();
 				return;
 			case Enter:
-				Insert(L"\n");
+				Insert(u8"\n"sv);
 				return;
-			case Delete:	// ¹ÃÇÒÒ²ÊÇÇúÏß¾È¹úÁË
+			case Delete:	// å§‘ä¸”ä¹Ÿæ˜¯æ›²çº¿æ•‘å›½äº†
 			{
 				auto nowCursorPos = GetCursorPos();
 
 				console.HideCursor();
 				MoveCursor(Direction::Right);
-				if (nowCursorPos != GetCursorPos())	// ÓÃÕâÖÖ·½Ê½À´²¢²»ÓÅÑÅµØÅĞ¶ÏÊÇ·ñµ½´ïÄ©Î², µ½´ïÄ©Î²Ê±°´ del Ó¦¸ÃÉ¾²»µô¶«Î÷
+				if (nowCursorPos != GetCursorPos())	// ç”¨è¿™ç§æ–¹å¼æ¥å¹¶ä¸ä¼˜é›…åœ°åˆ¤æ–­æ˜¯å¦åˆ°è¾¾æœ«å°¾, åˆ°è¾¾æœ«å°¾æ—¶æŒ‰ del åº”è¯¥åˆ ä¸æ‰ä¸œè¥¿
 					Erase();
 				console.ShowCursor();
 			}
@@ -933,9 +942,9 @@ export namespace NylteJ
 				break;
 			}
 
-			if (IsNormalInput())	// Õı³£ÊäÈë
+			if (IsNormalInput())	// æ­£å¸¸è¾“å…¥
 			{
-				Insert(wstring{ message.inputChar });
+				Insert(String{ message.inputChar });
 				return;
 			}
 
@@ -956,10 +965,10 @@ export namespace NylteJ
 						Erase();
 					}
 					break;
-				case V:		// TODO: Ê¹ÓÃ Win11 µÄĞÂÖÕ¶ËÊ±, ĞèÒªÀ¹½ØµôÖÕ¶Ë×Ô´øµÄ Ctrl + V, ·ñÔò´Ë´¦²»ÉúĞ§
+				case V:		// TODO: ä½¿ç”¨ Win11 çš„æ–°ç»ˆç«¯æ—¶, éœ€è¦æ‹¦æˆªæ‰ç»ˆç«¯è‡ªå¸¦çš„ Ctrl + V, å¦åˆ™æ­¤å¤„ä¸ç”Ÿæ•ˆ
 					Insert(handlers.clipboard.Read());
 					break;
-				case Special1:	// Ctrl + [{	(ÕâÀïµÄ "[{" Ö¸¼üÅÌÉÏµÄÕâ¸ö¼ü, ÏÂÍ¬)
+				case Special1:	// Ctrl + [{	(è¿™é‡Œçš„ "[{" æŒ‡é”®ç›˜ä¸Šçš„è¿™ä¸ªé”®, ä¸‹åŒ)
 					if (message.extraKeys.Alt())
 						HScrollScreen(-1);
 					else
@@ -984,7 +993,20 @@ export namespace NylteJ
 			using enum InputHandler::MessageMouse::Type;
 
 			if (message.LeftClick())
+			{
 				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop);
+
+				if (message.type == DoubleClicked)
+				{
+					// TODO: æ”¯æŒåŒå‡»åæ‹–é€‰ä»¥å¤§èŒƒå›´é€‰æ‹©(å¹²è„†ç•™åˆ°æœªæ¥å¤§é‡æ„å§)
+					const auto [wordBegin, wordEnd] = GetWord(fileData, GetCursorIterator());
+
+					selectBeginIndex = fileData.GetByteIndex(wordBegin);
+					selectEndIndex = fileData.GetByteIndex(wordEnd);
+
+					PrintData();
+				}
+			}
 			if (message.type == Moved && message.LeftHold())
 				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop, true);
 
@@ -1010,7 +1032,7 @@ export namespace NylteJ
 		}
 
 		Editor(ConsoleHandler& console,
-			   const wstring& fileData,
+			   const String& fileData,
 			   const ConsoleRect& drawRange,
 			   const SettingMap& settingMap,
 			   shared_ptr<FormatterBase> formatter = nullptr)

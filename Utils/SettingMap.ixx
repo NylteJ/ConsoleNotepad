@@ -1,16 +1,17 @@
 // SettingMap.ixx
-// ÊÇ SettingsHandler µÄºó¶Ë (Ê²Ã´Ì×ÍŞ)
-// Ö»Î¬»¤Ò»¸ö¹şÏ£±í, ÓÃÓÚ¿ìËÙ²éÕÒ¶ÔÓ¦ÉèÖÃÏî
-// Ö»ĞèÒª°ÑÕâ¸öµÄÒıÓÃµ½´¦´«¾Í¿ÉÒÔÁË, ÕâÑùÒ²²»ÓÃµ£ĞÄÑ­»·ÒıÓÃ
-// (ÒòÎª SettingsHandler ÀïºÜÄÑ²» import Editor µÈ UI ×é¼ş, ËùÒÔÖ»ÄÜÔÙÌ×Ò»²ãºó¶ËÁË)
-// Ê¹ÓÃÁË²»ÉÙ (ÖÁÉÙ¶ÔÎÒÀ´Ëµ) Ïàµ±¿áìÅµÄÄ£°å¼¼ÇÉ (µ«ÎÒ»¹ÊÇÒªËµºêÊÇÄ£°åËüÒ¯Ò¯, Ã»ÓĞºêµÄ»°ÕâÀïµÄ¸÷ÖÖ´ò±í»á²»¿É±ÜÃâµØ³ÔÊº)
-// Ô­ÔòÉÏ¶ÔÉèÖÃÉÏµÄ²éÑ¯¶¼Ö±½Ó×ßÕâ¸ö±í, ÒòÎª¹şÏ£±íµÄ²éÑ¯±¾À´Ò²ÊÇ O(1) µÄ, Ğ§ÂÊÉÏºÍ»º´æÒ»¸ö±äÁ¿ÊÇÒ»ÑùµÄ, »¹¸ü¼Ó¼´Ê±
+// æ˜¯ SettingsHandler çš„åç«¯ (ä»€ä¹ˆå¥—å¨ƒ)
+// åªç»´æŠ¤ä¸€ä¸ªå“ˆå¸Œè¡¨, ç”¨äºå¿«é€ŸæŸ¥æ‰¾å¯¹åº”è®¾ç½®é¡¹
+// åªéœ€è¦æŠŠè¿™ä¸ªçš„å¼•ç”¨åˆ°å¤„ä¼ å°±å¯ä»¥äº†, è¿™æ ·ä¹Ÿä¸ç”¨æ‹…å¿ƒå¾ªç¯å¼•ç”¨
+// (å› ä¸º SettingsHandler é‡Œå¾ˆéš¾ä¸ import Editor ç­‰ UI ç»„ä»¶, æ‰€ä»¥åªèƒ½å†å¥—ä¸€å±‚åç«¯äº†)
+// ä½¿ç”¨äº†ä¸å°‘ (è‡³å°‘å¯¹æˆ‘æ¥è¯´) ç›¸å½“é…·ç‚«çš„æ¨¡æ¿æŠ€å·§ (ä½†æˆ‘è¿˜æ˜¯è¦è¯´å®æ˜¯æ¨¡æ¿å®ƒçˆ·çˆ·, æ²¡æœ‰å®çš„è¯è¿™é‡Œçš„å„ç§æ‰“è¡¨ä¼šä¸å¯é¿å…åœ°åƒå±)
+// åŸåˆ™ä¸Šå¯¹è®¾ç½®ä¸Šçš„æŸ¥è¯¢éƒ½ç›´æ¥èµ°è¿™ä¸ªè¡¨, å› ä¸ºå“ˆå¸Œè¡¨çš„æŸ¥è¯¢æœ¬æ¥ä¹Ÿæ˜¯ O(1) çš„, æ•ˆç‡ä¸Šå’Œç¼“å­˜ä¸€ä¸ªå˜é‡æ˜¯ä¸€æ ·çš„, è¿˜æ›´åŠ å³æ—¶
 export module SettingMap;
 
 import std;
 
 import FileHandler;
 import Exceptions;
+import String;
 
 using namespace std;
 
@@ -19,10 +20,10 @@ export namespace NylteJ
 	class SettingMap
 	{
 	public:
-		// ÓÃÓÚÔÚÎÄ¼şÖĞÇø·Ö²»Í¬ÉèÖÃÏî
-		// ²»Ó¦¸Ã¸Ä±äÏÖÓĞÏîµÄÖµ, ÕâÑù¾ÍËãÎ´À´É¾³ıÁËÄ³Ğ©Ïî, Ò²²»»áÓ°Ïìµ½ÏÖÓĞµÄÉèÖÃÎÄ¼ş
-		// Ò²ÊÇ¿¼ÂÇµ½ÕâÒ»µã, Ã»ÓĞ×ö³É×Ö·û´®µÄĞÎÊ½, ÒòÎª×Ö·û´®×ÜÊÇ»áÈÃÈËÓĞ¸ÄµÄÓûÍû, Ö±½Ó¸Ä³ÉÒ»¸öÃ¶¾ÙÊı¾Í²»»áÁË (ÖÁÉÙÃ¶¾ÙµÄÖµ²»»á)
-		enum class ID :uint16_t	// ±ØĞëÕâÃ´Ö¸¶¨, ²»È» x86 ºÍ x64 µÄÅäÖÃÎÄ¼ş»¹²»ÄÜÍ¨ÓÃ
+		// ç”¨äºåœ¨æ–‡ä»¶ä¸­åŒºåˆ†ä¸åŒè®¾ç½®é¡¹
+		// ä¸åº”è¯¥æ”¹å˜ç°æœ‰é¡¹çš„å€¼, è¿™æ ·å°±ç®—æœªæ¥åˆ é™¤äº†æŸäº›é¡¹, ä¹Ÿä¸ä¼šå½±å“åˆ°ç°æœ‰çš„è®¾ç½®æ–‡ä»¶
+		// ä¹Ÿæ˜¯è€ƒè™‘åˆ°è¿™ä¸€ç‚¹, æ²¡æœ‰åšæˆå­—ç¬¦ä¸²çš„å½¢å¼, å› ä¸ºå­—ç¬¦ä¸²æ€»æ˜¯ä¼šè®©äººæœ‰æ”¹çš„æ¬²æœ›, ç›´æ¥æ”¹æˆä¸€ä¸ªæšä¸¾æ•°å°±ä¸ä¼šäº† (è‡³å°‘æšä¸¾çš„å€¼ä¸ä¼š)
+		enum class ID :uint16_t	// å¿…é¡»è¿™ä¹ˆæŒ‡å®š, ä¸ç„¶ x86 å’Œ x64 çš„é…ç½®æ–‡ä»¶è¿˜ä¸èƒ½é€šç”¨
 		{
 			DefaultBehaviorWhenErrorEncoding = 0,
 			AutoSavingDuration = 1,
@@ -39,24 +40,24 @@ export namespace NylteJ
 		};
 		using enum ID;
 	private:
-#pragma region ÏÖÔÚÊÇ, ´ò±íÊ±¼ä
+#pragma region ç°åœ¨æ˜¯, æ‰“è¡¨æ—¶é—´
 		template<ID id>
 		class DataTypeHelper { static_assert(false); };
 
-		// ·Ç³£ºÃºê¶¨Òå, Ê¹ÎÒÃâÓÚ¸´ÖÆÕ³Ìù
+		// éå¸¸å¥½å®å®šä¹‰, ä½¿æˆ‘å…äºå¤åˆ¶ç²˜è´´
 #define ID_TYPE(id_,type_) template<> class DataTypeHelper<id_> { public:using type = type_; };
 
-		// ÕâÀïÊÖ¶¯Ö¸¶¨³¤¶È²¢²»ÊÇÎªÁËÊ¡¿Õ¼ä, Ö»ÊÇÎªÁËÈÃÅäÖÃÎÄ¼şÏòÇ°Ïòºó¶¼ÄÜ¼æÈİ
-		// Êµ¼ÊÉÏÎŞÂÛÕâÀïÖ¸¶¨³É¶àÉÙÎ», ºóÃæµÄ variant µÄ³¤¶È¶¼²»»á±ä, ¶¥¶àÊ¡µã´ÅÅÌ¿Õ¼ä
-		// ÏÂÃæÓÃ variant µÄÔ­ÒòÖ»ÊÇÎªÁËºóĞø¿ÉÄÜ¼ÓÈëµÄ×Ö·û´® / ¸¡µãÉèÖÃÏîµÈ
-		// Ë³±ãÓÃ Editor Ê±×îµÍÖ»ÄÜÊ¹ÓÃ 16 Î»ÕûÊı, ÒòÎª 8 Î»µÄÊÇ char, »á³ö¸÷ÖÖÎÊÌâ
+		// è¿™é‡Œæ‰‹åŠ¨æŒ‡å®šé•¿åº¦å¹¶ä¸æ˜¯ä¸ºäº†çœç©ºé—´, åªæ˜¯ä¸ºäº†è®©é…ç½®æ–‡ä»¶å‘å‰å‘åéƒ½èƒ½å…¼å®¹
+		// å®é™…ä¸Šæ— è®ºè¿™é‡ŒæŒ‡å®šæˆå¤šå°‘ä½, åé¢çš„ variant çš„é•¿åº¦éƒ½ä¸ä¼šå˜, é¡¶å¤šçœç‚¹ç£ç›˜ç©ºé—´
+		// ä¸‹é¢ç”¨ variant çš„åŸå› åªæ˜¯ä¸ºäº†åç»­å¯èƒ½åŠ å…¥çš„å­—ç¬¦ä¸² / æµ®ç‚¹è®¾ç½®é¡¹ç­‰
+		// é¡ºä¾¿ç”¨ Editor æ—¶æœ€ä½åªèƒ½ä½¿ç”¨ 16 ä½æ•´æ•°, å› ä¸º 8 ä½çš„æ˜¯ char, ä¼šå‡ºå„ç§é—®é¢˜
 		ID_TYPE(DefaultBehaviorWhenErrorEncoding, uint8_t)
 		ID_TYPE(AutoSavingDuration, uint32_t)
 		ID_TYPE(MaxUndoStep, uint16_t)
 		ID_TYPE(MaxRedoStep, uint16_t)
 		ID_TYPE(MaxMergeCharUndoRedo, uint16_t)
-		ID_TYPE(AutoSaveFileExtension, wstring)
-		ID_TYPE(NewFileAutoSaveName, wstring)
+		ID_TYPE(AutoSaveFileExtension, u8string)
+		ID_TYPE(NewFileAutoSaveName, u8string)
 		ID_TYPE(CloseHistoryWindowAfterEnter, uint8_t)
 		ID_TYPE(SplitUndoStrWhenEnter, uint8_t)
 		ID_TYPE(NormalExitWhenDoubleEsc, uint8_t)
@@ -67,7 +68,7 @@ export namespace NylteJ
 
 #pragma endregion
 	public:
-		using SizeDataType = uint16_t;	// 64KB µÄµ¥ÌõÊı¾İ´óĞ¡ÉÏÏŞÓ¦¸ÃÎŞÂÛÈçºÎ¶¼¹»ÓÃÁË
+		using SizeDataType = uint16_t;	// 64KB çš„å•æ¡æ•°æ®å¤§å°ä¸Šé™åº”è¯¥æ— è®ºå¦‚ä½•éƒ½å¤Ÿç”¨äº†
 	private:
 		class FromByteHelper
 		{
@@ -81,9 +82,9 @@ export namespace NylteJ
 				input.read(reinterpret_cast<char*>(&value), dataSize);
 			}
 			template<>
-			void operator()(wstring& str) const
+			void operator()(u8string& str) const
 			{
-				str.resize(dataSize / 2);
+				str.resize(dataSize);
 				input.read(reinterpret_cast<char*>(str.data()), dataSize);
 			}
 
@@ -94,10 +95,10 @@ export namespace NylteJ
 		};
 	public:
 		template<ID id>
-		using DataType = DataTypeHelper<id>::type;
+		using DataType = typename DataTypeHelper<id>::type;
 		
-		// ÆäÊµÕâ¸ö´óÒ»µãÒ²Ã»¹ØÏµ, ÒòÎªÃ¿¸öÉèÖÃÏî¶¼Ö»»á´øÀ´Ò»¸öĞÂ¶ÔÏó, Íâ½ç»ñÈ¡µ½µÄÊ¼ÖÕÊÇÊµ¼ÊµÄ¶ÔÓ¦ÀàĞÍ
-		using StoreType = variant<uint8_t, uint16_t, uint32_t, uint64_t, float, double, wstring>;
+		// å…¶å®è¿™ä¸ªå¤§ä¸€ç‚¹ä¹Ÿæ²¡å…³ç³», å› ä¸ºæ¯ä¸ªè®¾ç½®é¡¹éƒ½åªä¼šå¸¦æ¥ä¸€ä¸ªæ–°å¯¹è±¡, å¤–ç•Œè·å–åˆ°çš„å§‹ç»ˆæ˜¯å®é™…çš„å¯¹åº”ç±»å‹
+		using StoreType = variant<uint8_t, uint16_t, uint32_t, uint64_t, float, double, u8string>;
 	private:
 		unordered_map<ID, StoreType> datas;
 
@@ -108,7 +109,7 @@ export namespace NylteJ
 		{
 			auto last = GenerateVariantSizeArray<depth - 1>();
 
-			// ·´ÕıÊÇ consteval, Ğ§ÂÊÀ­Ï¡Ò»µãÎŞËùÎ½
+			// åæ­£æ˜¯ consteval, æ•ˆç‡æ‹‰ç¨€ä¸€ç‚¹æ— æ‰€è°“
 			array<size_t, depth> ret;
 			for (size_t i = 0; i < last.size(); i++)
 				ret[i] = last[i];
@@ -123,8 +124,8 @@ export namespace NylteJ
 			return { sizeof(variant_alternative_t<0, StoreType>) };
 		}
 
-		// ºóĞøÉ¾µôÄ³Ğ© ID Ê±ÔÙÔÚÕâÀï¼Ó
-		// Ã»ÓĞ·´ÉäµÄÍ´
+		// åç»­åˆ æ‰æŸäº› ID æ—¶å†åœ¨è¿™é‡ŒåŠ 
+		// æ²¡æœ‰åå°„çš„ç—›
 		static constexpr array allValidID{ DefaultBehaviorWhenErrorEncoding,
 			AutoSavingDuration,
 			MaxUndoStep,MaxRedoStep,MaxMergeCharUndoRedo,
@@ -151,8 +152,8 @@ export namespace NylteJ
 				SET_DEFAULT_VALUE(MaxUndoStep, 1024)
 				SET_DEFAULT_VALUE(MaxRedoStep, 1024)
 				SET_DEFAULT_VALUE(MaxMergeCharUndoRedo, 16)
-				SET_DEFAULT_VALUE(AutoSaveFileExtension, L".autosave"s)
-				SET_DEFAULT_VALUE(NewFileAutoSaveName, L"__Unnamed_NewFile"s)
+				SET_DEFAULT_VALUE(AutoSaveFileExtension, u8".autosave"s)
+				SET_DEFAULT_VALUE(NewFileAutoSaveName, u8"__Unnamed_NewFile"s)
 				SET_DEFAULT_VALUE(CloseHistoryWindowAfterEnter, 0)
 				SET_DEFAULT_VALUE(SplitUndoStrWhenEnter, 1)
 				SET_DEFAULT_VALUE(NormalExitWhenDoubleEsc, 0)
@@ -215,7 +216,7 @@ export namespace NylteJ
 				input.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
 				input.read(reinterpret_cast<char*>(&id), sizeof(id));
 
-				if (input.eof())	// ±ØĞëÔÚ ¡°È«²¿¶ÁÍêºó¼ÌĞø¶Á¡± Ê±²Å»á´¥·¢ EOF, ËùÒÔÖ»ÄÜÔÚÕâÀï¶îÍâÅĞ¶ÏÒ»ÏÂ
+				if (input.eof())	// å¿…é¡»åœ¨ â€œå…¨éƒ¨è¯»å®Œåç»§ç»­è¯»â€ æ—¶æ‰ä¼šè§¦å‘ EOF, æ‰€ä»¥åªèƒ½åœ¨è¿™é‡Œé¢å¤–åˆ¤æ–­ä¸€ä¸‹
 					return;
 
 				if(IsValidID(id))
@@ -238,9 +239,9 @@ export namespace NylteJ
 				SizeDataType dataSize = VariantSize(id);
 				const char* dataPtr = reinterpret_cast<const char*>(&data);
 
-				if (auto ptr = get_if<wstring>(&data);ptr != nullptr)
+				if (auto ptr = get_if<u8string>(&data);ptr != nullptr)
 				{
-					dataSize = static_cast<SizeDataType>(ptr->size() * sizeof(wstring::value_type));
+					dataSize = static_cast<SizeDataType>(ptr->size() * sizeof(char8_t));
 					dataPtr = reinterpret_cast<const char*>(ptr->data());
 				}
 
@@ -254,7 +255,10 @@ export namespace NylteJ
 
 		void SaveToFile()
 		{
-			settingsFile.Write(ToBytes());
+			auto byteStr = ToBytes();
+			auto bytes = span{ reinterpret_cast<const byte*>(byteStr.data()), byteStr.size() * sizeof(char) };
+
+			settingsFile.Write(bytes);
 		}
 		void LoadFromFile()
 		{

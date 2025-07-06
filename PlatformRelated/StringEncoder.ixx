@@ -1,7 +1,7 @@
 // StringEncoder.ixx
-// ×îÏ²»¶ C++ ĞÂ±ê×¼µÄÒ»ÆÚ
-// C++17 ÆúÓÃÁË std ÀïµÄ×Ö·û´®×ª»»¹¦ÄÜ, µ«Ìæ´ú·½°¸ÓÖÖÁÉÙÒªµÈµ½ C++26 ²ÅÓĞ, ±¯°§µÄÊÇ MSVC Ä¿Ç°»¹Ã»Ö§³Ö, ËùÒÔÖ»ÄÜÓÃÆ½Ì¨Ïà¹ØµÄ·½°¸ÁË
-// ÒòÎªÕâ¸öÊµÏÖ·½Ê½ÊµÔÚÊÇ²»ÓÅÑÅ, ËùÒÔÎÒÒ²¾Í°´²»ÓÅÑÅµØĞ´ÁË
+// æœ€å–œæ¬¢ C++ æ–°æ ‡å‡†çš„ä¸€æœŸ
+// C++17 å¼ƒç”¨äº† std é‡Œçš„å­—ç¬¦ä¸²è½¬æ¢åŠŸèƒ½, ä½†æ›¿ä»£æ–¹æ¡ˆåˆè‡³å°‘è¦ç­‰åˆ° C++26 æ‰æœ‰, æ‚²å“€çš„æ˜¯ MSVC ç›®å‰è¿˜æ²¡æ”¯æŒ, æ‰€ä»¥åªèƒ½ç”¨å¹³å°ç›¸å…³çš„æ–¹æ¡ˆäº†
+// å› ä¸ºè¿™ä¸ªå®ç°æ–¹å¼å®åœ¨æ˜¯ä¸ä¼˜é›…, æ‰€ä»¥æˆ‘ä¹Ÿå°±æŒ‰ä¸ä¼˜é›…åœ°å†™äº†
 module;
 #ifdef _WIN32
 #include <Windows.h>
@@ -15,6 +15,11 @@ import std;
 import Exceptions;
 
 using namespace std;
+
+#pragma push_macro("max")
+#pragma push_macro("min")
+#undef max
+#undef min
 
 export namespace NylteJ
 {
@@ -58,68 +63,74 @@ export namespace NylteJ
 		}
 	}
 
-	wstring StrToWStr(string_view str, Encoding encoding = Encoding::UTF8, bool force = false)
+	wstring U8StrToWStr(u8string_view str, bool force = false)
 	{
 		wstring ret;
 
-		auto encodingUINT = GetEncoding(encoding);
+		constexpr auto encodingUINT = CP_UTF8;
 
 		auto flag = force ? NULL : MB_ERR_INVALID_CHARS;
 
+		if (!in_range<int>(str.size()))
+			throw Exception{ u8"å­—ç¬¦ä¸²è¿‡é•¿!"s };	// å¤§çº¦ 2 GB, è²Œä¼¼è¿˜æŒºå¯èƒ½è¾¾åˆ°çš„
+		const int sizeInt = static_cast<int>(str.size());
+
 		size_t retSize = MultiByteToWideChar(encodingUINT,
-			flag,
-			reinterpret_cast<LPCCH>(str.data()),
-			str.size(),
-			nullptr,
-			0);
+											 flag,
+											 reinterpret_cast<LPCCH>(str.data()),
+											 sizeInt,
+											 nullptr,
+											 0);
 
 		ret.resize(retSize);
 
 		bool success = MultiByteToWideChar(encodingUINT,
-			flag,
-			reinterpret_cast<LPCCH>(str.data()),
-			str.size(),
-			ret.data(),
-			retSize);
+										   flag,
+										   reinterpret_cast<LPCCH>(str.data()),
+										   sizeInt,
+										   ret.data(),
+										   retSize);
 
 		if (!success && GetLastError() == ERROR_NO_UNICODE_TRANSLATION)
-			throw WrongEncodingException{ L"´íÎóµÄÎÄ¼ş±àÂë!"s };
+			throw WrongEncodingException{ u8"é”™è¯¯çš„æ–‡ä»¶ç¼–ç !"s };
 
 		return ret;
 	}
-	string WStrToStr(wstring_view str, Encoding encoding = Encoding::UTF8)
-	{
-		string ret;
 
-		auto encodingUINT = GetEncoding(encoding);
+	u8string WStrToU8Str(wstring_view str, bool force = false)
+	{
+		u8string ret;
+
+		constexpr auto encodingUINT = CP_UTF8;
 
 		auto flag = WC_ERR_INVALID_CHARS;
 
-		if (encoding == Encoding::GB2312)	// ²»È»»á±¨ ERROR_INVALID_FLAGS
-			flag = NULL;
+		if (!in_range<int>(str.size()))
+			throw Exception{ u8"å­—ç¬¦ä¸²è¿‡é•¿!"s };	// å¤§çº¦ 2 GB, è²Œä¼¼è¿˜æŒºå¯èƒ½è¾¾åˆ°çš„
+		const int sizeInt = static_cast<int>(str.size());
 
 		size_t retSize = WideCharToMultiByte(encodingUINT,
-			flag,
-			str.data(),
-			str.size(),
-			nullptr,
-			0,
-			nullptr,
-			NULL);
+											 flag,
+											 str.data(),
+											 sizeInt,
+											 nullptr,
+											 0,
+											 nullptr,
+											 NULL);
 
 		ret.resize(retSize);
 
 		bool success = WideCharToMultiByte(encodingUINT,
-			flag,
-			str.data(),
-			str.size(),
-			reinterpret_cast<LPSTR>(ret.data()),
-			ret.size(),
-			nullptr,
-			NULL);
+										   flag,
+										   str.data(),
+										   sizeInt,
+										   reinterpret_cast<LPSTR>(ret.data()),
+										   ret.size(),
+										   nullptr,
+										   NULL);
 
 		if (!success && GetLastError() == ERROR_NO_UNICODE_TRANSLATION)
-			throw WrongEncodingException{ L"´íÎóµÄÎÄ¼ş±àÂë!"s };
+			throw WrongEncodingException{ u8"é”™è¯¯çš„æ–‡ä»¶ç¼–ç !"s };
 
 		return ret;
 	}

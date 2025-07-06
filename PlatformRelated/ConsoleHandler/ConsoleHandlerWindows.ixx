@@ -1,7 +1,8 @@
 // ConsoleHandlerWindows.ixx
-// Windows ÏÂµÄ¾ßÌå¿ØÖÆÌ¨ÎÄ±¾²Ù×÷ÊµÏÖ
-// Ò»¿ªÊ¼ÊÇÏëÓÃĞéÄâÖÕ¶ËĞòÁĞÊµÏÖµÄ£¬µ«¿¼ÂÇµ½¼æÈİĞÔ£¨Win10 ÒÔÏÂµÄÏµÍ³£¬ÒÔ¼°´«Í³ conhost ÔØÌå£©£¬×îÖÕ»¹ÊÇÊ¹ÓÃÁË´«Í³·½°¸
+// Windows ä¸‹çš„å…·ä½“æ§åˆ¶å°æ–‡æœ¬æ“ä½œå®ç°
+// ä¸€å¼€å§‹æ˜¯æƒ³ç”¨è™šæ‹Ÿç»ˆç«¯åºåˆ—å®ç°çš„ï¼Œä½†è€ƒè™‘åˆ°å…¼å®¹æ€§ï¼ˆWin10 ä»¥ä¸‹çš„ç³»ç»Ÿï¼Œä»¥åŠä¼ ç»Ÿ conhost è½½ä½“ï¼‰ï¼Œæœ€ç»ˆè¿˜æ˜¯ä½¿ç”¨äº†ä¼ ç»Ÿæ–¹æ¡ˆ
 module;
+#include <unicode/utf16.h>
 #include <Windows.h>
 export module ConsoleHandlerWindows;
 
@@ -10,6 +11,8 @@ import std;
 import ConsoleTypedef;
 import BasicColors;
 import InputHandler;
+import String;
+import StringEncoder;
 
 using namespace std;
 
@@ -23,13 +26,13 @@ export namespace NylteJ
 			Insert = (ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS)
 			| ((0) << 16),
 			Default = (ENABLE_ECHO_INPUT | ENABLE_INSERT_MODE | ENABLE_LINE_INPUT | ENABLE_MOUSE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_QUICK_EDIT_MODE)
-			| ((ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT) << 16)		// TODO: °ÑÕâÒ»Ïî¸ÄÎªÕæÕıµÄ ¡°Ä¬ÈÏ¡± Ñ¡Ïî (±ÈÈç¸Ä³ÉÔÚ³ÌĞòÆô¶¯Ê±µÄ¿ØÖÆÌ¨Ä£Ê½)
+			| ((ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT) << 16)		// TODO: æŠŠè¿™ä¸€é¡¹æ”¹ä¸ºçœŸæ­£çš„ â€œé»˜è®¤â€ é€‰é¡¹ (æ¯”å¦‚æ”¹æˆåœ¨ç¨‹åºå¯åŠ¨æ—¶çš„æ§åˆ¶å°æ¨¡å¼)
 		};
 	private:
 		HANDLE consoleOutputHandle;
 		HANDLE consoleInputHandle;
 	private:
-		// ÌØÊâÔ¼¶¨£ºRGB ·ÖÁ¿¶¼Îª -1 Ê±´ú±í±£³Ö²»±ä, ¶¼Îª -2 Ê±´ú±í·´É«, ¾ßÌåµÄĞ´ÔÚ BasicColors.ixx ÀïÁË
+		// ç‰¹æ®Šçº¦å®šï¼šRGB åˆ†é‡éƒ½ä¸º -1 æ—¶ä»£è¡¨ä¿æŒä¸å˜, éƒ½ä¸º -2 æ—¶ä»£è¡¨åè‰², å…·ä½“çš„å†™åœ¨ BasicColors.ixx é‡Œäº†
 		WORD ColorConvert(ConsoleColor color, WORD originalAttributes, WORD red, WORD green, WORD blue, WORD intensity) const
 		{
 			if (color == BasicColors::stayOldColor)
@@ -87,17 +90,23 @@ export namespace NylteJ
 			SetConsoleCursorPosition(consoleOutputHandle, { .X = static_cast<SHORT>(pos.x),.Y = static_cast<SHORT>(pos.y) });
 		}
 
-		// ¸´ÖÆÕ³ÌùÁìÓò´óÉñ
-		void Print(wstring_view text) const
+		// å¤åˆ¶ç²˜è´´é¢†åŸŸå¤§ç¥
+		void Print(StringView text) const
 		{
-			WriteConsoleW(consoleOutputHandle, text.data(), text.size(), nullptr, nullptr);
+			const auto wText = U8StrToWStr(text.ToUTF8(), true);
+
+			WriteConsoleW(consoleOutputHandle,
+						  wText.data(),
+						  wText.size(),
+						  nullptr,
+						  nullptr);
 		}
-		void Print(wstring_view text, ConsolePosition pos) const
+		void Print(StringView text, ConsolePosition pos) const
 		{
 			SetCursorTo(pos);
 			Print(text);
 		}
-		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -110,7 +119,7 @@ export namespace NylteJ
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
 		}
-		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -123,7 +132,7 @@ export namespace NylteJ
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
 		}
-		void Print(wstring_view text, ConsoleColor textColor) const
+		void Print(StringView text, ConsoleColor textColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -136,7 +145,7 @@ export namespace NylteJ
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
 		}
-		void Print(wstring_view text, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
 			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
 
@@ -144,7 +153,7 @@ export namespace NylteJ
 
 			auto originalAttributes = consoleBufferInfo.wAttributes;
 
-			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgrondColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
+			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgroundColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
 			Print(text, textColor);
 
 			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
@@ -180,18 +189,20 @@ export namespace NylteJ
 
 		[[noreturn]] void MonitorInput(InputHandler& inputHandler)
 		{
-#pragma push_macro("SendMessage")	// °¦, ºê¶¨Òå
+#pragma push_macro("SendMessage")	// å”‰, å®å®šä¹‰
 #undef SendMessage
 
 			constexpr size_t bufferSize = 32;
 
-			array<INPUT_RECORD, bufferSize> inputBuffer;	// ÕâÀï°Ñ buffer µ÷´óÖ÷ÒªÊÇ´¦Àí¹öÂÖÓÃµÄ, ÆäËüÊ±ºò (°üÀ¨Á³¹ö¼üÅÌµÄÊ±ºò) inputNum ¼¸ºõ×ÜÊÇ 1
+			array<INPUT_RECORD, bufferSize> inputBuffer;	// è¿™é‡ŒæŠŠ buffer è°ƒå¤§ä¸»è¦æ˜¯å¤„ç†æ»šè½®ç”¨çš„, å…¶å®ƒæ—¶å€™ (åŒ…æ‹¬è„¸æ»šé”®ç›˜çš„æ—¶å€™) inputNum å‡ ä¹æ€»æ˜¯ 1
 			DWORD inputNum;
 
 			array<variant<	InputHandler::MessageKeyboard,
 							InputHandler::MessageMouse,
-							InputHandler::MessageWindowSizeChanged>, bufferSize * 5> messageBuffer;		// *5 ÊÇÒòÎª keyboardMessage »áÓĞÖØ¸´, ÖÁ¶à 5 ´Î
+							InputHandler::MessageWindowSizeChanged>, bufferSize * 5> messageBuffer;		// *5 æ˜¯å› ä¸º keyboardMessage ä¼šæœ‰é‡å¤, è‡³å¤š 5 æ¬¡
 			size_t messageCount = 0;
+
+			wchar_t leadChar = 0;	// UTF-16 ç¼–ç çš„å­—ç¬¦å¯èƒ½ä¼šåˆ†ä¸¤æ¬¡è¾“å…¥, æ­¤æ—¶å…¶å­˜å‚¨å‰åŠæ®µ
 
 			while (true)
 			{
@@ -215,7 +226,19 @@ export namespace NylteJ
 
 							message.extraKeys.RawData() = input.Event.KeyEvent.dwControlKeyState;
 
-							message.inputChar = input.Event.KeyEvent.uChar.UnicodeChar;
+							if (UTF16_IS_SINGLE(input.Event.KeyEvent.uChar.UnicodeChar))
+								message.inputChar = input.Event.KeyEvent.uChar.UnicodeChar;
+							else
+								if (leadChar == 0)
+								{
+									leadChar = input.Event.KeyEvent.uChar.UnicodeChar;
+									break;	// ä¸å‘é€è¯¥ä¿¡æ¯
+								}
+								else
+								{
+									message.inputChar = U16_GET_SUPPLEMENTARY(leadChar, input.Event.KeyEvent.uChar.UnicodeChar);
+									leadChar = 0;
+								}
 
 							while (input.Event.KeyEvent.wRepeatCount > 0)
 							{
@@ -284,7 +307,7 @@ export namespace NylteJ
 
 				messageCount = 0;
 
-				//WaitForSingleObject(consoleInputHandle, INFINITE);	// ÓÃ²»×ÅµÈ´ı, ReadConsoleInput ÔÚ¶Áµ½×ã¹»µÄÊı¾İÇ°²»»á·µ»Ø
+				//WaitForSingleObject(consoleInputHandle, INFINITE);	// ç”¨ä¸ç€ç­‰å¾…, ReadConsoleInput åœ¨è¯»åˆ°è¶³å¤Ÿçš„æ•°æ®å‰ä¸ä¼šè¿”å›
 
 #pragma pop_macro("SendMessage")
 			}
@@ -299,8 +322,11 @@ export namespace NylteJ
 			:consoleOutputHandle(GetStdHandle(STD_OUTPUT_HANDLE)),
 			consoleInputHandle(GetStdHandle(STD_INPUT_HANDLE))
 		{
-			if (consoleOutputHandle == INVALID_HANDLE_VALUE || consoleInputHandle == INVALID_HANDLE_VALUE)
-				throw runtime_error(format("Failed to get console handle! Error code: {}.", GetLastError()));
+            if (consoleOutputHandle == INVALID_HANDLE_VALUE || consoleInputHandle == INVALID_HANDLE_VALUE)
+                throw runtime_error(format("Failed to get console handle! Error code: {}.", GetLastError()));
+
+			SetConsoleOutputCP(CP_UTF8);
+			SetConsoleCP(CP_UTF8);
 		}
 	};
 }

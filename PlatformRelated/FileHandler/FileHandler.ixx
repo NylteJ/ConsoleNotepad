@@ -1,6 +1,6 @@
 // FileHandler.ixx
-// Óë ConsoleHandler ÀàËÆ, ¿çÆ½Ì¨µÄ½Ó¿Ú·â×°, ·â×°¾¡¿ÉÄÜ¿ìËÙµÄÎÄ¼ş I/O
-// Óë ConsoleHandler ²»Ì«Ò»ÑùµÄÊÇ»áÓĞ¸ü¶àµÄÊµ¼ÊÂß¼­
+// ä¸ ConsoleHandler ç±»ä¼¼, è·¨å¹³å°çš„æ¥å£å°è£…, å°è£…å°½å¯èƒ½å¿«é€Ÿçš„æ–‡ä»¶ I/O
+// ä¸ ConsoleHandler ä¸å¤ªä¸€æ ·çš„æ˜¯ä¼šæœ‰æ›´å¤šçš„å®é™…é€»è¾‘
 export module FileHandler;
 
 import std;
@@ -11,6 +11,7 @@ static_assert(false, "Not implemented yet");
 #endif
 
 import StringEncoder;
+import String;
 
 using namespace std;
 
@@ -48,11 +49,11 @@ export namespace NylteJ
 			nowFilePath = filePath;
 		}
 
-		wstring ReadAll(bool force = false) const
+		String ReadAll(bool force = false) const
 		{
 			return reader.ReadAll(nowEncoding, force);
 		}
-		wstring ReadAll(Encoding encoding)
+		String ReadAll(Encoding encoding)
 		{
 			if (encoding != Encoding::FORCE)
 				nowEncoding = encoding;
@@ -70,20 +71,20 @@ export namespace NylteJ
 			reader.CloseFile();
 
 			if (isTempFile)
-				filesystem::remove(nowFilePath);	// ²»´æÔÚÒ²Ã»ÊÂ, ²»»á±¨´íµÄ
+				filesystem::remove(nowFilePath);	// ä¸å­˜åœ¨ä¹Ÿæ²¡äº‹, ä¸ä¼šæŠ¥é”™çš„
 
 			nowFilePath.clear();
 		}
 
-		void Write(string_view bytes)
+		void Write(span<const std::byte> binary)
 		{
-			reader.Write(bytes);
+            reader.Write(binary);
 		}
-		void Write(wstring_view data)
+		void Write(StringView data)
 		{
 			reader.Write(data, nowEncoding);
 		}
-		void Write(wstring_view data, Encoding encoding)
+		void Write(StringView data, Encoding encoding)
 		{
 			if (encoding != Encoding::FORCE)
 				nowEncoding = encoding;

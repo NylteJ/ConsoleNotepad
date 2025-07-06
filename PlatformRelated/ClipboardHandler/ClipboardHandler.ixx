@@ -1,8 +1,10 @@
 // ClipboardHandler.ixx
-// ¿çÆ½Ì¨µÄ¼ôÇĞ°å²Ù×÷½Ó¿Ú
+// è·¨å¹³å°çš„å‰ªåˆ‡æ¿æ“ä½œæ¥å£
 export module ClipboardHandler;
 
 import std;
+
+import String;
 
 #ifdef _WIN32
 import ClipboardHandlerWindows;
@@ -23,12 +25,12 @@ export namespace NylteJ
 		ClipboardHandlerWindows handler;
 #endif
 	public:
-		void Write(wstring_view source)
+		void Write(StringView source)
 		{
-			handler.Write(source);
+            handler.Write(source);
 		}
 
-		wstring Read()
+		String Read()
 		{
 			return handler.Read();
 		}

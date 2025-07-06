@@ -1,8 +1,8 @@
 // Formatter.ixx
-// ÓÃÓÚÔ­Ê¼×Ö·û´®µÄ¸ñÊ½»¯ÓëË«Ïò¶¨Î»
-// ¼òµ¥À´Ëµ, ¾ÍÊÇ¸ºÔğ½«ÎÄ¼şÀï¶ÁµÄ×Ö·û´®ºÍÆÁÄ»ÉÏÏÔÊ¾µÄÎ»ÖÃÒ»Ò»¶ÔÓ¦µÄ¹¤¾ß, Ëõ½øµÄÏÔÊ¾·½Ê½¡¢×Ô¶¯»»ĞĞµÈ¶¼ÊÇ¾İ´ËÊµÏÖµÄ
-// ÎÒÕæµÄºÜÅ¬Á¦µØÖØ¹¹¹ıÁË, µ«ÊÇ³ıÁËÀË·ÑÁËÎÒºÃ¼¸ÌìÊ±¼äÖ®ÍâÒ»ÎŞËù»ñ
-// ËùÒÔ»¹ÊÇÓä¿ìµØÔÚÊºÉ½ÉÏÀ­Êº°É
+// ç”¨äºåŸå§‹å­—ç¬¦ä¸²çš„æ ¼å¼åŒ–ä¸åŒå‘å®šä½
+// ç®€å•æ¥è¯´, å°±æ˜¯è´Ÿè´£å°†æ–‡ä»¶é‡Œè¯»çš„å­—ç¬¦ä¸²å’Œå±å¹•ä¸Šæ˜¾ç¤ºçš„ä½ç½®ä¸€ä¸€å¯¹åº”çš„å·¥å…·, ç¼©è¿›çš„æ˜¾ç¤ºæ–¹å¼ã€è‡ªåŠ¨æ¢è¡Œç­‰éƒ½æ˜¯æ®æ­¤å®ç°çš„
+// æˆ‘çœŸçš„å¾ˆåŠªåŠ›åœ°é‡æ„è¿‡äº†, ä½†æ˜¯é™¤äº†æµªè´¹äº†æˆ‘å¥½å‡ å¤©æ—¶é—´ä¹‹å¤–ä¸€æ— æ‰€è·
+// æ‰€ä»¥è¿˜æ˜¯æ„‰å¿«åœ°åœ¨å±å±±ä¸Šæ‹‰å±å§
 export module Formatter;
 
 import std;
@@ -10,12 +10,14 @@ import std;
 import ConsoleTypedef;
 import Utils;
 import SettingMap;
+import String;
+import StringEncoder;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	// Ò»¸öÔÚÕâÀï·Ç³£ÓĞÓÃµÄ Tip: FormattedString[y][x] ¶ÔÓ¦ (x, y) ×Ö·û, ²¢ÇÒ (x, y) ¹â±êÎ»ÖÃÎ»ÓÚÕâ¸ö×Ö·ûÇ°Ãæ
+	// ä¸€ä¸ªåœ¨è¿™é‡Œéå¸¸æœ‰ç”¨çš„ Tip: FormattedString[y][x] å¯¹åº” (x, y) å­—ç¬¦, å¹¶ä¸” (x, y) å…‰æ ‡ä½ç½®ä½äºè¿™ä¸ªå­—ç¬¦å‰é¢
 	class FormattedString
 	{
 	public:
@@ -23,42 +25,48 @@ export namespace NylteJ
 		{
 		public:
 			size_t indexInRaw;
-			wstring lineData;
+			String lineData;
 			size_t lineIndex;
 		public:
 			size_t DisplaySize() const
 			{
-				auto doubleLengthCount = ranges::count_if(lineData, IsWideChar);
+				size_t ret = 0;
 
-				return doubleLengthCount + lineData.size();
+				for (auto&& codepoint : lineData)
+					if (IsWideChar(codepoint))
+						ret += 2;
+					else
+						ret++;
+
+				return ret;
 			}
 
-			auto& operator[](size_t index)
-			{
-				return lineData[index];
-			}
-			const auto& operator[](size_t index) const
-			{
-				return lineData[index];
-			}
+			//auto& operator[](size_t index)
+			//{
+			//	return lineData[index];
+			//}
+			//const auto& operator[](size_t index) const
+			//{
+			//	return lineData[index];
+			//}
 
-			operator wstring_view() const
+			operator StringView() const
 			{
 				return lineData;
 			}
-			operator wstring() const
+			operator String() const
 			{
 				return lineData;
 			}
 
-			Line(size_t indexInRaw, const wstring& lineData, size_t lineIndex)
+			Line(size_t indexInRaw, const String& lineData, size_t lineIndex)
 				:indexInRaw(indexInRaw), lineData(lineData), lineIndex(lineIndex)
 			{
 			}
 		};
 	public:
 		vector<Line> datas;
-		wstring_view rawStr;	// Îñ±Ø×¢Òâ, Ô­×Ö·û´®·¢ÉúÀ©Èİ/Îö¹¹µÈÇé¿öÊ±, ¸Ã»º´æ¼´¿ÌÊ§Ğ§
+		StringView rawStr;	// åŠ¡å¿…æ³¨æ„, åŸå­—ç¬¦ä¸²å‘ç”Ÿæ‰©å®¹/ææ„ç­‰æƒ…å†µæ—¶, è¯¥ç¼“å­˜å³åˆ»å¤±æ•ˆ
 		size_t beginX = 0;
 	public:
 		Line& operator[](size_t index)
@@ -70,36 +78,36 @@ export namespace NylteJ
 			return datas[index];
 		}
 
-		auto& operator[](ConsolePosition index)
-		{
-			return datas[index.y][index.x];
-		}
-		const auto& operator[](ConsolePosition index) const
-		{
-			return datas[index.y][index.x];
-		}
+		//auto& operator[](ConsolePosition index)
+		//{
+		//	return datas[index.y][index.x];
+		//}
+		//const auto& operator[](ConsolePosition index) const
+		//{
+		//	return datas[index.y][index.x];
+		//}
 	};
 
 	class FormatterBase
 	{
 	public:
-		virtual size_t GetDisplaySize(wstring_view str) const = 0;
-		virtual size_t GetRawDisplaySize(wstring_view str) const = 0;
+		virtual size_t GetDisplaySize(StringView str) const = 0;
+		virtual size_t GetRawDisplaySize(StringView str) const = 0;
 
-		virtual FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex) = 0;
+		virtual FormattedString Format(StringView rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex) = 0;
 
 		virtual size_t GetRawIndex(const FormattedString& formattedStr, ConsolePosition pos) const = 0;
 
-		virtual size_t GetFormattedIndex(wstring_view formattedStr, ConsolePosition pos) const = 0;
+		virtual size_t GetFormattedIndex(StringView formattedStr, ConsolePosition pos) const = 0;
 
 		virtual ConsolePosition GetFormattedPos(const FormattedString& formattedStr, size_t index) const = 0;
 
 		virtual ConsolePosition RestrictPos(const FormattedString& formattedStr, ConsolePosition pos, Direction direction, bool allowFlow = false) const = 0;
 
-		virtual size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const = 0;
-		virtual size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const = 0;
+		virtual size_t SearchLineBeginIndex(StringView rawStr, size_t index) const = 0;
+		virtual size_t SearchLineEndIndex(StringView rawStr, size_t index) const = 0;
 
-		virtual size_t GetLineIndex(wstring_view rawStr, size_t index) const = 0;
+		virtual size_t GetLineIndex(StringView rawStr, size_t index) const = 0;
 
 		virtual ~FormatterBase() = default;
 	};
@@ -116,11 +124,19 @@ export namespace NylteJ
 			return 1;
 		}
 	public:
-		size_t GetDisplaySize(wstring_view str) const
+		size_t GetDisplaySize(StringView str) const
 		{
-			return str.size() + ranges::count_if(str, IsWideChar);
+			size_t ret = 0;
+
+			for (auto&& codepoint : str)
+				if (IsWideChar(codepoint))
+					ret += 2;
+				else
+					ret++;
+
+			return ret;
 		}
-		size_t GetRawDisplaySize(wstring_view str) const
+		size_t GetRawDisplaySize(StringView str) const
 		{
 			size_t nowSize = 0;
 
@@ -137,22 +153,22 @@ export namespace NylteJ
 			return nowSize;
 		}
 
-		// Ã»ÓÅ»¯ (Ö¸ËùÓĞµØ·½¶¼ÏÖ³¡ÖØĞÂËã formattedString, ÍêÈ«²»»º´æ), ×ÜÖ®ÏÈÅÜÆğÀ´ÔÙËµ
-		// ÉñÆæµÄÊÇ, ²âÊÔÁËÒ»ÏÂ, ¾ÓÈ»²»»áÓĞÊ²Ã´ĞÔÄÜÆ¿¾±, Ö»ÔÚÒ»ĞĞ·Ç³£·Ç³£³¤ (KB ¼¶) µÄÊ±ºò²Å»áÓĞÃ÷ÏÔ¿¨¶Ù
-		// Ò²¾ÍÊÇËµ¿ÉÒÔ¼ÌĞø²»ÓÅ»¯, COOOOOOOL!
-		FormattedString Format(wstring_view rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex)
+		// æ²¡ä¼˜åŒ– (æŒ‡æ‰€æœ‰åœ°æ–¹éƒ½ç°åœºé‡æ–°ç®— formattedString, å®Œå…¨ä¸ç¼“å­˜), æ€»ä¹‹å…ˆè·‘èµ·æ¥å†è¯´
+		// ç¥å¥‡çš„æ˜¯, æµ‹è¯•äº†ä¸€ä¸‹, å±…ç„¶ä¸ä¼šæœ‰ä»€ä¹ˆæ€§èƒ½ç“¶é¢ˆ, åªåœ¨ä¸€è¡Œéå¸¸éå¸¸é•¿ (KB çº§) çš„æ—¶å€™æ‰ä¼šæœ‰æ˜æ˜¾å¡é¡¿
+		// ä¹Ÿå°±æ˜¯è¯´å¯ä»¥ç»§ç»­ä¸ä¼˜åŒ–, COOOOOOOL!
+		FormattedString Format(StringView rawStrView, size_t maxWidth, size_t maxHeight, size_t beginX, size_t beginLineIndex)
 		{
 			FormattedString ret;
 
 			auto lineBeginIter = rawStrView.begin();
-			auto lineEndIter = find(rawStrView.begin(), rawStrView.end(), '\n');
+			auto lineEndIter = find(rawStrView.begin(), rawStrView.end(), u8'\n');
 
 			while (true)
 			{
-				ret.datas.emplace_back(lineBeginIter - rawStrView.begin(), wstring{ lineBeginIter,lineEndIter }, beginLineIndex);
+				ret.datas.emplace_back(rawStrView.GetByteIndex(lineBeginIter), String{ lineBeginIter,lineEndIter }, beginLineIndex);
 				beginLineIndex++;
 
-				if (lineEndIter != rawStrView.begin() && *(lineEndIter - 1) == '\r')
+				if (lineEndIter != rawStrView.begin() && *prev(lineEndIter) == '\r')
 					ret.datas.back().lineData.pop_back();
 
 				if (ret.datas.size() >= maxHeight)
@@ -161,75 +177,92 @@ export namespace NylteJ
 				if (lineEndIter == rawStrView.end())
 					break;
 
-				lineBeginIter = lineEndIter + 1;
-				lineEndIter = find(lineEndIter + 1, rawStrView.end(), '\n');
+				lineBeginIter = next(lineEndIter);
+				lineEndIter = find(next(lineEndIter), rawStrView.end(), u8'\n');
 			}
 
 			{
-				const atomic tabWidth = GetTabWidth();
-				const atomic beginXAtomic = beginX;
-				const atomic maxWidthAtomic = maxWidth;
+				const auto tabWidth = GetTabWidth();
 
-				// ¶àÉÙ»¹ÊÇ¼ÓÁË¸ö²¢ĞĞ, Ò²ËãÓÅ»¯°É
+				// å¤šå°‘è¿˜æ˜¯åŠ äº†ä¸ªå¹¶è¡Œ, ä¹Ÿç®—ä¼˜åŒ–å§
 				for_each(execution::par, ret.datas.begin(), ret.datas.end(),
-					[&tabWidth, &beginXAtomic, &maxWidthAtomic](auto&& line)
+					[&tabWidth, &beginX, &maxWidth](FormattedString::Line& line)
 					{
 						auto&& str = line.lineData;
 
-						size_t beginIndex = -1;
+						size_t nowWidth = 0;
+						bool nowInvisible = beginX > 0;	// å½“å‰æ˜¯å¦æ­£åœ¨æ ¼å¼åŒ–å±å¹•å·¦ä¾§çš„ä¸å¯è§éƒ¨åˆ†(è¿™éƒ¨åˆ†å®½åº¦æ€»æ˜¯ beginX)
 
-						size_t doubleLengthCharCount = 0, beforeBeginDoubleLenCharCount = 0;	// beforeBeginDoubleLenCharCount ½öÓÃÓÚ¶ÔÆë Tab
-						size_t nowIndex = 0;
-						for (; nowIndex < str.size();)
+						size_t nowByteIndex = 0;
+						size_t visibleBeginIndex = 0;
+						for (; nowByteIndex < str.ByteSize(); nowByteIndex = str.GetByteIndex(next(str.AtByteIndex(nowByteIndex))))
 						{
-							if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginXAtomic)
+							if (nowInvisible && nowWidth >= beginX)
 							{
-								beginIndex = nowIndex;
-								if (nowIndex + doubleLengthCharCount > beginXAtomic)	// Ä¿Ç°Ö»¿ÉÄÜÊÇºº×Ö±»½Ø¶ÏÁËÒ»°ë
+								// ä¸­è‹±æ–‡æ··æ’æ—¶å¯èƒ½å‡ºç°æˆªæ–­(beginX æ°å¥½ä½äºæ±‰å­—ä¸­é—´)
+								// æ­¤æ—¶è¦æŠŠè¿™ä¸ªæˆªæ–­çš„æ±‰å­—æ¢æˆç©ºæ ¼(ç»ˆç«¯åšä¸åˆ°æ˜¾ç¤ºåŠä¸ªæ±‰å­—)
+								if (nowWidth > beginX)
 								{
-									str.replace_with_range(str.begin() + nowIndex - 1, str.begin() + nowIndex, L"  "sv);
-									doubleLengthCharCount--;
-								}
-								beforeBeginDoubleLenCharCount = doubleLengthCharCount;
-								doubleLengthCharCount = 0;
-							}
+									// å› ä¸ºæˆ‘ä»¬é€å­—ç¬¦æ‰«æ, è·³è¿‡ç­‰äºç›´æ¥å¤§äºå°±æ„å‘³ç€å®½å­—ç¬¦
+									const auto prevIter = prev(str.AtByteIndex(nowByteIndex));
+									const auto prevIndex = str.GetByteIndex(prevIter);
 
-							if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidthAtomic + beginIndex)
+									str.replace_with_range(prevIter,
+														   next(prevIter),
+														   u8"  ");
+
+									// ä¹‹åè¿­ä»£å™¨å¤±æ•ˆ, åŠ ä¸Šå®½åº¦æˆªæ–­é—®é¢˜, éœ€æ‰‹åŠ¨è°ƒæ•´ (æœ‰ç‚¹è¯¡å¼‚)
+									if (nowWidth - beginX != 1)
+										unreachable();
+
+									nowByteIndex = str.GetByteIndex(next(str.AtByteIndex(prevIndex), 2));
+								}
+
+								nowInvisible = false;
+								nowWidth = 0;
+								visibleBeginIndex = nowByteIndex;
+							}
+							if (!nowInvisible && nowWidth >= maxWidth)
 								break;
 
-							if (str[nowIndex] == '\t')
+							const auto currentIter = str.AtByteIndex(nowByteIndex);
+
+							if (*currentIter == '\t')
 							{
-								str.replace_with_range(str.begin() + nowIndex, str.begin() + nowIndex + 1,
-									views::repeat(L' ', tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth));
+								const auto fullWidth = nowWidth + (nowInvisible ? 0 : beginX);
+								const auto spaceWidth = (fullWidth / tabWidth + 1) * tabWidth - fullWidth;
 
-								nowIndex += tabWidth - (nowIndex + doubleLengthCharCount + beforeBeginDoubleLenCharCount) % tabWidth;
+								str.replace_with_range(currentIter,
+													   next(currentIter),
+													   String(u8' ', spaceWidth));
 
-								if (beginIndex == -1 && nowIndex + doubleLengthCharCount >= beginXAtomic)
-								{
-									beginIndex = beginXAtomic - doubleLengthCharCount;
-									beforeBeginDoubleLenCharCount = doubleLengthCharCount;
-									doubleLengthCharCount = 0;
-								}
-								if (beginIndex != -1 && nowIndex + doubleLengthCharCount >= maxWidthAtomic + beginIndex)
-								{
-									nowIndex = maxWidthAtomic + beginIndex - doubleLengthCharCount;
-									break;
-								}
+								nowWidth++;	// è¿™é‡ŒåŠ çš„å®é™…ä¸Šæ˜¯åŸ '\t' å¤„ç©ºæ ¼çš„å®½åº¦, åé¢å¤šå¡«å……çš„ç©ºæ ¼ç•™ç»™åé¢å‡ æ¬¡å¾ªç¯æ…¢æ…¢åŠ 
 							}
+							else if (IsWideChar(*currentIter))
+								nowWidth += 2;
 							else
-								nowIndex++;
-
-							if (IsWideChar(str[nowIndex - 1]))
-								doubleLengthCharCount++;
+								nowWidth++;
 						}
 
-						if (nowIndex + doubleLengthCharCount > maxWidthAtomic + beginIndex)
-							nowIndex--;
+						// (è§ä¸Š) å¤„ç†æœ«å°¾å®½å­—ç¬¦è¢«æˆªæ–­çš„æƒ…å†µ
+						// ä¸å†™åœ¨é‡Œé¢, å¦åˆ™å®½å­—ç¬¦åœ¨æœ«å°¾æ—¶ä¼šå‡ºé—®é¢˜
+						if (!nowInvisible && nowWidth > maxWidth)
+						{
+							const auto prevIter = prev(str.AtByteIndex(nowByteIndex));
+							const auto prevIndex = str.GetByteIndex(prevIter);
 
-						if (beginIndex == -1)
+							str.replace_with_range(prevIter,
+												   next(prevIter),
+												   u8"  ");
+
+							if (nowWidth - maxWidth != 1)
+								unreachable();
+						}
+
+						if (nowInvisible)
 							str.clear();
 						else
-							str = wstring{ str.begin() + beginIndex,str.begin() + nowIndex };
+							str = String(str.AtByteIndex(visibleBeginIndex), str.AtByteIndex(nowByteIndex));
 					});
 			}
 
@@ -244,8 +277,8 @@ export namespace NylteJ
 			if (formattedStr.datas.empty())
 				return { 0,0 };
 
-			// ÊºÉ½ÌØÓĞµÄ bug ÌØÅĞ½â¾ö·¨
-			if (index == formattedStr.rawStr.size())
+			// å±å±±ç‰¹æœ‰çš„ bug ç‰¹åˆ¤è§£å†³æ³•
+			if (index == formattedStr.rawStr.ByteSize())
 				return { formattedStr.datas.back().DisplaySize(),formattedStr.datas.size() - 1 };
 
 			for (auto iter = formattedStr.datas.begin(); iter != formattedStr.datas.end(); ++iter)
@@ -255,29 +288,19 @@ export namespace NylteJ
 				{
 					ConsolePosition pos{ 0,iter - formattedStr.datas.begin() };
 
-					size_t nowRawIndex = iter->indexInRaw;
+					auto nowRawIter = formattedStr.rawStr.AtByteIndex(iter->indexInRaw);
+					const auto indexIter = formattedStr.rawStr.AtByteIndex(index);
 
-					while (nowRawIndex < index)
+					while (nowRawIter != indexIter)
 					{
-						if (formattedStr.rawStr[nowRawIndex] == '\t')
-						{
-							nowRawIndex++;
+						if (*nowRawIter == '\t')
 							pos.x += GetTabWidth() - pos.x % GetTabWidth();
-						}
-						else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
-						{
-							nowRawIndex++;
+						else if (IsWideChar(*nowRawIter))
 							pos.x += 2;
-						}
-						else if (formattedStr.rawStr[nowRawIndex] == '\n' || formattedStr.rawStr[nowRawIndex] == '\r')	// ÕâÁ©ÔÚ formattedStr Àï²¢²»´æ´¢
-						{
-							nowRawIndex++;
-						}
-						else
-						{
-							nowRawIndex++;
+						else if (*nowRawIter != '\n' && *nowRawIter != '\r')	// è¿™ä¿©åœ¨ formattedStr é‡Œå¹¶ä¸å­˜å‚¨
 							pos.x++;
-						}
+
+						++nowRawIter;
 					}
 
 					pos.x -= formattedStr.beginX;
@@ -292,64 +315,52 @@ export namespace NylteJ
 		{
 			pos.x += formattedStr.beginX;
 
-			size_t nowRawIndex = formattedStr.datas[pos.y].indexInRaw;
 			size_t nowX = 0;
 
-			while (nowX < pos.x && nowRawIndex < formattedStr.rawStr.size())
+			auto nowRawIter = formattedStr.rawStr.AtByteIndex(formattedStr.datas[pos.y].indexInRaw);
+
+			while (nowX < pos.x && nowRawIter != formattedStr.rawStr.end())
 			{
-				if (formattedStr.rawStr[nowRawIndex] == '\t')
-				{
-					nowRawIndex++;
+				if (*nowRawIter == '\t')
 					nowX += GetTabWidth() - nowX % GetTabWidth();
-				}
-				else if (IsWideChar(formattedStr.rawStr[nowRawIndex]))
-				{
-					nowRawIndex++;
+				else if (IsWideChar(*nowRawIter))
 					nowX += 2;
-				}
-				else if (formattedStr.rawStr[nowRawIndex] == '\n'
-					|| formattedStr.rawStr[nowRawIndex] == '\r')	// ¿çĞĞ, ËµÃ÷ beginX ĞèÒªµ÷Õû, µ±È»²»»áÔÚÕâÀïµ÷, µ«µ½Õâ¾ÍËµÃ÷ÒÑ¾­¿ÉÒÔ·µ»ØÁË
-				{
-					return nowRawIndex;
-				}
-				else
-				{
-					nowRawIndex++;
+				else if (*nowRawIter != '\n' && *nowRawIter != '\r')
 					nowX++;
-				}
+				else
+					break;	// è·¨è¡Œ, è¯´æ˜ beginX éœ€è¦è°ƒæ•´, å½“ç„¶ä¸ä¼šåœ¨è¿™é‡Œè°ƒ, ä½†åˆ°è¿™å°±è¯´æ˜å·²ç»å¯ä»¥è¿”å›äº†
+
+				++nowRawIter;
 			}
 
-			return nowRawIndex;
+			return formattedStr.rawStr.GetByteIndex(nowRawIter);
 		}
 
-		size_t GetFormattedIndex(wstring_view formattedStr, ConsolePosition pos) const
+		size_t GetFormattedIndex(StringView formattedStr, ConsolePosition pos) const
 		{
 			size_t nowX = 0;
-			size_t nowFormattedIndex = 0;
+
+			auto nowFormattedIter = formattedStr.begin();
 
 			while (nowX < pos.x)
 			{
-				if (IsWideChar(formattedStr[nowFormattedIndex]))
-				{
-					nowFormattedIndex++;
+				if (IsWideChar(*nowFormattedIter))
 					nowX += 2;
-				}
 				else
-				{
-					nowFormattedIndex++;
 					nowX++;
-				}
+
+				++nowFormattedIter;
 			}
 
-			return nowFormattedIndex;
+			return formattedStr.GetByteIndex(nowFormattedIter);
 		}
 
-		// ÕâÀïµÄ allowFlow Êµ¼ÊÉÏ²¢²»ÊÇÍêÈ«²»¹ÜÒç³ö, Ö»ÊÇÎªÁËºÍÒÔÇ°µÄÊºÉ½½Ó¹ì¼ÓÁË¸ö²ÎÊı
+		// è¿™é‡Œçš„ allowFlow å®é™…ä¸Šå¹¶ä¸æ˜¯å®Œå…¨ä¸ç®¡æº¢å‡º, åªæ˜¯ä¸ºäº†å’Œä»¥å‰çš„å±å±±æ¥è½¨åŠ äº†ä¸ªå‚æ•°
 		ConsolePosition RestrictPos(const FormattedString& formattedStr, ConsolePosition pos, Direction direction, bool allowFlow = false) const
 		{
 			using enum Direction;
 
-			// ÏŞÖÆµ½ÓĞÎÄ×ÖµÄÇøÓò
+			// é™åˆ¶åˆ°æœ‰æ–‡å­—çš„åŒºåŸŸ
 			if (pos.y < 0)
 				pos.y = 0;
 			if (pos.y >= formattedStr.datas.size())
@@ -361,13 +372,13 @@ export namespace NylteJ
 				&& !allowFlow)
 				pos.x = formattedStr[pos.y].DisplaySize();
 
-			// ÏŞÖÆµ½ÓëÖÆ±í·û¶ÔÆë
+			// é™åˆ¶åˆ°ä¸åˆ¶è¡¨ç¬¦å¯¹é½
 			if ((pos.x + formattedStr.beginX) % GetTabWidth() != 0
-				&& GetRawIndex(formattedStr, pos) > 0 && formattedStr.rawStr[GetRawIndex(formattedStr, pos) - 1] == '\t')
+				&& GetRawIndex(formattedStr, pos) > 0 && *prev(formattedStr.rawStr.AtByteIndex(GetRawIndex(formattedStr, pos))) == '\t')
 			{
 				const auto nowRawIndex = GetRawIndex(formattedStr, pos);
 
-				if ((direction == Left || (direction == None && pos.x % GetTabWidth() < GetTabWidth() / 2)) && nowRawIndex >= 2 && formattedStr.rawStr[nowRawIndex - 2] != '\t')
+				if ((direction == Left || (direction == None && pos.x % GetTabWidth() < GetTabWidth() / 2)) && nowRawIndex >= 2 && *prev(formattedStr.rawStr.AtByteIndex(nowRawIndex), 2) != '\t')
 					pos = GetFormattedPos(formattedStr, nowRawIndex - 1);
 				else
 				{
@@ -385,11 +396,11 @@ export namespace NylteJ
 				}
 			}
 
-			// ÏŞÖÆµ½ÓëË«×Ö½Ú×Ö·û¶ÔÆë
+			// é™åˆ¶åˆ°ä¸åŒå­—èŠ‚å­—ç¬¦å¯¹é½
 			if (pos.x + formattedStr.beginX > 0)
 			{
 				auto nowRawIndex = GetRawIndex(formattedStr, pos);
-				if (nowRawIndex > 0 && IsWideChar(formattedStr.rawStr[nowRawIndex - 1])
+				if (nowRawIndex > 0 && IsWideChar(*prev(formattedStr.rawStr.AtByteIndex(nowRawIndex)))
 					&& (allowFlow || pos.x < formattedStr[pos.y].DisplaySize())
 					&& nowRawIndex == GetRawIndex(formattedStr, pos + ConsolePosition{ 1, 0 }))
 					if (direction == Right)
@@ -401,51 +412,53 @@ export namespace NylteJ
 			return pos;
 		}
 
-		size_t SearchLineBeginIndex(wstring_view rawStr, size_t index) const
+		size_t SearchLineBeginIndex(StringView rawStr, size_t index) const
 		{
-			if (index == 0 || rawStr.size() == 0)
+			if (index == 0 || rawStr.ByteSize() == 0)
 				return 0;
-			if (index >= rawStr.size())		// ÁÙÊ±¾ÈÒ»ÏÂ, Õæ²»Ïë¸ÄÊºÉ½ÁË
+			if (index >= rawStr.ByteSize())		// ä¸´æ—¶æ•‘ä¸€ä¸‹, çœŸä¸æƒ³æ”¹å±å±±äº†
 			{
-				if (rawStr.size() >= 1 && rawStr.back() == '\n')
-					return rawStr.size();
+				if (rawStr.ByteSize() >= 1 && rawStr.ByteSize() == '\n')
+					return rawStr.ByteSize();
 				return SearchLineBeginIndex(rawStr, index - 1);
 			}
 
-			if (rawStr[index] == '\n')
+			if (*rawStr.AtByteIndex(index) == '\n')
 			{
-				if (index >= 1 && rawStr[index - 1] == '\r')
+				if (index >= 1 && *prev(rawStr.AtByteIndex(index)) == '\r')
 				{
-					if (index >= 2 && rawStr[index - 2] == '\n')
+					if (index >= 2 && *prev(rawStr.AtByteIndex(index), 2) == '\n')
 						return index - 1;
 					return SearchLineBeginIndex(rawStr, index - 2);
 				}
-				if (index >= 1 && rawStr[index - 1] == '\n')
+				if (index >= 1 && *prev(rawStr.AtByteIndex(index)) == '\n')
 					return index;
 				return SearchLineBeginIndex(rawStr, index - 1);
 			}
 
-			if (rawStr.rfind('\n', index) != string::npos)
-				return rawStr.rfind('\n', index) + 1;	// ×¢Òâ rfind µÄËÑË÷·¶Î§ÊÇ [0,index], ²¢·Ç×ó±ÕÓÒ¿ª
+			const auto lastNewLine = ranges::find_last(rawStr.begin(), next(rawStr.AtByteIndex(index)), '\n');
+
+			if (!lastNewLine.empty())
+				return rawStr.GetByteIndex(next(lastNewLine.begin()));
 			return 0;
 		}
-		// ·µ»ØµÄÊÇ End, ËùÒÔÒ²·ûºÏ×ó±ÕÓÒ¿ª
-		size_t SearchLineEndIndex(wstring_view rawStr, size_t index) const
+		// è¿”å›çš„æ˜¯ End, æ‰€ä»¥ä¹Ÿç¬¦åˆå·¦é—­å³å¼€
+		size_t SearchLineEndIndex(StringView rawStr, size_t index) const
 		{
-			auto retIndex = rawStr.find('\n', index);
+			auto retIter = find(rawStr.AtByteIndex(index), rawStr.end(), u8'\n');
 
-			if (retIndex == string::npos)
-				return rawStr.size();
+			if (retIter == rawStr.end())
+				return rawStr.ByteSize();
 
-			if (retIndex >= 1 && rawStr[retIndex - 1] == '\r')
-				retIndex--;
+			if (retIter != rawStr.begin() && *prev(retIter) == '\r')
+				--retIter;
 
-			return retIndex;
+			return rawStr.GetByteIndex(retIter);
 		}
 
-		size_t GetLineIndex(wstring_view rawStr, size_t index) const
+		size_t GetLineIndex(StringView rawStr, size_t index) const
 		{
-			return count(rawStr.begin(), rawStr.begin() + index, '\n');
+			return count(rawStr.begin(), rawStr.AtByteIndex(index), u8'\n');
 		}
 
 		DefaultFormatter(const SettingMap& settingMap)

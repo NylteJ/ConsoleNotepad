@@ -1,8 +1,8 @@
 // FindReplaceWindow.ixx
-// ²éÕÒÌæ»»µÄ¶şºÏÒ»´°¿Ú
-// ´ú¼Û¾ÍÊÇ´úÂëÓĞµãÄÑ¿´¶®ÁË
-// ¼ÓÉÏÕıÔò±í´ïÊ½ºó¸üÂÒÁË, ´¿ÊºÉ½À´µÄ
-// TODO: ÖØ¹¹ÊºÉ½ (ÕâÊÇÎÒ´òµÄµÚ¼¸¸öÕâÑùµÄ TODO ÁË)
+// æŸ¥æ‰¾æ›¿æ¢çš„äºŒåˆä¸€çª—å£
+// ä»£ä»·å°±æ˜¯ä»£ç æœ‰ç‚¹éš¾çœ‹æ‡‚äº†
+// åŠ ä¸Šæ­£åˆ™è¡¨è¾¾å¼åæ›´ä¹±äº†, çº¯å±å±±æ¥çš„
+// TODO: é‡æ„å±å±± (è¿™æ˜¯æˆ‘æ‰“çš„ç¬¬å‡ ä¸ªè¿™æ ·çš„ TODO äº†)
 export module FindReplaceWindow;
 
 import std;
@@ -14,6 +14,8 @@ import Selector;
 import BasicWindow;
 import SettingMap;
 import UnionHandler;
+import String;
+import Utils;
 
 import Exceptions;
 
@@ -28,13 +30,13 @@ export namespace NylteJ
 	private:
 		using FindOptions = bitset<3>;
 	private:
-		constexpr static wstring_view titleFind = L"²éÕÒ: °´»Ø³µ²éÕÒ, ÓÃ·½Ïò¼üÇĞ»»¶ÔÏó."sv;
-		constexpr static wstring_view titleReplace = L"Ìæ»»: °´»Ø³µÌæ»», ÓÃ·½Ïò¼üÇĞ»»¶ÔÏó."sv;
-		constexpr static wstring_view tipText1Normal = L"ÓÃ \\n, \\t ´úÖ¸»Ø³µ¡¢Tab, \\\\n ´úÖ¸ \"\\n\"."sv;
-		constexpr static wstring_view tipText1Regex = L"»ù±¾×ñÑ­ ECMAScript ÕıÔò±í´ïÊ½ÎÄ·¨."sv;
-		constexpr static wstring_view tipText2Find = L"ÓÃ Tab ÇĞ»»Ñ¡¿ò."sv;
-		constexpr static wstring_view tipText2Replace = L"ÓÃ Tab ÇĞ»»Ñ¡¿ò, Shift + »Ø³µÌæ»»È«²¿."sv;
-		constexpr static wstring_view tipText3Replace = L"Ìæ»»Îª:"sv;
+		constexpr static StringView titleFind = u8"æŸ¥æ‰¾: æŒ‰å›è½¦æŸ¥æ‰¾, ç”¨æ–¹å‘é”®åˆ‡æ¢å¯¹è±¡."sv;
+		constexpr static StringView titleReplace = u8"æ›¿æ¢: æŒ‰å›è½¦æ›¿æ¢, ç”¨æ–¹å‘é”®åˆ‡æ¢å¯¹è±¡."sv;
+		constexpr static StringView tipText1Normal = u8"ç”¨ \\n, \\t ä»£æŒ‡å›è½¦ã€Tab, \\\\n ä»£æŒ‡ \"\\n\"."sv;
+		constexpr static StringView tipText1Regex = u8"åŸºæœ¬éµå¾ª ECMAScript æ­£åˆ™è¡¨è¾¾å¼æ–‡æ³•."sv;
+		constexpr static StringView tipText2Find = u8"ç”¨ Tab åˆ‡æ¢é€‰æ¡†."sv;
+		constexpr static StringView tipText2Replace = u8"ç”¨ Tab åˆ‡æ¢é€‰æ¡†, Shift + å›è½¦æ›¿æ¢å…¨éƒ¨."sv;
+		constexpr static StringView tipText3Replace = u8"æ›¿æ¢ä¸º:"sv;
 	private:
 		Editor findEditor;
 		Editor replaceEditor;
@@ -42,29 +44,29 @@ export namespace NylteJ
 		vector<size_t> allFindedIndexs;
 
 		vector<size_t> allFindResultSizeForRegex;
-		vector<wstring> allReplaceResultForRegex;	// ½öÔÚÕıÔòÌæ»»Ê±Ê¹ÓÃ
+		vector<String> allReplaceResultForRegex;	// ä»…åœ¨æ­£åˆ™æ›¿æ¢æ—¶ä½¿ç”¨
 
 		size_t nowFindedIndexID = 0;
 
-		wstring lastFindText = L""s;
-		wstring lastReplaceText = L""s;		// ½öÔÚÕıÔòÌæ»»Ê±Ê¹ÓÃ, ÆäËûÊ±ºòµ±Ìæ»»ÎÄ±¾±ä¸üÊ±ÎŞĞèÖØĞÂËÑË÷
+		String lastFindText = u8""s;
+		String lastReplaceText = u8""s;		// ä»…åœ¨æ­£åˆ™æ›¿æ¢æ—¶ä½¿ç”¨, å…¶ä»–æ—¶å€™å½“æ›¿æ¢æ–‡æœ¬å˜æ›´æ—¶æ— éœ€é‡æ–°æœç´¢
 		FindOptions lastFindOptions;
 
-		Selector matchAllCase;	// Çø·Ö´óĞ¡Ğ´
-		Selector matchFullWord;	// È«×ÖÆ¥Åä
-		Selector matchRegex;	// ÕıÔò±í´ïÊ½
+		Selector matchAllCase;	// åŒºåˆ†å¤§å°å†™
+		Selector matchFullWord;	// å…¨å­—åŒ¹é…
+		Selector matchRegex;	// æ­£åˆ™è¡¨è¾¾å¼
 
 		vector<UIComponent*> components = { &findEditor,&matchAllCase,&matchFullWord,&matchRegex };
 
 		decltype(components.begin()) nowFocused = components.begin();
 
-		const bool findMode = true;	// µ±Ç°´°¿ÚÄ£Ê½
+		const bool findMode = true;	// å½“å‰çª—å£æ¨¡å¼
 	private:
 		void PrintWindow()
 		{
 			console.HideCursor();
 
-			wstring_view title, tip1, tip2;
+			StringView title, tip1, tip2;
 
 			if (findMode)
 			{
@@ -96,7 +98,7 @@ export namespace NylteJ
 				if(MatchRegex())
 					handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + allFindResultSizeForRegex[nowFindedIndexID]);
 				else
-					handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.size());
+					handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowFindedIndexID], allFindedIndexs[nowFindedIndexID] + lastFindText.ByteSize());
 
 				WhenFocused();
 			}
@@ -108,14 +110,16 @@ export namespace NylteJ
 		}
 
 		template<bool inverse = false>
-		wstring ConvertText(wstring str) const
+		String ConvertText(String str) const
 		{
-			auto table = vector{ pair	{L"\\n"sv,L"\n"sv},
-										{L"\\\n"sv,L"\\n"sv},
-										{L"\\t"sv,L"\t"sv},
-										{L"\\\t"sv,L"\\t"sv},
-										{L"\\r"sv,L"\r"sv},
-										{L"\\\r"sv,L"\\r"sv} };
+			constexpr auto table = MakeArray<pair<StringView, StringView>>(
+				make_pair(u8"\\n"sv, u8"\n"sv),
+				make_pair(u8"\\\n"sv, u8"\\n"sv),
+				make_pair(u8"\\t"sv, u8"\t"sv),
+				make_pair(u8"\\\t"sv, u8"\\t"sv),
+				make_pair(u8"\\r"sv, u8"\r"sv),
+				make_pair(u8"\\\r"sv, u8"\\r"sv)
+			);
 
 			auto getView = [&]() constexpr
 				{
@@ -128,31 +132,31 @@ export namespace NylteJ
 						| views::all;
 				};
 
+			// TODO: æ€§èƒ½ä¼˜åŒ–
 			for (auto&& [source, target] : getView())
-			{
-				size_t pos = 0;
-				while ((pos = str.find(source, pos)) != string::npos)
+				for (auto iter = search(str.begin(), str.end(), source.begin(), source.end());
+				     iter != str.end();
+				     iter = search(iter, str.end(), source.begin(), source.end()))
 				{
-					str.replace(pos, source.size(), target);
-					pos += target.size();
+					str.replace_with_range(iter, str.AtByteIndex(str.GetByteIndex(iter) + source.ByteSize()), target);
+					iter = str.AtByteIndex(str.GetByteIndex(iter) + target.ByteSize());
 				}
-			}
 
 			return str;
 		}
 
-		wstring GetNowFindText() const
+		String GetNowFindText() const
 		{
-			auto ret = findEditor.GetData() | ranges::to<wstring>();
+			auto ret = findEditor.GetData();
 
 			if (MatchRegex())
 				return ret;
 
 			return ConvertText(ret);
 		}
-		wstring GetNowReplaceText() const
+		String GetNowReplaceText() const
 		{
-			auto ret = replaceEditor.GetData() | ranges::to<wstring>();
+			auto ret = replaceEditor.GetData();
 
 			if (MatchRegex())
 				return ret;
@@ -162,73 +166,85 @@ export namespace NylteJ
 
 		void ReFindAll(UnionHandler& handlers)
 		{
-			allFindedIndexs.clear();
+            allFindedIndexs.clear();
 			allFindResultSizeForRegex.clear();
 			allReplaceResultForRegex.clear();
 
-			wstring stringToFind = GetNowFindText();
-			wstring_view stringAll = handlers.ui.mainEditor.GetData();
+			String stringToFind = GetNowFindText();
+			StringView stringAll = handlers.ui.mainEditor.GetData();
 
 			lastFindText = stringToFind;
 			lastFindOptions = GetFindOptions();
 
 			if (!MatchRegex())
 			{
-				// BMH Ó¦¸ÃÔÚÕâÀï±È BM ¸üÊÊºÏÒ»µã?
-				boyer_moore_horspool_searcher searcher = { stringToFind.begin(),stringToFind.end(),hash<wchar_t>{},
-					[&](auto&& x,auto&& y)
-					{
-						if (MatchAllCase())
-							return towlower(x) == towlower(y);
-
-						return x == y;
-					} };
-
 				auto iter = stringAll.begin();
 
 				while (true)
 				{
-					iter = search(iter, stringAll.end(), searcher);
+					if (!MatchAllCase())
+						iter = search(iter, stringAll.end(),
+									  stringToFind.begin(), stringToFind.end());
+					else
+						iter = search(iter, stringAll.end(),
+									  stringToFind.begin(), stringToFind.end(),
+									  String::matchAllASCIICase);	// æˆ‘ä»¬åŠåˆ»æ„åœ°åªå¿½ç•¥ ASCII å­—ç¬¦(26 ä¸ªè‹±æ–‡å­—æ¯)çš„å¤§å°å†™
+
 
 					if (iter == stringAll.end())
 						break;
-					if (!MatchFullWord()
-						|| ((iter == stringAll.begin() || !iswalpha(*(iter - 1)))
-							&& (iter + stringToFind.size() == stringAll.end() || !iswalpha(*(iter + stringToFind.size())))))
-						allFindedIndexs.emplace_back(iter - stringAll.begin());
+
+					if (!MatchFullWord())
+						allFindedIndexs.emplace_back(stringAll.GetByteIndex(iter));
+					else
+					{
+						const auto leftMatch = iter == stringAll.begin() || !IsASCIIAlpha(*prev(iter));
+
+						const auto rightIter = stringAll.AtByteIndex(stringAll.GetByteIndex(iter) + stringToFind.ByteSize());
+						const auto rightMatch = rightIter == stringAll.end() || !IsASCIIAlpha(*rightIter);
+
+						// åŒæ ·, æˆ‘ä»¬åŠåˆ»æ„åœ°è®¤ä¸ºä¸¤ä¾§å­—ç¬¦ä¸æ˜¯ ASCII å­—æ¯æ—¶å°±æ˜¯å…¨å­—åŒ¹é…
+						// åˆ«é—®, é—®å°±æ˜¯ VS ä¹Ÿå¹²äº†(è‡³å°‘ VS çœ‹èµ·æ¥å®Œå…¨ä¸ç®¡ä¸­æ–‡çš„å…¨å­—åŒ¹é…), è€Œä¸”ä»£ç ç¼–è¾‘å™¨é‡Œçš„è¿™ä¸¤ä¸ªåŠŸèƒ½åšåˆ°è¿™åº”å½“å°±å¤Ÿäº†(çœŸæœ¬åœ°åŒ–äº†æœ‰æ—¶åè€Œå‰¯ä½œç”¨), éä»£ç ç¼–è¾‘å™¨ç”šè‡³ä¸€èˆ¬ç”¨ä¸åˆ°è¿™ä¿©åŠŸèƒ½
+
+						if (leftMatch && rightMatch)
+							allFindedIndexs.emplace_back(stringAll.GetByteIndex(iter));
+					}
 
 					++iter;
 				}
 			}
 			else
 			{
-				if (!findMode)
-					lastReplaceText = GetNowReplaceText();
+				throw Exception{ u8"æš‚æ—¶ç§»é™¤äº†æ­£åˆ™æŸ¥æ‰¾ / æ›¿æ¢" };
+				//if (!findMode)
+				//	lastReplaceText = GetNowReplaceText();
 
-				auto regexOption = regex_constants::ECMAScript | regex_constants::optimize;
-				if (MatchAllCase())
-					regexOption |= regex_constants::icase;
-				if (MatchFullWord())
-				{
-					if (!stringToFind.starts_with(L"\\b"sv))
-						stringToFind = L"\\b"s + stringToFind;
-					if (!stringToFind.ends_with(L"\\b"sv))
-						stringToFind += L"\\b"s;
-				}
+				//auto regexOption = regex_constants::ECMAScript | regex_constants::optimize;
+				//if (MatchAllCase())
+				//	regexOption |= regex_constants::icase;
+				//if (MatchFullWord())
+				//{
+				//	if (!stringToFind.starts_with(u8"\\b"sv))
+				//		stringToFind = u8"\\b"sv + stringToFind;
+				//	if (!stringToFind.ends_with(u8"\\b"sv))
+				//		stringToFind += u8"\\b"sv;
+				//}
 
-				wregex regexToFind{ stringToFind, regexOption };
-				regex_iterator<decltype(stringAll.begin())> iter = {stringAll.begin(),stringAll.end(),regexToFind};
-				decltype(iter) end{};
-				while (iter != end)
-				{
-					allFindedIndexs.emplace_back(iter->position());
-					allFindResultSizeForRegex.emplace_back(iter->length());
+				//auto stringAllU8 = stringAll.ToUTF8();
 
-					if (!findMode)
-						allReplaceResultForRegex.emplace_back(iter->format(GetNowReplaceText()));
+				//basic_regex regexToFind{ stringToFind.ToUTF8(), regexOption };
+				//regex_iterator iter = { stringAllU8.begin(), stringAllU8.end(), regexToFind};
+				//decltype(iter) end{};
+				//while (iter != end)
+				//{
+				//	allFindedIndexs.emplace_back(iter->position());
+				//	allFindResultSizeForRegex.emplace_back(iter->length());
 
-					++iter;
-				}
+				//	if (!findMode)
+				//		allReplaceResultForRegex.emplace_back(iter->format(GetNowReplaceText().ToUTF8()));
+
+				//	++iter;
+				//}
 			}
 
 			nowFindedIndexID = 0;
@@ -303,9 +319,9 @@ export namespace NylteJ
 			long long offset;
 			
 			if (MatchRegex())
-				offset = static_cast<long long>(nowReplaceText.size()) - static_cast<long long>(allFindResultSizeForRegex[nowFindedIndexID]);
+				offset = static_cast<long long>(nowReplaceText.ByteSize()) - static_cast<long long>(allFindResultSizeForRegex[nowFindedIndexID]);
 			else
-				offset = static_cast<long long>(nowReplaceText.size()) - static_cast<long long>(GetNowFindText().size());
+				offset = static_cast<long long>(nowReplaceText.ByteSize()) - static_cast<long long>(GetNowFindText().ByteSize());
 
 			nowFindedIndexID = allFindedIndexs.erase(allFindedIndexs.begin() + nowFindedIndexID) - allFindedIndexs.begin();
 			if (MatchRegex())
@@ -314,7 +330,7 @@ export namespace NylteJ
 				allReplaceResultForRegex.erase(allReplaceResultForRegex.begin() + nowFindedIndexID);
 			}
 
-			for (size_t i = nowFindedIndexID; i < allFindedIndexs.size(); i++)	// ºóÃæµÄ¶¼ÒªÆ«ÒÆ, Ç°ÃæµÄ¶¼²»ÓÃ
+			for (size_t i = nowFindedIndexID; i < allFindedIndexs.size(); i++)	// åé¢çš„éƒ½è¦åç§», å‰é¢çš„éƒ½ä¸ç”¨
 				allFindedIndexs[i] += offset;
 
 			if (nowFindedIndexID == allFindedIndexs.size() && !allFindedIndexs.empty())
@@ -329,14 +345,14 @@ export namespace NylteJ
 
 			long long nowIndexID = allFindedIndexs.size() - 1;
 
-			// ÕâÀïÑ¡Ôñ·´¸´µ÷ÓÃ Editor::Insert Ö»ÊÇÎªÁË±ãÓÚ³·Ïú (ËäÈ»µÃ°¤¸ö³·Ïú)
+			// è¿™é‡Œé€‰æ‹©åå¤è°ƒç”¨ Editor::Insert åªæ˜¯ä¸ºäº†ä¾¿äºæ’¤é”€ (è™½ç„¶å¾—æŒ¨ä¸ªæ’¤é”€)
 			while (nowIndexID >= 0)
 			{
-				auto size = lastFindText.size();
+				auto size = lastFindText.ByteSize();
 				if (MatchRegex())
 					size = allFindResultSizeForRegex[nowIndexID];
 
-				// ÕâÀï±¾´°Ìå±¾ÉíÎŞĞè±»»æÖÆ, ËùÒÔÎŞĞèµ÷ÓÃ MoveMainEditorPos
+				// è¿™é‡Œæœ¬çª—ä½“æœ¬èº«æ— éœ€è¢«ç»˜åˆ¶, æ‰€ä»¥æ— éœ€è°ƒç”¨ MoveMainEditorPos
 				handlers.ui.mainEditor.MoveCursorToIndex(allFindedIndexs[nowIndexID],
 					allFindedIndexs[nowIndexID] + size);
 
@@ -398,7 +414,7 @@ export namespace NylteJ
 				if (needRefind())
 					ReFindAll(handlers);
 
-				FindPrev(handlers);	// Õâ¸öÊ±ºòÃ»ÎÊÌâ, ´ËÊ±»áÖ±½ÓÌøµ½×îºóÒ»¸ö, ÁíÍâÁ½ÖÖÇé¿ö²»ĞĞÊÇÒòÎª»áÌø¹ıµÚÒ»¸ö
+				FindPrev(handlers);	// è¿™ä¸ªæ—¶å€™æ²¡é—®é¢˜, æ­¤æ—¶ä¼šç›´æ¥è·³åˆ°æœ€åä¸€ä¸ª, å¦å¤–ä¸¤ç§æƒ…å†µä¸è¡Œæ˜¯å› ä¸ºä¼šè·³è¿‡ç¬¬ä¸€ä¸ª
 
 				return;
 			}
@@ -428,7 +444,7 @@ export namespace NylteJ
 
 			(*nowFocused)->ManageInput(message, handlers);
 
-			if (lastRegexEnable != MatchRegex())	// ÎªÁËÈÃÕıÔò±í´ïÊ½µÄÌáÊ¾ÎÄ±¾ÄÜ¼´Ê±ÉúĞ§
+			if (lastRegexEnable != MatchRegex())	// ä¸ºäº†è®©æ­£åˆ™è¡¨è¾¾å¼çš„æç¤ºæ–‡æœ¬èƒ½å³æ—¶ç”Ÿæ•ˆ
 				WhenFocused();
 		}
 		void ManageInput(const InputHandler::MessageMouse& message, UnionHandler& handlers) override
@@ -438,7 +454,7 @@ export namespace NylteJ
 			if ((message.LeftClick() || message.RightClick())
 				&& !drawRange.Contain(message.position))
 			{
-				EraseThis(handlers);	// TODO: ¸Ä³É¿É»Ö¸´µÄÊ§½¹, ¶ø²»ÊÇÖ±½Ó¹Øµô
+				EraseThis(handlers);	// TODO: æ”¹æˆå¯æ¢å¤çš„å¤±ç„¦, è€Œä¸æ˜¯ç›´æ¥å…³æ‰
 
 				handlers.ui.mainEditor.ManageInput(message, handlers);
 				return;
@@ -465,32 +481,32 @@ export namespace NylteJ
 			(*nowFocused)->WhenRefocused();
 		}
 
-		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, wstring strToFind = L""s, bool findMode = true)
+		FindReplaceWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, StringView strToFind = u8""sv, bool findMode = true)
 			:BasicWindow(console, drawRange),
-			findEditor(console, L""s, {			{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
+			findEditor(console, u8""s, {			{drawRange.leftTop.x + 1,drawRange.leftTop.y + 3},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 3} },
 				settingMap),
-			replaceEditor(console, L""s, {		{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
+			replaceEditor(console, u8""s, {		{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
 												{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
 				settingMap),
 			matchAllCase(console,
 				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 4},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 4} },
-				{ L"Çø·Ö´óĞ¡Ğ´"s,L"²»Çø·Ö´óĞ¡Ğ´"s }),
+				{ u8"åŒºåˆ†å¤§å°å†™"s,u8"ä¸åŒºåˆ†å¤§å°å†™"s }),
 			matchFullWord(console,
 				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 5},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 5} },
-				{ L"Æ¥ÅäËùÓĞ"s,L"È«×ÖÆ¥Åä"s }),
+				{ u8"åŒ¹é…æ‰€æœ‰"s,u8"å…¨å­—åŒ¹é…"s }),
 			matchRegex(console,
 				{	{drawRange.leftTop.x + 1,drawRange.leftTop.y + 6},
 					{drawRange.rightBottom.x - 1,drawRange.leftTop.y + 6} },
-				{ L"Õı³£Æ¥Åä"s,L"ÕıÔòÆ¥Åä"s }),
+				{ u8"æ­£å¸¸åŒ¹é…"s,u8"æ­£åˆ™åŒ¹é…"s }),
 			findMode(findMode)
 		{
 			if (findMode && drawRange.Height() < 9)
-				throw Exception{ L"´°¿ÚÌ«Ğ¡ÁË!"sv };
+				throw Exception{ u8"çª—å£å¤ªå°äº†!"sv };
 			if (!findMode && drawRange.Height() < 11)
-				throw Exception{ L"´°¿ÚÌ«Ğ¡ÁË!"sv };
+				throw Exception{ u8"çª—å£å¤ªå°äº†!"sv };
 
 			findEditor.SetData(ConvertText<true>(strToFind));
 
@@ -508,7 +524,7 @@ export namespace NylteJ
 			}
 
 			findEditor.MoveCursorToEnd();
-			findEditor.SelectAll();			// ¸üÌù½üÖ÷Á÷±à¼­Æ÷ĞĞÎª
+			findEditor.SelectAll();			// æ›´è´´è¿‘ä¸»æµç¼–è¾‘å™¨è¡Œä¸º
 		}
 	};
 }

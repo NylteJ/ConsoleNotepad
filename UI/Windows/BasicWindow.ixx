@@ -1,5 +1,5 @@
 // BasicWindow.ixx
-// Ö»ÊÇÒ»¸öÍâ¿ò
+// åªæ˜¯ä¸€ä¸ªå¤–æ¡†
 export module BasicWindow;
 
 import std;
@@ -8,6 +8,7 @@ import ConsoleHandler;
 import InputHandler;
 import UIComponent;
 import ConsoleTypedef;
+import String;
 
 using namespace std;
 
@@ -23,27 +24,27 @@ export namespace NylteJ
 			handlers.ui.EraseComponent(shared_from_this());
 		}
 	public:
-		void PrintFrame() const
-		{
-			if (drawRange.Height() < 2 || drawRange.Width() < 2)	// ²»Ó¦Èç´Ë, ËùÒÔÖ±½Ó throw °É
-				throw invalid_argument{ "´°¿ÚÌ«Ğ¡ÁË! "s };
+        void PrintFrame() const
+        {
+            if (drawRange.Height() < 2 || drawRange.Width() < 2)	// ä¸åº”å¦‚æ­¤, æ‰€ä»¥ç›´æ¥ throw å§
+                throw invalid_argument{ "çª—å£å¤ªå°äº†! "s };
 
-			console.HideCursor();
+            console.HideCursor();
 
-			console.Print(L'©°' + (views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©´', drawRange.leftTop);
+            console.Print(u8"â”Œ" + (views::repeat(U'â”€', drawRange.Width() - 2) | ranges::to<String>()) + u8"â”", drawRange.leftTop);
 
-			for (auto y = drawRange.leftTop.y + 1; y < drawRange.rightBottom.y; y++)
-				console.Print(L'©¦' + (views::repeat(L' ', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¦', { drawRange.leftTop.x,y });
+            for (auto y = drawRange.leftTop.y + 1; y < drawRange.rightBottom.y; y++)
+                console.Print(u8"â”‚" + (views::repeat(U' ', drawRange.Width() - 2) | ranges::to<String>()) + u8"â”‚", { drawRange.leftTop.x,y });
 
-			console.Print(L'©¸' + (views::repeat(L'©¤', drawRange.Width() - 2) | ranges::to<wstring>()) + L'©¼', { drawRange.leftTop.x,drawRange.rightBottom.y });
+            console.Print(u8"â””" + (views::repeat(U'â”€', drawRange.Width() - 2) | ranges::to<String>()) + u8"â”˜", { drawRange.leftTop.x,drawRange.rightBottom.y });
 
-			console.ShowCursor();
-		}
+            console.ShowCursor();
+        }
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
 		{
-			// ËüÃ»ÓĞÄÜÁ¦ÖØĞÂÊÊÓ¦ĞÂ´°¿Ú´óĞ¡, Ö»ÄÜÔÚĞÂ´°¿Ú´óĞ¡²»×ãÒÔÈİÄÉËüµÄÊ±ºò×Ô»Ù
-			// (´°¿Ú´óĞ¡Ò»¶¯¾Í×Ô»ÙÃ²ËÆÒ²Ã»±ØÒª......)
+			// å®ƒæ²¡æœ‰èƒ½åŠ›é‡æ–°é€‚åº”æ–°çª—å£å¤§å°, åªèƒ½åœ¨æ–°çª—å£å¤§å°ä¸è¶³ä»¥å®¹çº³å®ƒçš„æ—¶å€™è‡ªæ¯
+			// (çª—å£å¤§å°ä¸€åŠ¨å°±è‡ªæ¯è²Œä¼¼ä¹Ÿæ²¡å¿…è¦......)
 			if (drawRange.rightBottom.x >= message.newSize.width || drawRange.rightBottom.y >= message.newSize.height)
 			{
 				EraseThis(handlers);

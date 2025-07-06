@@ -1,9 +1,9 @@
 // Windows.ixx
-// ²¢·Ç Windows
-// Êµ¼ÊÉÏÊÇ¿ØÖÆÌ¨´°¿ÚÄ£¿é, ÓÃÀ´¸üÓÑºÃµØÏÔÊ¾ÓÃµÄ
-// ºÍ Editor ÀàËÆ, Ö»ÓÃ¿¼ÂÇ×Ô¼ºÄÚ²¿µÄ»æÖÆ, ÓÉ UI Ä£¿é¸ºÔğ½«ËûÃÇÆ´½ÓÆğÀ´
-// Ôø¾­ÕâÀï¶Ñ·ÅÁËËùÓĞµÄ´°¿Ú, µ«ÊÇÕâÑù»áÈÃ IntelliSense ±¬Õ¨, ËùÒÔ·ÖÁËÒ»²¿·Ö³öÈ¥ (Áù¸ùËµÊÇ)
-// ÕâÀïÊ£ÏÂµÄÁ½¸öÃ»ÓĞ·Ö³öÈ¥ÊÇÒòÎª±Ë´ËÖ®¼äñîºÏ±È½ÏÑÏÖØ, Òª·Ö¾ÍÖ»ÄÜÒ»¸öÀàÒ»¸öÄ£¿é, ¶øÎÒÀÁ ()
+// å¹¶é Windows
+// å®é™…ä¸Šæ˜¯æ§åˆ¶å°çª—å£æ¨¡å—, ç”¨æ¥æ›´å‹å¥½åœ°æ˜¾ç¤ºç”¨çš„
+// å’Œ Editor ç±»ä¼¼, åªç”¨è€ƒè™‘è‡ªå·±å†…éƒ¨çš„ç»˜åˆ¶, ç”± UI æ¨¡å—è´Ÿè´£å°†ä»–ä»¬æ‹¼æ¥èµ·æ¥
+// æ›¾ç»è¿™é‡Œå †æ”¾äº†æ‰€æœ‰çš„çª—å£, ä½†æ˜¯è¿™æ ·ä¼šè®© IntelliSense çˆ†ç‚¸, æ‰€ä»¥åˆ†äº†ä¸€éƒ¨åˆ†å‡ºå» (å…­æ ¹è¯´æ˜¯)
+// è¿™é‡Œå‰©ä¸‹çš„ä¸¤ä¸ªæ²¡æœ‰åˆ†å‡ºå»æ˜¯å› ä¸ºå½¼æ­¤ä¹‹é—´è€¦åˆæ¯”è¾ƒä¸¥é‡, è¦åˆ†å°±åªèƒ½ä¸€ä¸ªç±»ä¸€ä¸ªæ¨¡å—, è€Œæˆ‘æ‡’ ()
 export module Windows;
 
 import std;
@@ -17,13 +17,14 @@ import Selector;
 import SettingMap;
 import Utils;
 import UnionHandler;
+import String;
 
 import StringEncoder;
 import Exceptions;
 
 import Editor;
 
-// ¼æÈİ¾É´úÂë
+// å…¼å®¹æ—§ä»£ç 
 export import BasicWindow;
 export import FindReplaceWindow;
 
@@ -31,35 +32,44 @@ using namespace std;
 
 export namespace NylteJ
 {
-	// Ñ¡Ôñ´ò¿ª / ±£´æÂ·¾¶µÄ¹²ÓĞ²¿·Ö
-	// ÕâÑùºóÃæ¼Ó»¨Ò²¸ü·½±ã
-	// ÎŞ·¨ÊµÀı»¯
+	// é€‰æ‹©æ‰“å¼€ / ä¿å­˜è·¯å¾„çš„å…±æœ‰éƒ¨åˆ†
+	// è¿™æ ·åé¢åŠ èŠ±ä¹Ÿæ›´æ–¹ä¾¿
+	// æ— æ³•å®ä¾‹åŒ–
 	class FilePathWindow :public BasicWindow
 	{
 	protected:
 		Editor editor;
 
-		wstring_view tipText;
+		StringView tipText;
 	private:
-		wstring GetNowPath() const
+		String GetNowPath() const
 		{
-			// Ë³±ã×ö¸ö·À´ôÉè¼Æ, ·ÀÖ¹ÓĞ´ó´ÏÃ÷¸øÂ·¾¶¼ÓÒıºÅºÍË«·´Ğ±¸Ü
-			wstring ret = editor.GetData()
-				| views::filter([](auto&& chr) {return chr != L'\"'; })
-				| ranges::to<wstring>();
+			// é¡ºä¾¿åšä¸ªé˜²å‘†è®¾è®¡, é˜²æ­¢æœ‰å¤§èªæ˜ç»™è·¯å¾„åŠ å¼•å·å’ŒåŒåæ–œæ 
+			String ret = editor.GetData();
 
-			size_t pos = 0;
-			while ((pos = ret.find(L"\\\\"sv, pos)) != string::npos)
+			if (ret.front() == u8'"' && ret.back() == u8'"')
 			{
-				ret.replace(pos, L"\\\\"sv.size(), L"\\"sv);
-				pos += L"\\"sv.size();
+				ret.erase(ret.begin());
+				if (!ret.empty())
+					ret.pop_back();
+			}
+
+			constexpr StringView source = u8"\\\\"sv;
+			constexpr StringView target = u8"\\"sv;
+
+			for (auto iter = search(ret.begin(), ret.end(), source.begin(), source.end());
+				 iter != ret.end();
+				 iter = search(iter, ret.end(), source.begin(), source.end()))
+			{
+				ret.replace_with_range(iter, ret.AtByteIndex(ret.GetByteIndex(iter) + source.ByteSize()), target);
+				iter = ret.AtByteIndex(ret.GetByteIndex(iter) + target.ByteSize());
 			}
 
 			return ret;
 		}
 	public:
-		// ´¦ÀíÊÕµ½µÄÂ·¾¶
-		virtual void ManagePath(wstring_view path, UnionHandler& handlers) = 0;
+		// å¤„ç†æ”¶åˆ°çš„è·¯å¾„
+		virtual void ManagePath(StringView path, UnionHandler& handlers) = 0;
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
 		{
@@ -78,7 +88,7 @@ export namespace NylteJ
 				EraseThis(handlers);
 				return;
 			}
-			else if (message.key == Tab)	// ×Ô¶¯²¹È«
+			else if (message.key == Tab)	// è‡ªåŠ¨è¡¥å…¨
 			{
 				using namespace filesystem;
 
@@ -86,25 +96,25 @@ export namespace NylteJ
 
 				if (exists(nowPath))
 				{
-					if (is_directory(nowPath) && nowPath.wstring().back() == L'\\')		// ²¹È«×ÓÄ¿Â¼ / ÎÄ¼ş
+					if (is_directory(nowPath) && String{ nowPath }.back() == u8'\\')		// è¡¥å…¨å­ç›®å½• / æ–‡ä»¶
 					{
 						auto iter = directory_iterator{ nowPath,directory_options::skip_permission_denied };
 
 						if (iter != end(iter))
 						{
-							editor.SetData((nowPath / iter->path().filename()).wstring());
+							editor.SetData((nowPath / iter->path().filename()).u8string());
 							editor.PrintData();
 							editor.MoveCursorToEnd();
 						}
 					}
-					else if (is_directory(nowPath) || is_regular_file(nowPath))			// ²¹È«µ½µ±Ç°Ä¿Â¼µÄÏÂÒ»¸öÄ¿Â¼ / ÎÄ¼ş
+					else if (is_directory(nowPath) || is_regular_file(nowPath))			// è¡¥å…¨åˆ°å½“å‰ç›®å½•çš„ä¸‹ä¸€ä¸ªç›®å½• / æ–‡ä»¶
 					{
 						auto prevPath = nowPath.parent_path();
 
 						if (prevPath.empty())
 							prevPath = L".";
 
-						if (!equivalent(prevPath, nowPath))	// ±ÈÈç "C:\." µÄ parent_path ÊÇ "C:", ×ÜÖ®»¹ÊÇÓĞ¿ÉÄÜ¶şÕßÍêÈ«ÏàµÈµÄ
+						if (!equivalent(prevPath, nowPath))	// æ¯”å¦‚ "C:\." çš„ parent_path æ˜¯ "C:", æ€»ä¹‹è¿˜æ˜¯æœ‰å¯èƒ½äºŒè€…å®Œå…¨ç›¸ç­‰çš„
 						{
 							auto iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
 
@@ -116,13 +126,13 @@ export namespace NylteJ
 							if (iter == end(iter))
 								iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
 
-							editor.SetData((prevPath / iter->path().filename()).wstring());
+							editor.SetData((prevPath / iter->path().filename()).u8string());
 							editor.PrintData();
 							editor.MoveCursorToEnd();
 						}
 					}
 				}
-				else	// ²¹È«µ±Ç°ÎÄ¼şÃû
+				else	// è¡¥å…¨å½“å‰æ–‡ä»¶å
 				{
 					auto prevPath = nowPath.parent_path();
 
@@ -135,14 +145,14 @@ export namespace NylteJ
 
 						bool haveFind = false;
 
-						while (iter != end(iter))	// ÏÈÇø·Ö´óĞ¡Ğ´µØÕÒ, ÔÙ²»Çø·Ö´óĞ¡Ğ´µØÕÒ
+						while (iter != end(iter))	// å…ˆåŒºåˆ†å¤§å°å†™åœ°æ‰¾, å†ä¸åŒºåˆ†å¤§å°å†™åœ°æ‰¾
 						{
-							wstring nowFilename = iter->path().filename().wstring();
-							wstring inputFilename = nowPath.filename().wstring();
+							String nowFilename = iter->path().filename();
+							String inputFilename = nowPath.filename();
 
 							if (nowFilename.starts_with(inputFilename))
 							{
-								editor.SetData((prevPath / iter->path().filename()).wstring());
+								editor.SetData((prevPath / iter->path().filename()).u8string());
 								editor.PrintData();
 								editor.MoveCursorToEnd();
 								haveFind = true;
@@ -153,22 +163,33 @@ export namespace NylteJ
 						}
 						if (!haveFind)
 						{
+							// TODO: è¿™é‡Œçš„å¿½ç•¥å¤§å°å†™æˆ–è®¸å¯ä»¥åŠ ä¸Šæœ¬åœ°åŒ–
 							iter = directory_iterator{ prevPath,directory_options::skip_permission_denied };
 							while (iter != end(iter))
 							{
-								wstring nowFilename = iter->path().filename().wstring();
-								wstring inputFilename = nowPath.filename().wstring();
+								String nowFilename = iter->path().filename();
+								String inputFilename = nowPath.filename();
 
-								wstring nowFilenameLower = nowFilename
-									| views::transform([](auto&& chr) {return towlower(chr); })
-									| ranges::to<wstring>();
-								wstring inputFilenameLower = inputFilename
-									| views::transform([](auto&& chr) {return towlower(chr); })
-									| ranges::to<wstring>();
+								String nowFilenameLower = nowFilename.ToUTF8()
+									| views::transform([](auto&& chr)-> char8_t
+													   {
+														   if (chr >= 'A' && chr <= 'Z')
+															   return chr - 'A' + 'a';
+														   return chr;
+													   })
+									| ranges::to<String>();
+								String inputFilenameLower = inputFilename.ToUTF8()
+									| views::transform([](auto&& chr)-> char8_t
+													   {
+													       if (chr >= 'A' && chr <= 'Z')
+													           return chr - 'A' + 'a';
+													       return chr;
+													   })
+									| ranges::to<String>();
 
 								if (nowFilenameLower.starts_with(inputFilenameLower))
 								{
-									editor.SetData((prevPath / iter->path().filename()).wstring());
+									editor.SetData((prevPath / iter->path().filename()).u8string());
 									editor.PrintData();
 									editor.MoveCursorToEnd();
 									haveFind = true;
@@ -181,7 +202,7 @@ export namespace NylteJ
 					}
 				}
 
-				return;		// ²»·¢ËÍµ½ Editor: ÎÄ¼şÃûÕı³£Ó¦¸ÃÒ²²»»áº¬ÓĞ Tab
+				return;		// ä¸å‘é€åˆ° Editor: æ–‡ä»¶åæ­£å¸¸åº”è¯¥ä¹Ÿä¸ä¼šå«æœ‰ Tab
 			}
 
 			editor.ManageInput(message, handlers);
@@ -209,9 +230,9 @@ export namespace NylteJ
 			editor.WhenRefocused();
 		}
 
-		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap,wstring_view tipText = L"ÊäÈëÂ·¾¶ (°´ Tab ×Ô¶¯²¹È«, °´»Ø³µÈ·ÈÏ): "sv)
+		FilePathWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap,StringView tipText = u8"è¾“å…¥è·¯å¾„ (æŒ‰ Tab è‡ªåŠ¨è¡¥å…¨, æŒ‰å›è½¦ç¡®è®¤): "sv)
 			:BasicWindow(console, drawRange),
-			editor(console, L""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 1},
+			editor(console, u8""s, { {drawRange.leftTop.x + 1,drawRange.leftTop.y + 1},
 									{drawRange.rightBottom.x - 1,drawRange.rightBottom.y - 1} },
 				settingMap),
 			tipText(tipText)
@@ -229,10 +250,10 @@ export namespace NylteJ
 
 		function<void()> callback;
 	public:
-		void ManagePath(wstring_view path, UnionHandler& handlers) override;	// ÒªÓÃµ½ºóÃæµÄ EncodingSelectWindow, Ã»°ì·¨
+		void ManagePath(StringView path, UnionHandler& handlers) override;	// è¦ç”¨åˆ°åé¢çš„ EncodingSelectWindow, æ²¡åŠæ³•
 
 		OpenFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, Encoding encoding, const SettingMap& settingMap, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, settingMap, L"´ò¿ªÎÄ¼ş: ÊäÈëÂ·¾¶ (°´ Tab ×Ô¶¯²¹È«, °´»Ø³µÈ·ÈÏ): "sv),
+			:FilePathWindow(console, drawRange, settingMap, u8"æ‰“å¼€æ–‡ä»¶: è¾“å…¥è·¯å¾„ (æŒ‰ Tab è‡ªåŠ¨è¡¥å…¨, æŒ‰å›è½¦ç¡®è®¤): "sv),
 			encoding(encoding),
 			callback(callback)
 		{
@@ -243,33 +264,33 @@ export namespace NylteJ
 	private:
 		function<void()> callback;
 	public:
-		void ManagePath(wstring_view path, UnionHandler& handlers) override;
+		void ManagePath(StringView path, UnionHandler& handlers) override;
 
 		SaveFileWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const SettingMap& settingMap, function<void()> callback = [] {})
-			:FilePathWindow(console, drawRange, settingMap, L"±£´æµ½: ÊäÈëÂ·¾¶ (°´ Tab ×Ô¶¯²¹È«, °´»Ø³µÈ·ÈÏ): "sv),
+			:FilePathWindow(console, drawRange, settingMap, u8"ä¿å­˜åˆ°: è¾“å…¥è·¯å¾„ (æŒ‰ Tab è‡ªåŠ¨è¡¥å…¨, æŒ‰å›è½¦ç¡®è®¤): "sv),
 			callback(callback)
 		{
 		}
 	};
 
 
-	// ÓĞÁ½¸ö»ò¸ü¶à¸öÑ¡ÏîµÄ´°¿Ú
-	// ÆäÊµ»¹ÓĞÍ¦¶àµØ·½ÄÜÓÃÉÏµÄ, Ò»Ğ©¼¼ÊõÒ²ÄÜ¸´ÓÃµ½²éÕÒ / Ìæ»»´°¿ÚÀï
-	// Í¬Ñù²¢²»ÄÜÊµÀı»¯
+	// æœ‰ä¸¤ä¸ªæˆ–æ›´å¤šä¸ªé€‰é¡¹çš„çª—å£
+	// å…¶å®è¿˜æœ‰æŒºå¤šåœ°æ–¹èƒ½ç”¨ä¸Šçš„, ä¸€äº›æŠ€æœ¯ä¹Ÿèƒ½å¤ç”¨åˆ°æŸ¥æ‰¾ / æ›¿æ¢çª—å£é‡Œ
+	// åŒæ ·å¹¶ä¸èƒ½å®ä¾‹åŒ–
 	class SelectWindow :public BasicWindow
 	{
 	protected:
-		vector<wstring> choices;
+		vector<String> choices;
 
 		size_t nowChoose = 0;
-		size_t beginChoice = 0;		// µ±´°¿ÚÌ«Ğ¡¡¢Ñ¡ÏîÌ«¶àÊ±ÓÃÀ´¹ö¶¯
+		size_t beginChoice = 0;		// å½“çª—å£å¤ªå°ã€é€‰é¡¹å¤ªå¤šæ—¶ç”¨æ¥æ»šåŠ¨
 
-		wstring tipText;
+		String tipText;
 	protected:
 		void PrintChoices()
 		{
 			if (drawRange.Height() < 4)
-				throw invalid_argument{ "´°¿ÚÌ«Ğ¡ÁË! "s };
+				throw invalid_argument{ "çª—å£å¤ªå°äº†! "s };
 
 			for (size_t i = beginChoice; i < choices.size() && (i - beginChoice) + 4 <= drawRange.Height(); i++)
 			{
@@ -279,7 +300,7 @@ export namespace NylteJ
 
 					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
 					if (restLength > 0)
-						console.Print(views::repeat(L' ', restLength) | ranges::to<wstring>());
+						console.Print(views::repeat(u8' ', restLength) | ranges::to<String>());
 				}
 				else
 				{
@@ -287,7 +308,7 @@ export namespace NylteJ
 
 					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
 					if (restLength > 0)
-						console.Print(views::repeat(L' ', restLength) | ranges::to<wstring>(), BasicColors::inverseColor, BasicColors::inverseColor);
+						console.Print(views::repeat(u8' ', restLength) | ranges::to<String>(), BasicColors::inverseColor, BasicColors::inverseColor);
 				}
 			}
 		}
@@ -349,10 +370,10 @@ export namespace NylteJ
 
 			if (message.LeftClick() && drawRange.Contain(message.position))
 			{
-				const auto lineIndex = (message.position - drawRange.leftTop).y - 2;	// Ç°Á½ĞĞ·Ö±ğÊÇ±ß¿òºÍÌáÊ¾´Ê
+				const auto lineIndex = (message.position - drawRange.leftTop).y - 2;	// å‰ä¸¤è¡Œåˆ†åˆ«æ˜¯è¾¹æ¡†å’Œæç¤ºè¯
 
 				if (lineIndex >= 0 && lineIndex + beginChoice < choices.size())
-					if (nowChoose != lineIndex + beginChoice)	// ±¾À´¾ÍÑ¡ÖĞÁË¾ÍÖ±½ÓÑ¡ÔñÁË, ·ñÔò½ö½öÖ»ÊÇÑ¡ÖĞ. »»ÑÔÖ®Êó±êÒªË«»÷²ÅÓĞÓÃ
+					if (nowChoose != lineIndex + beginChoice)	// æœ¬æ¥å°±é€‰ä¸­äº†å°±ç›´æ¥é€‰æ‹©äº†, å¦åˆ™ä»…ä»…åªæ˜¯é€‰ä¸­. æ¢è¨€ä¹‹é¼ æ ‡è¦åŒå‡»æ‰æœ‰ç”¨
 					{
 						nowChoose = lineIndex + beginChoice;
 
@@ -397,7 +418,7 @@ export namespace NylteJ
 			PrintChoices();
 		}
 
-		SelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const vector<wstring>& choices = {}, wstring tipText = L"Ñ¡Ôñ: "s)
+		SelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const vector<String>& choices = {}, String tipText = u8"é€‰æ‹©: "s)
 			:BasicWindow(console, drawRange),
 			choices(choices),
 			tipText(tipText)
@@ -412,7 +433,7 @@ export namespace NylteJ
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
 		{
-			if (choiceIndex == 0)	// ±£´æ
+			if (choiceIndex == 0)	// ä¿å­˜
 			{
 				if (handlers.file.Valid())
 				{
@@ -421,24 +442,24 @@ export namespace NylteJ
 				}
 				else
 				{
-					// TODO: Î´À´ÔÙ¿¼ÂÇÍ³Ò»°É
+					// TODO: æœªæ¥å†è€ƒè™‘ç»Ÿä¸€å§
 					auto window = make_shared<SaveFileWindow>(handlers.console, drawRange, handlers.settings,
 						[callback = this->callback, choiceIndex] {callback(choiceIndex); });
-					// ×¢ÒâÕâÀïÖ»ÄÜ´«Öµ, ÒòÎª callback ±»µ÷ÓÃÊ±Õâ¸ö Window ºÜ¿ÉÄÜÒÑ¾­±»Ïú»ÙÁË
-					// ¶øÇÒ±ØĞëÕâÑùÖ¸¶¨, ·ñÔò lambda Ö»»á²¶»ñ this, callback »¹ÊÇÎŞĞ§, µÃÕâÑù²Å»áÈÃËû¸´ÖÆÒ»·İ
+					// æ³¨æ„è¿™é‡Œåªèƒ½ä¼ å€¼, å› ä¸º callback è¢«è°ƒç”¨æ—¶è¿™ä¸ª Window å¾ˆå¯èƒ½å·²ç»è¢«é”€æ¯äº†
+					// è€Œä¸”å¿…é¡»è¿™æ ·æŒ‡å®š, å¦åˆ™ lambda åªä¼šæ•è· this, callback è¿˜æ˜¯æ— æ•ˆ, å¾—è¿™æ ·æ‰ä¼šè®©ä»–å¤åˆ¶ä¸€ä»½
 
 					handlers.ui.components.emplace(handlers.ui.normalWindowDepth, window);
 					handlers.ui.GiveFocusTo(window);
 				}
 			}
-			else if (choiceIndex == 1)	// ²»±£´æ
+			else if (choiceIndex == 1)	// ä¸ä¿å­˜
 				callback(choiceIndex);
-			else	// È¡Ïû, ´ËÊ±²»µ÷ÓÃ callback, Ğ§¹ûºÍ°´ Esc Ó¦¸ÃÊÇÒ»ÑùµÄ
+			else	// å–æ¶ˆ, æ­¤æ—¶ä¸è°ƒç”¨ callback, æ•ˆæœå’ŒæŒ‰ Esc åº”è¯¥æ˜¯ä¸€æ ·çš„
 				return;
 		}
 
 		SaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"±£´æ"s, L"²»±£´æ"s, L"È¡Ïû"s }, L"µ±Ç°¸ü¸ÄÎ´±£´æ. ÊÇ·ñÏÈ±£´æ? "s),
+			:SelectWindow(console, drawRange, { u8"ä¿å­˜"s, u8"ä¸ä¿å­˜"s, u8"å–æ¶ˆ"s }, u8"å½“å‰æ›´æ”¹æœªä¿å­˜. æ˜¯å¦å…ˆä¿å­˜? "s),
 			callback(callback)
 		{
 		}
@@ -447,7 +468,7 @@ export namespace NylteJ
 	class EncodingSelectWindow :public SelectWindow
 	{
 	private:
-		constexpr static wstring_view lastChoiceText = L" (ÉÏ´ÎÑ¡Ôñ)"sv;
+		constexpr static StringView lastChoiceText = u8" (ä¸Šæ¬¡é€‰æ‹©)"sv;
 	private:
 		function<void(Encoding)> callback;
 
@@ -457,15 +478,15 @@ export namespace NylteJ
 		{
 			using enum Encoding;
 
-			if (choiceIndex + 1 == choices.size())	// È¡Ïû
+			if (choiceIndex + 1 == choices.size())	// å–æ¶ˆ
 				return;
-			if (choiceIndex + 2 == choices.size())	// Ç¿ÖÆ´ò¿ª
+			if (choiceIndex + 2 == choices.size())	// å¼ºåˆ¶æ‰“å¼€
 			{
 				callback(FORCE);
 				return;
 			}
 
-			if (choiceIndex + 3 == choices.size())	//×Ô¶¯Ê¶±ğ
+			if (choiceIndex + 3 == choices.size())	//è‡ªåŠ¨è¯†åˆ«
 			{
 				for (size_t i = static_cast<size_t>(FirstEncoding); i <= static_cast<size_t>(LastEncoding); i++)
 				{
@@ -476,7 +497,7 @@ export namespace NylteJ
 					}
 					catch (WrongEncodingException&) {}
 				}
-				throw WrongEncodingException{ L"Ä¿Ç°ÉĞ²»Ö§³Ö¸Ã±àÂë! Çë³¢ÊÔÇ¿ÖÆ´ò¿ª."sv };
+				throw WrongEncodingException{ u8"ç›®å‰å°šä¸æ”¯æŒè¯¥ç¼–ç ! è¯·å°è¯•å¼ºåˆ¶æ‰“å¼€."sv };
 			}
 
 			try
@@ -496,7 +517,8 @@ export namespace NylteJ
 			catch (WrongEncodingException&)
 			{
 				if (choices[lastChoice].ends_with(lastChoiceText))
-					choices[lastChoice].erase(choices[lastChoice].size() - lastChoiceText.size(), lastChoiceText.size());
+					choices[lastChoice].erase(choices[lastChoice].AtByteIndex(choices[lastChoice].ByteSize() - lastChoiceText.ByteSize()),
+											  lastChoiceText.end());
 
 				lastChoice = choiceIndex;
 				choices[lastChoice].append_range(lastChoiceText);
@@ -507,8 +529,8 @@ export namespace NylteJ
 			}
 		}
 
-		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, wstring tip = L"ÊÖ¶¯Ñ¡ÔñÎÄ¼ş±àÂë: "s)
-			:SelectWindow(console, drawRange, { L"UTF-8"s, L"GB 2312"s, L"×Ô¶¯Ê¶±ğ (ÊµÑéĞÔ¹¦ÄÜ)"s, L"Ç¿ÖÆ´ò¿ª (É÷ÖØ!)"s,L"È¡Ïû"s }, tip),
+		EncodingSelectWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(Encoding)> callback = [](Encoding) {}, String tip = u8"æ‰‹åŠ¨é€‰æ‹©æ–‡ä»¶ç¼–ç : "s)
+			:SelectWindow(console, drawRange, { u8"UTF-8"s, u8"GB 2312"s, u8"è‡ªåŠ¨è¯†åˆ« (å®éªŒæ€§åŠŸèƒ½)"s, u8"å¼ºåˆ¶æ‰“å¼€ (æ…é‡!)"s, u8"å–æ¶ˆ"s }, tip),
 			callback(callback)
 		{
 		}
@@ -521,18 +543,18 @@ export namespace NylteJ
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
 		{
-			if (choiceIndex == 0)	// ¸²¸Ç
+			if (choiceIndex == 0)	// è¦†ç›–
 				doOverride(choiceIndex);
-			else	// È¡Ïû, ´ËÊ±²»µ÷ÓÃ callback, Ğ§¹ûºÍ°´ Esc Ó¦¸ÃÊÇÒ»ÑùµÄ
+			else	// å–æ¶ˆ, æ­¤æ—¶ä¸è°ƒç”¨ callback, æ•ˆæœå’ŒæŒ‰ Esc åº”è¯¥æ˜¯ä¸€æ ·çš„
 				return;
-			// TODO: ÀíÂÛÉÏÕâÀïÈ¡ÏûºóÓ¦µ±»Øµ½Ô­´°¿Ú, µ«´úÂë²»ºÃ¸Ä
+			// TODO: ç†è®ºä¸Šè¿™é‡Œå–æ¶ˆååº”å½“å›åˆ°åŸçª—å£, ä½†ä»£ç ä¸å¥½æ”¹
 		}
 
 		OverrideOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> doOverride = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"¸²¸Ç"s, L"È¡Ïû"s }, L"ÎÄ¼şÒÑ´æÔÚ. ÊÇ·ñ¸²¸Ç? "s),
+			:SelectWindow(console, drawRange, { u8"è¦†ç›–"s, u8"å–æ¶ˆ"s }, u8"æ–‡ä»¶å·²å­˜åœ¨. æ˜¯å¦è¦†ç›–? "s),
 			doOverride(doOverride)
 		{
-			nowChoose = 1;	// Ä¬ÈÏ²»¸²¸Ç
+			nowChoose = 1;	// é»˜è®¤ä¸è¦†ç›–
 		}
 	};
 
@@ -543,16 +565,16 @@ export namespace NylteJ
 	public:
 		void ManageChoice(size_t choiceIndex, UnionHandler& handlers) override
 		{
-			if (choiceIndex == 0)	// ¼ÓÔØ
+			if (choiceIndex == 0)	// åŠ è½½
 				callback(choiceIndex);
-			else if (choiceIndex == 1)	// ²»¼ÓÔØ
+			else if (choiceIndex == 1)	// ä¸åŠ è½½
 				callback(choiceIndex);
-			else	// È¡Ïû
+			else	// å–æ¶ˆ
 				return;
 		}
 
 		LoadAutoSaveOrNotWindow(ConsoleHandler& console, const ConsoleRect& drawRange, function<void(size_t)> callback = [](size_t) {})
-			:SelectWindow(console, drawRange, { L"¼ÓÔØ"s, L"²»¼ÓÔØ"s, L"È¡Ïû"s }, L"¼ì²âµ½×Ô¶¯±£´æÎÄ¼ş, ÊÇ·ñ¼ÓÔØ? "s),
+			:SelectWindow(console, drawRange, { u8"åŠ è½½"s, u8"ä¸åŠ è½½"s, u8"å–æ¶ˆ"s }, u8"æ£€æµ‹åˆ°è‡ªåŠ¨ä¿å­˜æ–‡ä»¶, æ˜¯å¦åŠ è½½? "s),
 			callback(callback)
 		{
 		}
@@ -565,7 +587,7 @@ export namespace NylteJ
 		{
 			for (auto&& operation : deque)
 			{
-				wstring str;
+				String str;
 
 				bool addEllipsis = false;
 
@@ -574,19 +596,20 @@ export namespace NylteJ
 				else if ((operation.type == Editor::EditOperation::Type::Erase) xor inverse)
 					str += L"- "s;
 
-				// ÖÆ±í·ûÖ±½ÓÉ¾µô. ÀúÊ·¼ÇÂ¼ĞèÒªµÄÊÇ¾ßÌåĞÅÏ¢, Ö»ÒªÄÜ´Ó¶Ì¶ÌµÄ¼¸¸ö×Ö·ûÖĞ¿´³öÕâ´Î²Ù×÷¶¼×öÁËÊ²Ã´¾Í¿ÉÒÔÁË, ÖÆ±í·û²»ÓÃÁô
-				// ¿ªÍ·ºÍ½áÎ²µÄ»»ĞĞÍ¬Àí
-				wstring nowOperationData = *operation.data
+				// åˆ¶è¡¨ç¬¦ç›´æ¥åˆ æ‰. å†å²è®°å½•éœ€è¦çš„æ˜¯å…·ä½“ä¿¡æ¯, åªè¦èƒ½ä»çŸ­çŸ­çš„å‡ ä¸ªå­—ç¬¦ä¸­çœ‹å‡ºè¿™æ¬¡æ“ä½œéƒ½åšäº†ä»€ä¹ˆå°±å¯ä»¥äº†, åˆ¶è¡¨ç¬¦ä¸ç”¨ç•™
+				// å¼€å¤´å’Œç»“å°¾çš„æ¢è¡ŒåŒç†
+				String nowOperationData = *operation.data
 					| views::filter([](auto&& chr) {return chr != '\t' && chr != '\r'; })
 					| views::drop_while([](auto&& chr) {return chr == '\n'; })
 					| views::reverse
 					| views::drop_while([](auto&& chr) {return chr == '\n'; })
 					| views::reverse
-					| views::take(drawRange.Width() - 4)	// ¿¼ÂÇµ½Ä¿Ç°µÄ DisplayLength ×ÜÊÇ²»¶ÌÓÚ size, Ö±½ÓÏÈ²Ã¼ôÒ»´Î, ÕâÑùµ±×Ö·û´®ÌØ±ğ³¤Ê±ÄÜÏÔÖøÓÅ»¯ĞÔÄÜ (·Ç³£ÏÔÖø)
-					| ranges::to<wstring>();
+					| views::take(drawRange.Width() - 4)	// è€ƒè™‘åˆ°ç›®å‰çš„ DisplayLength æ€»æ˜¯ä¸çŸ­äº size, ç›´æ¥å…ˆè£å‰ªä¸€æ¬¡, è¿™æ ·å½“å­—ç¬¦ä¸²ç‰¹åˆ«é•¿æ—¶èƒ½æ˜¾è‘—ä¼˜åŒ–æ€§èƒ½ (éå¸¸æ˜¾è‘—)
+					| ranges::to<String>();
 
-				// Ö»±£ÁôµÚÒ»ĞĞ
-				if (auto nextLineIter = ranges::find(nowOperationData, '\n'); nextLineIter != nowOperationData.end())
+				// åªä¿ç•™ç¬¬ä¸€è¡Œ
+                if (auto nextLineIter = find(nowOperationData.begin(), nowOperationData.end(), u8'\n');
+                    nextLineIter != nowOperationData.end())
 				{
 					nowOperationData.erase(nextLineIter, nowOperationData.end());
 
@@ -600,7 +623,7 @@ export namespace NylteJ
 
 					while (nowDisplayLength < drawRange.Width() - 7)
 					{
-						auto chr = nowOperationData[endIndex];
+						auto chr = *nowOperationData.AtByteIndex(endIndex);
 
 						if (IsWideChar(chr))
 							nowDisplayLength += 2;
@@ -612,7 +635,7 @@ export namespace NylteJ
 					if (nowDisplayLength > drawRange.Width() - 7)
 						endIndex--;
 
-					str += wstring_view{ nowOperationData.begin(),nowOperationData.begin() + endIndex };
+					str += StringView{ nowOperationData.begin(),nowOperationData.AtByteIndex(endIndex) };
 					addEllipsis = true;
 				}
 				else
@@ -635,7 +658,7 @@ export namespace NylteJ
 				handlers.ui.mainEditor.Redo(choiceIndex - undoSize);
 		}
 
-		// ÕâÀïÎªÁËÊµÏÖ°´»Ø³µ²»¹Ø±Õ´°¿ÚµÄĞ§¹û, µÃÀ¹½Øµô Enter, Îª´ËÈı¸ö¶¼µÃÖØĞ´
+		// è¿™é‡Œä¸ºäº†å®ç°æŒ‰å›è½¦ä¸å…³é—­çª—å£çš„æ•ˆæœ, å¾—æ‹¦æˆªæ‰ Enter, ä¸ºæ­¤ä¸‰ä¸ªéƒ½å¾—é‡å†™
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override
 		{
 			SelectWindow::ManageInput(message, handlers);
@@ -645,11 +668,11 @@ export namespace NylteJ
 			if (handlers.settings.Get<SettingID::CloseHistoryWindowAfterEnter>() == 0
 				&& message.key == InputHandler::MessageKeyboard::Key::Enter)
 			{
-				const auto nowHereIndex = handlers.ui.mainEditor.GetUndoDeque().size();	// ÄÇ¸ö ¡°ÏÖÔÚ×´Ì¬¡± µÄË÷Òı
+				const auto nowHereIndex = handlers.ui.mainEditor.GetUndoDeque().size();	// é‚£ä¸ª â€œç°åœ¨çŠ¶æ€â€ çš„ç´¢å¼•
 
 				ManageChoice(nowChoose, handlers);
 
-				// ÀàËÆÃ°Åİ, Í¨¹ıÁ¬Ğø½»»»À´ÔÚ²»¸Ä±äÆäËüÔªËØÎ»ÖÃµÄÇé¿öÏÂ°Ñ ¡°ÏÖÔÚ×´Ì¬¡± Å²µ½µ±Ç°Î»ÖÃ
+				// ç±»ä¼¼å†’æ³¡, é€šè¿‡è¿ç»­äº¤æ¢æ¥åœ¨ä¸æ”¹å˜å…¶å®ƒå…ƒç´ ä½ç½®çš„æƒ…å†µä¸‹æŠŠ â€œç°åœ¨çŠ¶æ€â€ æŒªåˆ°å½“å‰ä½ç½®
 				if (nowHereIndex > nowChoose)
 					for (auto index = nowHereIndex; index > nowChoose; index--)
 						swap(choices[index], choices[index - 1]);
@@ -657,7 +680,7 @@ export namespace NylteJ
 					for (auto index = nowHereIndex; index < nowChoose; index++)
 						swap(choices[index], choices[index + 1]);
 
-				WhenFocused();	// ÖØ»æÒ»ÏÂ×Ô¼º, Ë³±ãÖØĞÂ¾Û½¹, ²»È»¾Í±» Editor ¸Ç¹ıÈ¥ÁË
+				WhenFocused();	// é‡ç»˜ä¸€ä¸‹è‡ªå·±, é¡ºä¾¿é‡æ–°èšç„¦, ä¸ç„¶å°±è¢« Editor ç›–è¿‡å»äº†
 				return;
 			}
 
@@ -669,24 +692,24 @@ export namespace NylteJ
 		}
 
 		HistoryWindow(ConsoleHandler& console, const ConsoleRect& drawRange, const Editor& mainEditor)
-			:SelectWindow(console, drawRange, {}, L"Ñ¡ÔñÒª³·Ïúµ½µÄÀúÊ·¼ÇÂ¼......"s)
+			:SelectWindow(console, drawRange, {}, u8"é€‰æ‹©è¦æ’¤é”€åˆ°çš„å†å²è®°å½•......"s)
 		{
-			// ±ğÍüÁË undoDeque Àï´æµÄ¶¼ÊÇ·´×ªºóµÄÔ­²Ù×÷, ÒÔ¼° deque µÄ¶ÁÈ¡Ë³Ğò
+			// åˆ«å¿˜äº† undoDeque é‡Œå­˜çš„éƒ½æ˜¯åè½¬åçš„åŸæ“ä½œ, ä»¥åŠ deque çš„è¯»å–é¡ºåº
 			MakeChoices(mainEditor.GetUndoDeque() | views::reverse, true);
 
-			// µ±Ç°×´¿ö
-			const auto tipTextNowSituation = L"µ±Ç°×´¿ö"s;
+			// å½“å‰çŠ¶å†µ
+			const String tipTextNowSituation = u8"å½“å‰çŠ¶å†µ"s;
 			const auto allSpaceWidth = drawRange.Width() - 2 - GetDisplayLength(tipTextNowSituation);
 			const auto lineHalfWidth = allSpaceWidth / 2;
 			choices.emplace_back(
-				(views::repeat(L'-', lineHalfWidth) | ranges::to<wstring>())
+				String(u8'-', lineHalfWidth)
 				+ tipTextNowSituation
-				+ (views::repeat(L'-', allSpaceWidth - lineHalfWidth) | ranges::to<wstring>()));
+				+ String(u8'-', allSpaceWidth - lineHalfWidth));
 			ChangeChoose(choices.size() - 1);
 
 			MakeChoices(mainEditor.GetRedoDeque(), false);
 
-			// ¾¡Á¿±£Ö¤ ¡°µ±Ç°Î»ÖÃ¡± ´¦ÔÚÑ¡Ïî¿òµÄÖĞ¼ä, ÒÔÌáĞÑÓÃ»§ºáÏßÏÂÃæ»¹ÓĞ¶«Î÷
+			// å°½é‡ä¿è¯ â€œå½“å‰ä½ç½®â€ å¤„åœ¨é€‰é¡¹æ¡†çš„ä¸­é—´, ä»¥æé†’ç”¨æˆ·æ¨ªçº¿ä¸‹é¢è¿˜æœ‰ä¸œè¥¿
 			const auto halfHeight = (drawRange.Height() - 4) / 2;
 			if (nowChoose - beginChoice > halfHeight)
 				beginChoice = nowChoose - halfHeight;
@@ -694,7 +717,7 @@ export namespace NylteJ
 	};
 
 
-	void OpenFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
+	void OpenFileWindow::ManagePath(StringView path, UnionHandler& handlers)
 	{
 		try
 		{
@@ -710,7 +733,7 @@ export namespace NylteJ
 			auto behavior = handlers.settings.Get<SettingID::DefaultBehaviorWhenErrorEncoding>();
 
 			auto funcToOpen =
-				[path = ranges::to<wstring>(path),
+				[path = ranges::to<String>(path),
 				callback = this->callback,
 				&file = handlers.file,
 				&mainEditor = handlers.ui.mainEditor]
@@ -724,11 +747,11 @@ export namespace NylteJ
 					callback();
 				};
 
-			wstring encodingSelectTipText = L"ÎÄ¼şÎŞ·¨Í¨¹ı UTF-8 ±àÂë´ò¿ª, ÇëÊÖ¶¯Ñ¡Ôñ±àÂë: "s;
+			String encodingSelectTipText = u8"æ–‡ä»¶æ— æ³•é€šè¿‡ UTF-8 ç¼–ç æ‰“å¼€, è¯·æ‰‹åŠ¨é€‰æ‹©ç¼–ç : "s;
 
 			using enum Encoding;
 
-			if (behavior == 1 || behavior == 2)	// ÏÈ³¢ÊÔ×Ô¶¯Ê¶±ğ
+			if (behavior == 1 || behavior == 2)	// å…ˆå°è¯•è‡ªåŠ¨è¯†åˆ«
 			{
 				for (size_t i = static_cast<size_t>(FirstEncoding); i <= static_cast<size_t>(LastEncoding); i++)
 				{
@@ -739,13 +762,13 @@ export namespace NylteJ
 					}
 					catch (WrongEncodingException&) {}
 				}
-				// Ê§°ÜÁË
-				if (behavior == 2)	// Ç¿ÖÆ´ò¿ª
+				// å¤±è´¥äº†
+				if (behavior == 2)	// å¼ºåˆ¶æ‰“å¼€
 				{
 					funcToOpen(FORCE);
 					return;
 				}
-				encodingSelectTipText = L"±àÂë×Ô¶¯Ê¶±ğÊ§°Ü, ÇëÊÖ¶¯Ñ¡Ôñ±àÂë: "s;
+				encodingSelectTipText = u8"ç¼–ç è‡ªåŠ¨è¯†åˆ«å¤±è´¥, è¯·æ‰‹åŠ¨é€‰æ‹©ç¼–ç : "s;
 			}
 
 			auto window = make_shared<EncodingSelectWindow>(handlers.console,
@@ -758,7 +781,7 @@ export namespace NylteJ
 			handlers.ui.GiveFocusTo(window);
 		}
 	}
-	void SaveFileWindow::ManagePath(wstring_view path, UnionHandler& handlers)
+	void SaveFileWindow::ManagePath(StringView path, UnionHandler& handlers)
 	{
 		{
 			try
@@ -776,7 +799,7 @@ export namespace NylteJ
 									{handlers.console.GetConsoleSize().width * 0.75,handlers.console.GetConsoleSize().height * 0.67} },
 					[callback = this->callback,
 					&file = handlers.file,
-					path = path | ranges::to<wstring>(),
+					path = path | ranges::to<String>(),
 					&mainEditor = handlers.ui.mainEditor]
 					(size_t)
 					{

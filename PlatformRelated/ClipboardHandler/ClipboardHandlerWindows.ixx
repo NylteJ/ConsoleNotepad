@@ -1,10 +1,13 @@
 // ClipboardHandlerWindows.ixx
-// ¿‡À∆”⁄ ConsoleHandlerWindows ∫Õ FileHandlerWindows, ¥À¥¶≤ª‘Ÿ◊∏ ˆ
+// Á±ª‰ºº‰∫é ConsoleHandlerWindows Âíå FileHandlerWindows, Ê≠§Â§Ñ‰∏çÂÜçËµòËø∞
 module;
 #include <Windows.h>
 export module ClipboardHandlerWindows;
 
 import std;
+
+import String;
+import StringEncoder;
 
 import ConsoleHandlerWindows;
 
@@ -15,22 +18,6 @@ export namespace NylteJ
 	class ClipboardHandlerWindows
 	{
 	public:
-		void Write(string_view source)
-		{
-			if (OpenClipboard(NULL))
-			{
-				EmptyClipboard();
-				HGLOBAL clipbuffer;
-				char* buffer;
-				clipbuffer = GlobalAlloc(GMEM_MOVEABLE, (source.size() + 1) * sizeof(char));
-				buffer = reinterpret_cast<char*>(GlobalLock(clipbuffer));
-				ranges::copy(source, buffer);
-				buffer[source.size()] = '\0';
-				GlobalUnlock(clipbuffer);
-				SetClipboardData(CF_TEXT, clipbuffer);
-				CloseClipboard();
-			}
-		}
 		void Write(wstring_view source)
 		{
 			if (OpenClipboard(NULL))
@@ -47,10 +34,14 @@ export namespace NylteJ
 				CloseClipboard();
 			}
 		}
-
-		wstring Read()
+		void Write(StringView source)
 		{
-			wstring ret;
+			Write(U8StrToWStr(source.ToUTF8()));
+		}
+
+		String Read()
+		{
+			wstring data;
 
 			if (OpenClipboard(NULL))
 			{
@@ -60,7 +51,7 @@ export namespace NylteJ
 				{
 					auto strPtr = reinterpret_cast<wchar_t*>(GlobalLock(handler));
 
-					ret = strPtr;
+					data = strPtr;
 
 					GlobalUnlock(strPtr);
 				}
@@ -68,7 +59,7 @@ export namespace NylteJ
 				CloseClipboard();
 			}
 
-			return ret;
+			return WStrToU8Str(data);
 		}
 	};
 }

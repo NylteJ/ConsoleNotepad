@@ -1,5 +1,5 @@
 // ConsoleArgumentsAnalyzer.ixx
-// ÓÃÀ´½âÎöÃüÁîĞĞ²ÎÊı
+// ç”¨æ¥è§£æå‘½ä»¤è¡Œå‚æ•°
 export module ConsoleArgumentsAnalyzer;
 
 import std;
@@ -90,7 +90,7 @@ export namespace NylteJ
 
 			for (int i = 1; i < argc; i++)
 				arguments.emplace_back(argv[i]);
-			// ÀíÂÛÉÏ argv ÔÚ main º¯Êı½áÊøÇ°¶¼»áÒ»Ö±±£³ÖÓĞĞ§, ËùÒÔÓÃ view ´æÒ²Ã»Ê²Ã´ÎÊÌâ, ´ó¸Å
+			// ç†è®ºä¸Š argv åœ¨ main å‡½æ•°ç»“æŸå‰éƒ½ä¼šä¸€ç›´ä¿æŒæœ‰æ•ˆ, æ‰€ä»¥ç”¨ view å­˜ä¹Ÿæ²¡ä»€ä¹ˆé—®é¢˜, å¤§æ¦‚
 		}
 	};
 }

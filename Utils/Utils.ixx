@@ -1,27 +1,55 @@
 // Utils.ixx
-// Ò»Ğ©ÔÓÆßÔÓ°ËµÄº¯Êı
+// ä¸€äº›æ‚ä¸ƒæ‚å…«çš„å‡½æ•°
+module;
+#include <unicode/uchar.h>
 export module Utils;
 
 import std;
+
+import String;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	// ÅĞ¶ÏÒ»¸ö×Ö·ûÊÇ·ñÊÇÁ½±¶¿í¶ÈµÄ
-	constexpr bool IsWideChar(wchar_t chr)
+	// åˆ¤æ–­ä¸€ä¸ªå­—ç¬¦æ˜¯å¦æ˜¯ä¸¤å€å®½åº¦çš„
+	constexpr bool IsWideChar(Codepoint codepoint)
 	{
-		if (chr <= 127)
-			return false;
-		if (chr == L'¡°' || chr == L'¡±')
-			return false;
+		// ASCII ç‰¹åˆ¤
+        if (codepoint <= 0x7f)
+            return false;
 
-		return true;
+		const auto width = u_getIntPropertyValue(codepoint, UCHAR_EAST_ASIAN_WIDTH);
+		return width == U_EA_FULLWIDTH || width == U_EA_WIDE;
 	}
 
-	// »ñÈ¡Ò»¸öµ¥ĞĞÇÒ²»º¬ Tab µÄ×Ö·û´®µÄÏÔÊ¾³¤¶È
-	constexpr size_t GetDisplayLength(wstring_view str)
+	// è·å–ä¸€ä¸ªå•è¡Œä¸”ä¸å« Tab çš„å­—ç¬¦ä¸²çš„æ˜¾ç¤ºé•¿åº¦
+	constexpr size_t GetDisplayLength(StringView str)
 	{
-		return str.size() + ranges::count_if(str, IsWideChar);
+		size_t ret = 0;
+
+		for (auto&& codepoint : str)
+			if (IsWideChar(codepoint))
+				ret += 2;
+			else
+				ret++;
+
+		return ret;
+	}
+
+	constexpr bool IsASCIIAlpha(integral auto&& chr)
+	{
+		return (chr >= 'A' && chr <= 'Z') || (chr >= 'a' && chr <= 'z');
+	}
+
+	template<typename ElementType, typename... Args>
+	constexpr array<ElementType, sizeof...(Args)> MakeArray(Args&&... args)
+	{
+		return { ElementType{ forward<Args>(args) }... };
+	}
+	template<typename ElementType, typename... Args>
+	constexpr vector<ElementType> MakeVector(Args&&... args)
+	{
+		return { ElementType{ forward<Args>(args) }... };
 	}
 }

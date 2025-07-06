@@ -1,5 +1,5 @@
 // FileHandlerWindows.ixx
-// Windows Æ½Ì¨µÄÎÄ¼ş²Ù×÷
+// Windows å¹³å°çš„æ–‡ä»¶æ“ä½œ
 module;
 #include <Windows.h>
 export module FileHandlerWindows;
@@ -8,6 +8,7 @@ import std;
 
 import StringEncoder;
 import Exceptions;
+import String;
 
 using namespace std;
 
@@ -44,13 +45,13 @@ export namespace NylteJ
 		{
 			OpenFileReal(filePath, OPEN_EXISTING);
 
-			if (!Valid())		// ÎÄ¼şÃ»ÄÜ´ò¿ª, ¼ÌĞøÔËĞĞÏÂÈ¥Ò²Ã»ÒâÒå, Ö±½Ó throw
-				throw FileOpenFailedException{ L"ÎÄ¼ş´ò¿ªÊ§°Ü! Çë¼ì²éÎÄ¼şÃûºÍ·ÃÎÊÈ¨ÏŞ!"s };
+			if (!Valid())		// æ–‡ä»¶æ²¡èƒ½æ‰“å¼€, ç»§ç»­è¿è¡Œä¸‹å»ä¹Ÿæ²¡æ„ä¹‰, ç›´æ¥ throw
+				throw FileOpenFailedException{ u8"æ–‡ä»¶æ‰“å¼€å¤±è´¥! è¯·æ£€æŸ¥æ–‡ä»¶åå’Œè®¿é—®æƒé™!"s };
 		}
 
 #pragma push_macro("CreateFile")
 #undef CreateFile
-		// Êµ¼ÊÉÏ×öµÄ»¹ÊÇ OpenFile µÄ»î, Ö»ÊÇ»áÔÚÎÄ¼ş²»´æÔÚÊ±´´½¨¡¢ÔÚÎÄ¼ş´æÔÚÊ±±¨´í
+		// å®é™…ä¸Šåšçš„è¿˜æ˜¯ OpenFile çš„æ´», åªæ˜¯ä¼šåœ¨æ–‡ä»¶ä¸å­˜åœ¨æ—¶åˆ›å»ºã€åœ¨æ–‡ä»¶å­˜åœ¨æ—¶æŠ¥é”™
 		void CreateFile(filesystem::path filePath, bool allowOverride = false)
 		{
 			auto flag = allowOverride ? CREATE_ALWAYS : CREATE_NEW;
@@ -58,13 +59,13 @@ export namespace NylteJ
 			OpenFileReal(filePath, flag);
 
 			if (!Valid())
-				throw FileOpenFailedException{ L"ÎÄ¼ş´´½¨Ê§°Ü! Çë¼ì²éÎÄ¼şÊÇ·ñÒÑ´æÔÚ¡¢Â·¾¶ÊÇ·ñºÏ·¨ÒÔ¼°ÓĞÎŞ·ÃÎÊÈ¨ÏŞ!"s };
+				throw FileOpenFailedException{ u8"æ–‡ä»¶åˆ›å»ºå¤±è´¥! è¯·æ£€æŸ¥æ–‡ä»¶æ˜¯å¦å·²å­˜åœ¨ã€è·¯å¾„æ˜¯å¦åˆæ³•ä»¥åŠæœ‰æ— è®¿é—®æƒé™!"s };
 		}
 #pragma pop_macro("CreateFile")
 
-		wstring ReadAll(Encoding encoding, bool force = false) const
+		String ReadAll(Encoding encoding, bool force = false) const
 		{
-			return StrToWStr(ReadAsBytes(), encoding, force);
+			return String{ ReadAsBytes() };
 		}
 
 		string ReadAsBytes() const
@@ -102,7 +103,7 @@ export namespace NylteJ
 			}
 		}
 
-		void Write(string_view bytes)
+		void Write(span<const std::byte> bytes)
 		{
 			if (!Valid())
 				return;
@@ -110,15 +111,20 @@ export namespace NylteJ
 			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
 
 			DWORD temp;
-			WriteFile(fileHandle, bytes.data(), bytes.size() * sizeof(bytes[0]), &temp, NULL);
+			WriteFile(fileHandle, bytes.data(), bytes.size_bytes(), &temp, NULL);
 
-			SetEndOfFile(fileHandle);	// ÒÔÉÏÖ»ÊÇµ¥´¿µÄ¸²Ğ´, Èç¹ûĞÂÎÄ¼ş³¤¶È¶ÌÓÚÔ­ÎÄ¼ş³¤¶È, ºóÃæµÄ²¿·Ö»á±£Áô, ËùÒÔÒª½Ø¶Ï
+			SetEndOfFile(fileHandle);	// ä»¥ä¸Šåªæ˜¯å•çº¯çš„è¦†å†™, å¦‚æœæ–°æ–‡ä»¶é•¿åº¦çŸ­äºåŸæ–‡ä»¶é•¿åº¦, åé¢çš„éƒ¨åˆ†ä¼šä¿ç•™, æ‰€ä»¥è¦æˆªæ–­
 
 			FlushFileBuffers(fileHandle);
 		}
-		void Write(wstring_view data, Encoding encoding)
+		void Write(StringView data, Encoding encoding)
 		{
-			Write(WStrToStr(data, encoding));
+			if (encoding != Encoding::UTF8)
+				throw logic_error{ "TODO" };		// TODO
+			
+            auto u8str = data.ToUTF8();
+			auto bytes = span{ reinterpret_cast<const std::byte*>(u8str.data()), u8str.size() };
+			Write(bytes);
 		}
 	};
 }

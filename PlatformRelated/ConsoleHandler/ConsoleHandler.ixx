@@ -1,13 +1,14 @@
 // ConsoleHandler.ixx
-// ÓÃÓÚ·â×°¿ØÖÆÌ¨ÎÄ±¾²Ù×÷£¬°üÀ¨µ«²»ÏŞÓÚ´òÓ¡¡¢ÇåÆÁ¡¢¸²Ğ´µÈ
-// Í¬Ê±»á¶Ô¿ØÖÆÌ¨×öÒ»Ğ©±ØÒªµÄ´¦Àí
-// Õâ²¿·Ö´úÂëÊÇ¿çÆ½Ì¨µÄ£¬Æ½Ì¨Ïà¹ØµÄ²Ù×÷ÔÚÆäËüÄ£¿éÊµÏÖ
+// ç”¨äºå°è£…æ§åˆ¶å°æ–‡æœ¬æ“ä½œï¼ŒåŒ…æ‹¬ä½†ä¸é™äºæ‰“å°ã€æ¸…å±ã€è¦†å†™ç­‰
+// åŒæ—¶ä¼šå¯¹æ§åˆ¶å°åšä¸€äº›å¿…è¦çš„å¤„ç†
+// è¿™éƒ¨åˆ†ä»£ç æ˜¯è·¨å¹³å°çš„ï¼Œå¹³å°ç›¸å…³çš„æ“ä½œåœ¨å…¶å®ƒæ¨¡å—å®ç°
 export module ConsoleHandler;
 
 import std;
 
 import ConsoleTypedef;
 import InputHandler;
+import String;
 
 #ifdef _WIN32
 import ConsoleHandlerWindows;
@@ -41,27 +42,27 @@ export namespace NylteJ
 			handler.SetCursorTo(pos);
 		}
 
-		void Print(wstring_view text) const
+		void Print(StringView text) const
 		{
-			handler.Print(text);
+            handler.Print(text);
 		}
-		void Print(wstring_view text, ConsolePosition pos) const
+		void Print(StringView text, ConsolePosition pos) const
 		{
 			handler.Print(text, pos);
 		}
-		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor) const
 		{
 			handler.Print(text, pos, textColor);
 		}
-		void Print(wstring_view text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
 		{
 			handler.Print(text, pos, textColor, backgrondColor);
 		}
-		void Print(wstring_view text, ConsoleColor textColor) const
+		void Print(StringView text, ConsoleColor textColor) const
 		{
 			handler.Print(text, textColor);
 		}
-		void Print(wstring_view text, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgrondColor) const
 		{
 			handler.Print(text, textColor, backgrondColor);
 		}

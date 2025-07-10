@@ -339,7 +339,7 @@ export namespace NylteJ
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const String& title = u8"ConsoleNotepad ver. 0.96b  made by NylteJ"s)
+			const String& title = u8"ConsoleNotepad ver. 0.96β  made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
 			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
 																				{ handlers.console.GetConsoleSize().width - 1,

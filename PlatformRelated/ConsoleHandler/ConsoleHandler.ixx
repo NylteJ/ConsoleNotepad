@@ -54,17 +54,17 @@ export namespace NylteJ
 		{
 			handler.Print(text, pos, textColor);
 		}
-		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
-			handler.Print(text, pos, textColor, backgrondColor);
+			handler.Print(text, pos, textColor, backgroundColor);
 		}
 		void Print(StringView text, ConsoleColor textColor) const
 		{
 			handler.Print(text, textColor);
 		}
-		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
-			handler.Print(text, textColor, backgrondColor);
+			handler.Print(text, textColor, backgroundColor);
 		}
 
 		void ClearConsole() const

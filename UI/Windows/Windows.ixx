@@ -598,7 +598,7 @@ export namespace NylteJ
 
 				// 制表符直接删掉. 历史记录需要的是具体信息, 只要能从短短的几个字符中看出这次操作都做了什么就可以了, 制表符不用留
 				// 开头和结尾的换行同理
-				String nowOperationData = *operation.data
+				String nowOperationData = operation.data
 					| views::filter([](auto&& chr) {return chr != '\t' && chr != '\r'; })
 					| views::drop_while([](auto&& chr) {return chr == '\n'; })
 					| views::reverse
@@ -619,23 +619,21 @@ export namespace NylteJ
 				if (GetDisplayLength(nowOperationData) >= drawRange.Width() - 4)
 				{
 					size_t nowDisplayLength = 0;
-					size_t endIndex = 0;
+					auto endIter = nowOperationData.begin();
 
 					while (nowDisplayLength < drawRange.Width() - 7)
 					{
-						auto chr = *nowOperationData.AtByteIndex(endIndex);
-
-						if (IsWideChar(chr))
+						if (IsWideChar(*endIter))
 							nowDisplayLength += 2;
 						else
 							nowDisplayLength++;
 
-						endIndex++;
+						++endIter;
 					}
 					if (nowDisplayLength > drawRange.Width() - 7)
-						endIndex--;
+						--endIter;
 
-					str += StringView{ nowOperationData.begin(),nowOperationData.AtByteIndex(endIndex) };
+					str += StringView{ nowOperationData.begin(), endIter };
 					addEllipsis = true;
 				}
 				else

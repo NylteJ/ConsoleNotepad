@@ -50,6 +50,7 @@ export namespace NylteJ
 		}
 	};
 
+	// 闭区间
 	class ConsoleRect
 	{
 	public:
@@ -69,7 +70,16 @@ export namespace NylteJ
 				&& (pos.y >= leftTop.y && pos.y <= rightBottom.y);
 		}
 
-		ConsoleRect(const ConsolePosition& leftTop, const ConsolePosition& rightBottom)
+		constexpr ConsoleRect operator+(const ConsolePosition& right) const
+		{
+			return ConsoleRect{ leftTop + right, rightBottom + right };
+		}
+		constexpr ConsoleRect operator-(const ConsolePosition& right) const
+		{
+			return ConsoleRect{ leftTop - right, rightBottom - right };
+		}
+
+		constexpr ConsoleRect(const ConsolePosition& leftTop, const ConsolePosition& rightBottom)
 			:leftTop(leftTop), rightBottom(rightBottom)
 		{
 		}

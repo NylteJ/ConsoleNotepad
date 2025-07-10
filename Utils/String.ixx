@@ -3,6 +3,7 @@
 // (为什么 C++ 项目都喜欢实现自己的 String 呢? 好难猜啊)
 // 为了不和 Exception 产生循环依赖, String 类只抛出 STL 异常(目前的实现里主要是 runtime_error)
 module;
+#include <assert.h>
 #include <unicode/ucsdet.h>
 #include <unicode/ucnv.h>
 #include <unicode/utf8.h>
@@ -123,6 +124,20 @@ namespace NylteJ
 								 chr) };
 			}
 
+			// 不能区分 Iter 和 Sentinel, 否则 MSVC 会报重载不明确(std 里的版本也没做区分)
+			template<typename U8Iter>
+				requires(is_same_v<iter_value_t<U8Iter>, char8_t>)
+			friend constexpr Iterator find_first_of(Iterator strBegin,
+													Iterator strEnd,
+													U8Iter&& chrBegin,
+													U8Iter&& chrEnd)
+			{
+				return Iterator{ std::find_first_of(strBegin.str,
+													strEnd.str,
+													chrBegin,
+													chrEnd) };
+			}
+
 			friend constexpr auto count(Iterator strBegin,
 										Iterator strEnd,
 										char8_t chr)
@@ -139,7 +154,7 @@ namespace NylteJ
 		public:
 			constexpr auto&& operator++()
 			{
-				Codepoint temp = 0;
+				int32_t temp = 0;
 
 				U8_FWD_1_UNSAFE(str, temp);
 				str += temp;
@@ -175,6 +190,8 @@ namespace NylteJ
 				Codepoint ret;
 
 				U8_GET_UNSAFE(str, 0, ret);
+
+				assert(U8_LENGTH(ret) != 0);
 
 				return ret;
 			}
@@ -270,6 +287,16 @@ namespace NylteJ
 		{
 			data.resize(GetByteIndex(prev(end())));
 		}
+
+		constexpr void emplace_back(Codepoint codepoint)
+		{
+			int32_t index = data.size();
+
+			data.resize(data.size() + U8_MAX_LENGTH);
+			U8_APPEND_UNSAFE(data.data(), index, codepoint);
+			data.resize(index);
+		}
+		constexpr void push_back(Codepoint codepoint) { emplace_back(codepoint); }
 
 		// 逻辑上的 size(), 表示字符数
 		// 时间复杂度为 O(N)
@@ -523,7 +550,9 @@ namespace NylteJ
 
 		constexpr StringView(String::Iterator begin, String::Iterator end)
 			: data(begin.str, static_cast<size_t>(end.str - begin.str))
-		{}
+		{
+			assert(begin.str <= end.str);
+		}
 
 		constexpr StringView() = default;
 	};

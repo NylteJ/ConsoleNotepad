@@ -16,6 +16,7 @@ import UIComponent;
 import SettingMap;
 import InputHandler;
 import String;
+import UnionHandler;
 
 using namespace std;
 
@@ -107,7 +108,7 @@ export namespace NylteJ
 			EditOperation(EditOperation&&) noexcept = default;
 			EditOperation() = default;
 		};
-	private:
+	protected:
 		ConsoleHandler& console;
 
 		String fileData;
@@ -127,8 +128,6 @@ export namespace NylteJ
 		// 为什么要用 deque 呢? 因为 stack 不能 pop 栈底的元素, 无法控制 stack 大小
 
 		const SettingMap& settingMap;
-
-		function<void()> lineIndexPrinter = [] {};
 	private:
 		constexpr size_t MinSelectIndex() const
 		{
@@ -137,11 +136,6 @@ export namespace NylteJ
 		constexpr size_t MaxSelectIndex() const
 		{
 			return max(selectBeginIndex, selectEndIndex);
-		}
-
-		constexpr ColorfulFormattedString GetFormattedString() const
-		{
-			return formatter->GetColorfulString(drawRange - drawRange.leftTop + leftTop);
 		}
 
 		// 返回值: 是否进行了滚动
@@ -250,7 +244,7 @@ export namespace NylteJ
 		}
 	public:
 		// 输出内容的同时会覆盖背景
-		void PrintData() const
+		virtual void PrintData() const
 		{
 			console.HideCursor();
 
@@ -262,7 +256,7 @@ export namespace NylteJ
 			else
 				formatter->SetColorRanges({});
 
-			auto formattedString = GetFormattedString();
+			auto formattedString = formatter->GetColorfulString(drawRange - drawRange.leftTop + leftTop);
 
 			for (auto&& [line, extraSpaceCount] : formattedString.data)
 			{
@@ -356,15 +350,28 @@ export namespace NylteJ
 			if (needReprint)
 				PrintData();
 		}
+		void ScrollAndSetCursorPos(const ConsolePosition& pos, bool selectMode = false)
+		{
+			const bool needReprint = ScrollToPosition(pos + leftTop);
+
+			SetCursorPos(pos, selectMode);
+
+			if (needReprint)
+				PrintData();
+		}
 
 		// 移动光标, 同时会约束光标位置, 把方向设置为 None 即可只约束位置
 		void MoveCursor(Direction direction, bool selectMode = false)
 		{
 			using enum Direction;
 
-			bool needReprintData = ScrollToIndex(cursorIndex);
+			auto newPos = cursorPos;
 
-			auto newPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
+			// 先滚一次屏
+			auto lastLeftTop = leftTop;
+			bool needReprintData = ScrollToPosition(cursorPos + leftTop);
+			if (needReprintData)
+				newPos = newPos + lastLeftTop - leftTop;
 
 			switch (direction)
 			{
@@ -377,8 +384,8 @@ export namespace NylteJ
 
 			newPos = formatter->RestrictPosition(newPos + leftTop, direction) - leftTop;
 
-			// 滚屏在此进行
-			auto lastLeftTop = leftTop;
+			// 移动完再滚一次
+			lastLeftTop = leftTop;
 			if (ScrollToPosition(newPos + leftTop))
 			{
 				newPos = newPos + lastLeftTop - leftTop;
@@ -388,10 +395,7 @@ export namespace NylteJ
 			SetCursorPos(newPos, selectMode);
 
 			if (needReprintData)
-			{
 				PrintData();
-				lineIndexPrinter();	// TODO
-			}
 		}
 
 		// 基于当前光标/选区位置插入
@@ -409,9 +413,6 @@ export namespace NylteJ
 			formatter->OnStringUpdate(fileData, cursorIndex);
 
 			MoveCursorToIndex(cursorIndex + str.ByteSize(), cursorIndex + str.ByteSize());
-
-			if (str.contains(u8'\n'))
-				lineIndexPrinter();
 		}
 
 		// 基于当前光标/选区位置删除 (等价于按一下 Backspace)
@@ -430,11 +431,7 @@ export namespace NylteJ
 
 				console.HideCursor();
 
-				SetCursorPos(formatter->IndexToConsolePosition(cursorIndex) - leftTop);
-
 				MoveCursor(Direction::Left);
-
-				bool needReprintLineIndex = (*fileData.AtByteIndex(index) == '\n');
 
 				if (index > 0 && *prev(fileData.AtByteIndex(index)) == '\r')
 				{
@@ -457,26 +454,21 @@ export namespace NylteJ
 					formatter->OnStringUpdate(fileData, index);
 				}
 
+				cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
+				MoveCursor(Direction::None);
 				PrintData();
-				if(needReprintLineIndex)
-					lineIndexPrinter();
 			}
 			else
 			{
 				ScrollToIndex(MinSelectIndex());
 
 				if (log)
-					LogOperation(EditOperation::Erase, MinSelectIndex(), StringView{ fileData.AtByteIndex(MinSelectIndex()),fileData.AtByteIndex(MaxSelectIndex()) });
-
-				bool needReprintLineIndex = StringView{ fileData.AtByteIndex(MinSelectIndex()), fileData.AtByteIndex(MaxSelectIndex()) }.contains('\n');
+					LogOperation(EditOperation::Erase, MinSelectIndex(), fileData.View(MinSelectIndex(), MaxSelectIndex()));
 
 				fileData.erase(fileData.AtByteIndex(MinSelectIndex()), fileData.AtByteIndex(MaxSelectIndex()));
 				formatter->OnStringUpdate(fileData, MinSelectIndex());
 
 				SetCursorPos(formatter->IndexToConsolePosition(MinSelectIndex()) - leftTop);
-
-				if(needReprintLineIndex)
-					lineIndexPrinter();
 			}
 		}
 
@@ -518,7 +510,6 @@ export namespace NylteJ
 			}
 
 			PrintData();
-			lineIndexPrinter();
 		}
 
 		void HScrollScreen(int line)
@@ -543,7 +534,6 @@ export namespace NylteJ
 			// 这个比较特殊, 就不合并到下面了
 			cursorIndex = selectBeginIndex = selectEndIndex = 0;
 			cursorPos = leftTop = { 0,0 };
-			lineIndexPrinter();
 
 			PrintData();
 		}
@@ -613,9 +603,6 @@ export namespace NylteJ
 
 			formatter->OnStringUpdate(fileData, changedIndex);	// 只更新一次即可
 			Undo();
-			// 前面几次 Undo 不检查行号变化, 所以如果前几次 Undo 了换行, 但最后一次又没有, 行号显示就会出问题
-			// 补偿性地, 这里不加检查地重绘行号, 下 (Redo) 同
-			lineIndexPrinter();
 		}
 
 		template<bool direct = false>
@@ -659,7 +646,6 @@ export namespace NylteJ
 
 			formatter->OnStringUpdate(fileData, changedIndex);	// 只更新一次即可
 			Redo();
-			lineIndexPrinter();
 		}
 
 		auto& GetUndoDeque() const
@@ -682,11 +668,6 @@ export namespace NylteJ
 			return ret;
 		}
 
-		void SetLineIndexPrinter(function<void()> printer)
-		{
-			lineIndexPrinter = printer;
-		}
-
 		ConsolePosition GetAbsCursorPos() const
 		{
 			return cursorPos + leftTop;
@@ -695,9 +676,23 @@ export namespace NylteJ
 		size_t GetNowLineCharCount() const
 		{
 			// TODO: 性能优化
-			return StringView{ fileData.AtByteIndex(formatter->LineRangeOf(formatter->LineIndexOf(cursorIndex)).first),
-							fileData.AtByteIndex(cursorIndex) }.Size();
+			return fileData.View(formatter->LineRangeOf(formatter->LineIndexOf(cursorIndex)).first, cursorIndex).Size();
 		}
+
+		unique_ptr<ColorfulFormatter> SetFormatter(unique_ptr<ColorfulFormatter> newFormatter)
+		{
+			formatter.swap(newFormatter);
+			formatter->OnStringUpdate(fileData);
+			formatter->OnDrawRangeUpdate({ drawRange.leftTop, drawRange.rightBottom - ConsolePosition{1, 0} });
+
+			cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
+			ScrollToPosition(cursorPos + leftTop);
+			PrintData();
+			FlushCursor();
+
+			return newFormatter;
+		}
+		const ColorfulFormatter* GetFormatter() const { return formatter.get(); }
 
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
 		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
@@ -715,7 +710,10 @@ export namespace NylteJ
 			switch (message.key)
 			{
 			case Left:
-				MoveCursor(Direction::Left, message.extraKeys.Shift());
+				if (!message.extraKeys.Ctrl())
+					MoveCursor(Direction::Left, message.extraKeys.Shift());
+				else
+					ScrollAndSetCursorPos(formatter->IndexToConsolePosition(WordSelector::ToPrevWordBoarder(fileData, cursorIndex)) - leftTop, message.extraKeys.Shift());
 				return;
 			case Up:
 				if (!message.extraKeys.Ctrl())
@@ -724,7 +722,10 @@ export namespace NylteJ
 					ScrollScreen(-1);
 				return;
 			case Right:
-				MoveCursor(Direction::Right, message.extraKeys.Shift());
+				if (!message.extraKeys.Ctrl())
+					MoveCursor(Direction::Right, message.extraKeys.Shift());
+				else
+					ScrollAndSetCursorPos(formatter->IndexToConsolePosition(WordSelector::ToNextWordBoarder(fileData, cursorIndex)) - leftTop, message.extraKeys.Shift());
 				return;
 			case Down:
 				if (!message.extraKeys.Ctrl())
@@ -733,21 +734,37 @@ export namespace NylteJ
 					ScrollScreen(1);
 				return;
 			case Backspace:
-				Erase();
+				if (!message.extraKeys.Ctrl() || selectBeginIndex != selectEndIndex)
+					Erase();
+				else	// 一次删除一个词
+				{
+					selectEndIndex = cursorIndex;
+					selectBeginIndex = WordSelector::ToPrevWordBoarder(fileData, cursorIndex);
+					Erase();
+				}
 				return;
 			case Enter:
 				Insert(u8"\n"sv);
 				return;
-			case Delete:	// 姑且也是曲线救国了
-			{
-				const auto lastCursorPos = cursorPos + leftTop;
-
-				console.HideCursor();
-				MoveCursor(Direction::Right);
-				if (lastCursorPos != cursorPos + leftTop)	// 用这种方式来并不优雅地判断是否到达末尾, 到达末尾时按 del 应该删不掉东西
-					Erase();
-				console.ShowCursor();
-			}
+			case Delete:
+				if (cursorIndex != fileData.ByteSize())
+				{
+					if (selectBeginIndex != selectEndIndex)
+						Erase();	// 有选中区域时 Delete 等价于 Backspace
+					else if (!message.extraKeys.Ctrl())
+					{
+						console.HideCursor();
+						MoveCursor(Direction::Right);
+						Erase();
+						console.ShowCursor();
+					}
+					else	// 一次删除一个词
+					{
+						selectBeginIndex = cursorIndex;
+						selectEndIndex = WordSelector::ToNextWordBoarder(fileData, cursorIndex);
+						Erase();
+					}
+				}
 				return;
 			case Esc:
 				return;
@@ -819,12 +836,12 @@ export namespace NylteJ
 
 			if (message.LeftClick())
 			{
-				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop);
+				RestrictedAndSetCursorPos(message.position - drawRange.leftTop);
 
 				if (message.type == DoubleClicked)
 				{
 					// TODO: 支持双击后拖选以大范围选择(干脆留到未来大重构吧)
-					const auto [wordBegin, wordEnd] = GetWord(fileData, GetCursorIterator());
+					const auto [wordBegin, wordEnd] = WordSelector::GetCurrentWord(fileData, GetCursorIterator());
 
 					selectBeginIndex = fileData.GetByteIndex(wordBegin);
 					selectEndIndex = fileData.GetByteIndex(wordEnd);
@@ -833,7 +850,7 @@ export namespace NylteJ
 				}
 			}
 			if (message.type == Moved && message.LeftHold())
-				RestrictedAndSetCursorPos(message.position - GetDrawRange().leftTop, true);
+				RestrictedAndSetCursorPos(message.position - drawRange.leftTop, true);
 
 			if (message.type == VWheeled)
 				ScrollScreen(message.WheelMove());
@@ -856,6 +873,20 @@ export namespace NylteJ
 			console.HideCursor();
 		}
 
+		void SetDrawRange(const ConsoleRect& newRange) override
+		{
+			UIComponent::SetDrawRange(newRange);
+
+			auto range = newRange;
+			range.rightBottom.x--;
+			formatter->OnDrawRangeUpdate(range);
+
+			// TODO: 换用高级一点的 API
+			cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
+			ScrollToPosition(cursorPos + leftTop);
+			FlushCursor();
+		}
+
 		Editor(ConsoleHandler& console,
 			   const String& fileData,
 			   const ConsoleRect& drawRange,
@@ -869,6 +900,98 @@ export namespace NylteJ
 		{
 			if (this->formatter == nullptr)
 				this->formatter = make_unique<DefaultFormatter>(this->fileData, this->settingMap);
+			else
+			{
+				this->formatter->OnStringUpdate(fileData);
+				this->formatter->OnDrawRangeUpdate({ drawRange.leftTop, drawRange.rightBottom - ConsolePosition{1, 0} });
+			}
 		}
 };
+
+	// 主编辑器, 除 Editor 的共有功能外, 还支持行号显示
+	// 其实更应该用组合而不是继承, 先不改了
+	class MainEditor final : public Editor
+	{
+	private:
+		ConsoleRect drawRange;
+	private:
+		constexpr static auto GetRealLineIndexWidth(const SettingMap& settingMap, const ConsoleRect& drawRange)
+		{
+			if (settingMap.Get<SettingID::LineIndexWidth>() > 0
+				&& settingMap.Get<SettingID::LineIndexWidth>() < drawRange.Width())
+				return settingMap.Get<SettingID::LineIndexWidth>() + 1;
+			return 0;
+		}
+	public:
+		void PrintData() const override
+		{
+			Editor::PrintData();
+
+			if (GetRealLineIndexWidth(settingMap, drawRange) == 0)
+				return;
+
+			console.HideCursor();
+
+			constexpr auto color = BasicColors::brightCyan;
+
+			const auto lineIndexs = GetLineIndexs();
+			const auto drawHeight = min(static_cast<size_t>(console.GetConsoleSize().height - 2), lineIndexs.size());
+
+			const auto stringToLong = (views::repeat(u8'.', settingMap.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
+			const auto stringNull = (views::repeat(u8' ', settingMap.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
+
+			bool alreadyTooLong = false;    // 行号有单调性, 第一个过长的行号后面的行号一定都是过长的, 缓存一下避免多次 O(N) 计算 Size()
+
+			size_t lastLineIndex = -1;	// 多行拥有同一个行号时, 只显示一次
+
+			for (size_t i = 0; i < drawHeight; i++)
+			{
+				String outputStr;
+
+				if (lastLineIndex == lineIndexs[i] + 1)
+					outputStr = stringNull;
+				else
+				{
+					lastLineIndex = lineIndexs[i] + 1;
+					outputStr = String::Format("{:>{}}│"sv, lineIndexs[i] + 1, settingMap.Get<SettingID::LineIndexWidth>());
+
+					if (alreadyTooLong || outputStr.Size() > settingMap.Get<SettingID::LineIndexWidth>() + 1)
+					{
+						outputStr = stringToLong;
+						alreadyTooLong = true;
+					}
+				}
+
+				console.Print(outputStr, { 0,i + 1 }, color);
+			}
+			for (size_t i = drawHeight; i < console.GetConsoleSize().height - 2; i++)
+				console.Print(stringNull, { 0,i + 1 }, color);
+
+			FlushCursor();
+		}
+
+		void SetDrawRange(const ConsoleRect& newRange) override
+		{
+			drawRange = newRange;
+
+			auto subRange = newRange;
+			subRange.leftTop.x += GetRealLineIndexWidth(settingMap, subRange);
+
+			Editor::SetDrawRange(subRange);
+		}
+		const ConsoleRect& GetDrawRange() const override { return drawRange; }
+
+		MainEditor(ConsoleHandler& console,
+				   const String& fileData,
+				   const ConsoleRect& drawRange,
+				   const SettingMap& settingMap,
+				   unique_ptr<ColorfulFormatter> formatter)
+			: Editor(console,
+					 fileData,
+					 {drawRange.leftTop + ConsolePosition{GetRealLineIndexWidth(settingMap, drawRange), 0}, drawRange.rightBottom},
+					 settingMap,
+					 std::move(formatter)),
+			  drawRange(drawRange)
+		{}
+	};
 }

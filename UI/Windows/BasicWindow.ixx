@@ -9,6 +9,7 @@ import InputHandler;
 import UIComponent;
 import ConsoleTypedef;
 import String;
+import UnionHandler;
 
 using namespace std;
 

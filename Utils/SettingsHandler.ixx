@@ -36,9 +36,9 @@ export namespace NylteJ
 			template<ID id>
 			using DataType = SettingMap::DataType<id>;
 		public:
-			const String tipText;
-			const ID id;
-			const shared_ptr<UIComponent> component;
+			String tipText;
+			ID id;
+			unique_ptr<UIComponent> component;
 		public:
 			SettingMap::StoreType GetValue() const
 			{
@@ -47,12 +47,13 @@ export namespace NylteJ
 				if (typeid(*component) == typeid(Selector))
 					switch (id)
 					{
-#define NORMAL_CASE(id_) case id_: return static_cast<DataType<id_>>(static_pointer_cast<Selector>(component)->GetNowChoose());
+#define NORMAL_CASE(id_) case id_: return static_cast<DataType<id_>>(static_cast<Selector*>(component.get())->GetNowChoose());
 
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
 						NORMAL_CASE(CloseHistoryWindowAfterEnter)
 						NORMAL_CASE(SplitUndoStrWhenEnter)
 						NORMAL_CASE(NormalExitWhenDoubleEsc)
+						NORMAL_CASE(Wrap)
 
 #undef NORMAL_CASE
 					}
@@ -62,7 +63,7 @@ export namespace NylteJ
 					case AutoSavingDuration:
 					{
 						// TODO: 优化这段酷炫转换
-						istringstream strStream{ string{ reinterpret_cast<const char*>(static_pointer_cast<Editor>(component)->GetData().ToUTF8().data())} };
+						istringstream strStream{ string{ reinterpret_cast<const char*>(static_cast<Editor*>(component.get())->GetData().ToUTF8().data())} };
 						strStream.imbue(locale{ ".UTF8" });	// TODO: 这个似乎不是标准 C++ 的一部分
 						DataType<AutoSavingDuration> duration;
 						string unitTemp;
@@ -86,13 +87,13 @@ export namespace NylteJ
 #define NORMAL_CASE(id_) case id_:\
 {\
 	DataType<id_> ret;\
-	wistringstream strStream{ U8StrToWStr(static_pointer_cast<Editor>(component)->GetData().ToUTF8()) };\
+	wistringstream strStream{ U8StrToWStr(static_cast<Editor*>(component.get())->GetData().ToUTF8()) };\
 	strStream >> ret;\
 	if (strStream.bad())\
 		throw Exception{ u8"错误的数据格式!"sv };\
 	return ret;\
 }
-#define STRING_CASE(id_) case id_: return (static_pointer_cast<Editor>(component)->GetData() | ranges::to<String>()).ToUTF8();
+#define STRING_CASE(id_) case id_: return (static_cast<Editor*>(component.get())->GetData() | ranges::to<String>()).ToUTF8();
 
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
@@ -115,12 +116,13 @@ export namespace NylteJ
 				if (typeid(*component) == typeid(Selector))
 					switch (id)
 					{
-#define NORMAL_CASE(id_) case id_: static_pointer_cast<Selector>(component)->SetNowChoose(settingMap.Get<id_>());return;
+#define NORMAL_CASE(id_) case id_: static_cast<Selector*>(component.get())->SetNowChoose(settingMap.Get<id_>());return;
 
 						NORMAL_CASE(DefaultBehaviorWhenErrorEncoding)
 						NORMAL_CASE(CloseHistoryWindowAfterEnter)
 						NORMAL_CASE(SplitUndoStrWhenEnter)
 						NORMAL_CASE(NormalExitWhenDoubleEsc)
+						NORMAL_CASE(Wrap)
 
 #undef NORMAL_CASE
 					}
@@ -132,16 +134,16 @@ export namespace NylteJ
 						DataType<AutoSavingDuration> duration = settingMap.Get<AutoSavingDuration>();
 
 						if (duration % 3600 == 0)
-							static_pointer_cast<Editor>(component)->SetData(String::Format("{} h"sv, duration / 3600));
+							static_cast<Editor*>(component.get())->SetData(String::Format("{} h"sv, duration / 3600));
 						else if (duration % 60 == 0)
-							static_pointer_cast<Editor>(component)->SetData(String::Format("{} min"sv, duration / 60));
+							static_cast<Editor*>(component.get())->SetData(String::Format("{} min"sv, duration / 60));
 						else
-							static_pointer_cast<Editor>(component)->SetData(String::Format("{} s"sv, duration));
+							static_cast<Editor*>(component.get())->SetData(String::Format("{} s"sv, duration));
 						
                         return;
 					}
-#define NORMAL_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(String::Format("{}", settingMap.Get<id_>()));return;
-#define STRING_CASE(id_) case id_: static_pointer_cast<Editor>(component)->SetData(String(settingMap.Get<id_>()));return;
+#define NORMAL_CASE(id_) case id_: static_cast<Editor*>(component.get())->SetData(String::Format("{}", settingMap.Get<id_>()));return;
+#define STRING_CASE(id_) case id_: static_cast<Editor*>(component.get())->SetData(String(settingMap.Get<id_>()));return;
 
 						NORMAL_CASE(MaxUndoStep)
 						NORMAL_CASE(MaxRedoStep)
@@ -158,8 +160,8 @@ export namespace NylteJ
 				unreachable();
 			}
 
-			SettingItem(StringView tipText, ID id, shared_ptr<UIComponent> component)
-				:tipText(tipText), id(id), component(component)
+			SettingItem(StringView tipText, ID id, unique_ptr<UIComponent> component)
+				:tipText(tipText), id(id), component(std::move(component))
 			{
 			}
 		};
@@ -189,8 +191,8 @@ export namespace NylteJ
 
 			using enum SettingItem::ID;
 
-#define EDITOR_CASE(id_, tipText_) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_shared<Editor>(console, u8""s, drawRange, settingMap))
-#define SELECTOR_CASE(id_, tipText_, ...) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_shared<Selector>(console, drawRange, MakeVector<String>(__VA_ARGS__)))
+#define EDITOR_CASE(id_, tipText_) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_unique<Editor>(console, u8""s, drawRange, settingMap))
+#define SELECTOR_CASE(id_, tipText_, ...) settingList.emplace_back(String{ u8##tipText_##s }, id_, make_unique<Selector>(console, drawRange, MakeVector<String>(__VA_ARGS__)))
 
 			SELECTOR_CASE(DefaultBehaviorWhenErrorEncoding, "默认编码无法打开文件时的行为:", u8"直接手动选择编码"s, u8"先尝试自动选择, 失败再手动选择"s, u8"直接自动选择, 失败则强制打开"s);
 			EDITOR_CASE(AutoSavingDuration, "自动保存间隔:");
@@ -204,6 +206,7 @@ export namespace NylteJ
 			SELECTOR_CASE(NormalExitWhenDoubleEsc, "未保存并双击 Esc 强制退出时:", u8"视作异常退出 (保留自动保存文件)"s, u8"视作正常退出 (删除自动保存文件)"s);
 			EDITOR_CASE(LineIndexWidth, "行号宽度 (不含竖线, 设置为 0 以关闭行号显示):");
 			EDITOR_CASE(TabWidth, "Tab 宽度 (至少为 1):");
+			SELECTOR_CASE(Wrap, "自动换行:", u8"关闭"s, u8"开启 (实验性)"s);
 
 #undef SELECTOR_CASE
 #undef EDITOR_CASE

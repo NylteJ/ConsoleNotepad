@@ -11,10 +11,10 @@ using namespace std;
 
 export namespace NylteJ
 {
-	class Editor;
+	class MainEditor;
 
 	// 这里不能直接写出来 (using UIComponentPtr = shared_ptr<UIComponent>), 否则也会循环依赖 (这个没办法, 这里甚至没法用不完整类型)
-	// 还有 Editor 也是......好在只传引用所以还好解决
+	// 还有 MainEditor 也是......好在只传引用所以还好解决
 	template<typename UIComponentPtr>
 	class UIHandler
 	{
@@ -30,7 +30,7 @@ export namespace NylteJ
 
 		UIComponentPtr nowFocus;
 
-		Editor& mainEditor;
+		MainEditor& mainEditor;
 	public:
 		void GiveFocusTo(UIComponentPtr componentPtr)
 		{
@@ -64,7 +64,7 @@ export namespace NylteJ
 					GiveFocusTo(components.rbegin()->second);
 		}
 
-		UIHandler(Editor& editor)
+		UIHandler(MainEditor& editor)
 			:mainEditor(editor)
 		{
 		}

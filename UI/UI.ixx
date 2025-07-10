@@ -23,6 +23,7 @@ import UIComponent;
 import Editor;
 import Windows;
 import SettingWindow;
+import Formatter;
 
 using namespace std;
 
@@ -35,7 +36,7 @@ export namespace NylteJ
 
 		FileHandler autoSaveFile = { true };
 
-		shared_ptr<Editor> editor;	// editor 必须在 uiHandler 前、handlers 后被初始化 (否则会空引用)
+		shared_ptr<MainEditor> editor;	// editor 必须在 uiHandler 前、handlers 后被初始化 (否则会空引用)
 
 		UIHandler<shared_ptr<UIComponent>> uiHandler;
 
@@ -56,6 +57,35 @@ export namespace NylteJ
 								{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} };
 		}
 
+		unique_ptr<ColorfulFormatter> GetFormatter(const ConsoleRect& drawRange) const
+		{
+			if (handlers.settings.Get<SettingID::Wrap>())
+				return make_unique<DefaultWarpFormatter>(String{},
+				                                         handlers.settings,
+				                                         ConsoleRect{
+															 drawRange.leftTop,
+															 drawRange.rightBottom - ConsolePosition{ 1, 0 }
+				                                         });
+			else
+				return make_unique<DefaultFormatter>(String{}, handlers.settings);
+		}
+		unique_ptr<ColorfulFormatter> GetFormatter() const { return GetFormatter(editor->GetDrawRange()); }
+		shared_ptr<MainEditor> GetMainEditor(const String& editorData) const
+		{
+			const ConsoleRect drawRange{
+				{ 0, 1 },
+				{
+					handlers.console.GetConsoleSize().width - 1,
+					handlers.console.GetConsoleSize().height - 2
+				}
+			};
+
+			return make_shared<MainEditor>(handlers.console,
+										   editorData,
+										   drawRange,
+										   handlers.settings,
+										   GetFormatter(drawRange));
+		}
 
 		void WhenFileSaved(bool reSave = false)
 		{
@@ -177,49 +207,6 @@ export namespace NylteJ
 		{
 			ManageAutoSaveFile(handlers.file.nowFilePath);
 		}
-
-		auto GetRealLineIndexWidth()
-		{
-			if (handlers.settings.Get<SettingID::LineIndexWidth>() > 0
-				&& handlers.settings.Get<SettingID::LineIndexWidth>() < handlers.console.GetConsoleSize().width)
-				return handlers.settings.Get<SettingID::LineIndexWidth>() + 1;
-			return 0;
-		}
-
-		void PrintLineIndex()
-		{
-			if (GetRealLineIndexWidth() == 0)
-				return;
-
-			handlers.console.HideCursor();
-
-			constexpr auto color = BasicColors::brightCyan;
-
-			const auto lineIndexs = editor->GetLineIndexs();
-			const auto drawHeight = min(static_cast<size_t>(handlers.console.GetConsoleSize().height - 2), lineIndexs.size());
-
-			const auto stringToLong = (views::repeat(u8'.', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
-			const auto stringNull = (views::repeat(u8' ', handlers.settings.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
-
-            bool alreadyTooLong = false;    // 行号有单调性, 第一个过长的行号后面的行号一定都是过长的, 缓存一下避免多次 O(N) 计算 Size()
-
-			for (size_t i = 0; i < drawHeight; i++)
-			{
-				String outputStr = String::Format("{:>{}}│"sv, lineIndexs[i] + 1, handlers.settings.Get<SettingID::LineIndexWidth>());
-
-				if (alreadyTooLong || outputStr.Size() > handlers.settings.Get<SettingID::LineIndexWidth>() + 1)
-				{
-				    outputStr = stringToLong;
-                    alreadyTooLong = true;
-				}
-
-				handlers.console.Print(outputStr, { 0,i + 1 }, color);
-			}
-			for (size_t i = drawHeight; i < handlers.console.GetConsoleSize().height - 2; i++)
-				handlers.console.Print(stringNull, { 0,i + 1 }, color);
-
-			uiHandler.Refocus();
-		}
 	public:
 		void PrintTitle(StringView extraText = u8""sv)
 		{
@@ -334,17 +321,14 @@ export namespace NylteJ
 		}
 
 		UI(ConsoleHandler& consoleHandler,
-			String& editorData,
+			const String& editorData,
 			InputHandler& inputHandler,
 			FileHandler& fileHandler,
 			ClipboardHandler& clipboardHandler,
 			SettingMap& settingMap,
-			const String& title = u8"ConsoleNotepad ver. 0.96β  made by NylteJ"s)
+			const String& title = u8"ConsoleNotepad ver. 0.97β  made by NylteJ"s)
 			:handlers(consoleHandler, inputHandler, fileHandler, clipboardHandler, uiHandler, settingMap),
-			editor(make_shared<Editor>(consoleHandler, editorData, ConsoleRect{ { GetRealLineIndexWidth(),1 },
-																				{ handlers.console.GetConsoleSize().width - 1,
-																				  handlers.console.GetConsoleSize().height - 2 } }, 
-				settingMap)),
+			 editor(GetMainEditor(editorData)),
 			uiHandler(*editor),
 			title(title)
 		{
@@ -355,36 +339,27 @@ export namespace NylteJ
 			PrintTitle();
 			PrintFooter();
 
-			PrintLineIndex();
-			editor->SetLineIndexPrinter(bind(&UI::PrintLineIndex, this));
-
 			static bool lastIsEsc = false;	// 这个判定目前还有点简陋, 但至少不至于让人退不出来 (真随机字符串的获取方式.jpg)
 
-			inputHandler.SubscribeMessage([&](const InputHandler::MessageWindowSizeChanged& message, size_t)	// 与次数无关, 直接不用管第二个参数就好
+			inputHandler.SubscribeMessage([&](InputHandler::MessageWindowSizeChanged message, size_t)	// 与次数无关, 直接不用管第二个参数就好
 				{
-					// 貌似老式的 conhost 有蜜汁兼容问题, 有时会返回控制台有 9001 行......
-					// 但是直接 handlers.console.GetConsoleSize() 返回的又是正常的.
-					// 这里先用一个 dirty 点的解决方案吧
-					// 顺便一提老式的 conhost 需要拉左右边框才会触发这个事件, 拉上下边框是不触发的, 很迷
-					InputHandler::MessageWindowSizeChanged newMessage = message;
-
-					if (newMessage.newSize.height >= 1000)
-						newMessage.newSize = handlers.console.GetConsoleSize();
+					// Windows 下的这个信息很坑, 很多时候会先返回一个老的大小(比如新终端从全屏切非全屏时, 还是会先发一个全屏大小的 message)
+					// 而且老终端与它的相性也不好, 经常返回 9001 行的大小
+					// 好在 handlers.console.GetConsoleSize() 获取到的大小始终是正常的, 处理一下即可
+					message.newSize = handlers.console.GetConsoleSize();
 					
-					editor->SetDrawRange({	{GetRealLineIndexWidth(),1},
-											{newMessage.newSize.width - 1,newMessage.newSize.height - 2} });
+					editor->SetDrawRange({	{0,1},
+											{message.newSize.width - 1,message.newSize.height - 2} });
 
 					lastIsEsc = false;
 
 					editor->WhenFocused();
 
-					PrintLineIndex();
-
 					uiHandler.GiveFocusTo(uiHandler.nowFocus);
 
 					shared_ptr nowFocusPtr = uiHandler.nowFocus;
 
-					nowFocusPtr->ManageInput(newMessage, handlers);
+					nowFocusPtr->ManageInput(message, handlers);
 
 					PrintTitle();
 					PrintFooter();
@@ -504,7 +479,12 @@ export namespace NylteJ
 									{
 										auto window = make_shared<SettingWindow>(handlers.console,
 																				 WindowDrawRangeLargeSize(),
-																				 settingMap);
+																				 settingMap,
+																				 [&]
+																				 {
+																					 if (static_cast<bool>(settingMap.Get<SettingID::Wrap>()) xor (typeid(*editor->GetFormatter()) == typeid(DefaultWarpFormatter)))
+																						 editor->SetFormatter(GetFormatter());
+																				 });
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);
 									}

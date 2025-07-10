@@ -1,6 +1,10 @@
 // UnionHandler.ixx
 // 简单地统一那一大堆 Handler
 // 主要是为了可拓展地传给 UIComponent 之类的
+#ifdef __RESHARPER__
+module;
+namespace NylteJ { class UIComponent; }
+#endif
 export module UnionHandler;
 
 import std;
@@ -16,7 +20,9 @@ using namespace std;
 
 export namespace NylteJ
 {
+#ifndef __RESHARPER__
 	class UIComponent;
+#endif
 
 	class UnionHandler
 	{

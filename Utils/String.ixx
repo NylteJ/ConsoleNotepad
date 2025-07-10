@@ -333,6 +333,8 @@ namespace NylteJ
 			return ret;
 		}
 
+		constexpr StringView View(size_t beginIndex, size_t endIndex) const;
+
 		template<ranges::input_range Range>
 		constexpr auto&& operator+=(Range&& range)
 		{
@@ -560,53 +562,101 @@ namespace NylteJ
 	constexpr bool String::starts_with(StringView str) const { return data.starts_with(str.data); }
 	constexpr bool String::ends_with(StringView str) const { return data.ends_with(str.data); }
 
+	constexpr StringView String::View(size_t beginIndex, size_t endIndex) const
+	{
+		assert(beginIndex <= endIndex && endIndex <= ByteSize());
+		return StringView{ AtByteIndex(beginIndex), AtByteIndex(endIndex) };
+	}
+
 	constexpr String::String(const StringView& src)
 		: data(src.data)
 	{}
 
-	export auto GetWord(StringView str, String::Iterator where)
+	// 静态类
+	export class WordSelector
 	{
+	private:
 		// 这两个变量都可以复用
-		// 但都不是线程安全的, 所以声明为 thread_local 而非 static
-		thread_local UText text = UTEXT_INITIALIZER;	// ICU 的 UText 相当智能, 不会复制底层字符串, 而是类似 ranges::view 地提供上层适配, 这样我们就能愉快地以 UTF-8 的底层表示无缝对接 ICU 的许多 API 了
-		thread_local const unique_ptr<BreakIterator> iter = []
+		// 但都不是线程安全的, 所以声明为 thread_local
+		static inline thread_local UText text = UTEXT_INITIALIZER;	// ICU 的 UText 相当智能, 不会复制底层字符串, 而是类似 ranges::view 地提供上层适配, 这样我们就能愉快地以 UTF-8 的底层表示无缝对接 ICU 的许多 API 了
+		static inline thread_local const unique_ptr<BreakIterator> iter = []
+			{
+				UErrorCode status = U_ZERO_ERROR;
+				unique_ptr<BreakIterator> ret{ BreakIterator::createWordInstance(Locale::getDefault(), status) };
+
+				if (!U_SUCCESS(status))
+					throw runtime_error{ "Failed to create BreakIterator" };
+
+				return ret;
+			}();
+	private:
+		static void SetText(StringView str)
 		{
 			UErrorCode status = U_ZERO_ERROR;
-			unique_ptr<BreakIterator> ret{ BreakIterator::createWordInstance(Locale::getDefault(), status) };
+
+			utext_openUTF8(&text,
+						   reinterpret_cast<const char*>(str.ToUTF8().data()),
+						   str.ByteSize(),
+						   &status);
 
 			if (!U_SUCCESS(status))
-				throw runtime_error{ "Failed to create BreakIterator" };
+				throw runtime_error{ "Failed to open UText" };
 
-			return ret;
-		}();
+			iter->setText(&text, status);
 
-		UErrorCode status = U_ZERO_ERROR;
+			if (!U_SUCCESS(status))
+				throw runtime_error{ "Failed to set UText in BreakIterator" };
+		}
+	public:
+		static size_t ToNextWordBoarder(StringView str, size_t byteIndex)
+		{
+			SetText(str);
 
-		utext_openUTF8(&text,
-					   reinterpret_cast<const char*>(str.ToUTF8().data()),
-					   str.ByteSize(),
-					   &status);
+			auto next = iter->following(byteIndex);
+			if (next == BreakIterator::DONE)
+				next = str.ByteSize();
 
-		if (!U_SUCCESS(status))
-			throw runtime_error{ "Failed to open UText" };
+			return next;
+		}
+		static String::Iterator ToNextWordBoarder(StringView str, String::Iterator where)
+		{
+			return str.AtByteIndex(ToNextWordBoarder(str, str.GetByteIndex(where)));
+		}
 
-		iter->setText(&text, status);
+		static size_t ToPrevWordBoarder(StringView str, size_t byteIndex)
+		{
+			SetText(str);
 
-		if (!U_SUCCESS(status))
-			throw runtime_error{ "Failed to set UText in BreakIterator" };
+			auto next = iter->preceding(byteIndex);
+			if (next == BreakIterator::DONE)
+				next = 0;
 
-		auto byteIndex = str.GetByteIndex(where);
-		if (byteIndex != str.ByteSize())
-			byteIndex++;
-		auto begin = iter->preceding(byteIndex);
-		if (begin == BreakIterator::DONE)
-			begin = 0;
-		auto end = iter->next();
-		if (end == BreakIterator::DONE)
-			end = str.ByteSize();
+			return next;
+		}
+		static String::Iterator ToPrevWordBoarder(StringView str, String::Iterator where)
+		{
+			return str.AtByteIndex(ToPrevWordBoarder(str, str.GetByteIndex(where)));
+		}
 
-		return ranges::subrange{ str.AtByteIndex(begin), str.AtByteIndex(end) };
-	}
+		static auto GetCurrentWord(StringView str, String::Iterator where)
+		{
+			SetText(str);
+
+			auto byteIndex = str.GetByteIndex(where);
+			if (byteIndex != str.ByteSize())
+				byteIndex++;
+			auto begin = iter->preceding(byteIndex);
+			if (begin == BreakIterator::DONE)
+				begin = 0;
+			auto end = iter->next();
+			if (end == BreakIterator::DONE)
+				end = str.ByteSize();
+
+			return ranges::subrange{ str.AtByteIndex(begin), str.AtByteIndex(end) };
+		}
+
+		WordSelector() = delete;
+	};
 }
 
 // STL 兼容

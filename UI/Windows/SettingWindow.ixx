@@ -36,6 +36,8 @@ export namespace NylteJ
 		size_t nowFocusedSettingIndex = 0;
 
 		SettingsHandler settings;
+
+		function<void()> onSettingsChanged;
 	private:
 		constexpr size_t MaxSettingInScreen() const
 		{
@@ -113,6 +115,8 @@ export namespace NylteJ
 				// TODO: 写一个不那么丑陋的方法
 				handlers.input.SendMessage(InputHandler::MessageWindowSizeChanged{ handlers.console.GetConsoleSize() });
 				handlers.ui.mainEditor.MoveCursor(Direction::None);
+
+				onSettingsChanged();
 
 				EraseThis(handlers);
 				return;
@@ -217,9 +221,10 @@ export namespace NylteJ
 			settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 		}
 
-		SettingWindow(ConsoleHandler& console, const ConsoleRect& drawRange, SettingMap& settings)
+		SettingWindow(ConsoleHandler& console, const ConsoleRect& drawRange, SettingMap& settings, function<void()> onSettingsChanged)
 			:BasicWindow(console, drawRange),
-			settings(console, settings)
+			settings(console, settings),
+			onSettingsChanged(std::move(onSettingsChanged))
 		{
 			if (drawRange.Height() < 6)
 				throw Exception{ u8"窗口太小!"sv };

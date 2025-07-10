@@ -215,7 +215,7 @@ export namespace NylteJ
 			}
 			else
 			{
-				throw Exception{ u8"暂时移除了正则查找 / 替换" };
+				TODO();
 				//if (!findMode)
 				//	lastReplaceText = GetNowReplaceText();
 

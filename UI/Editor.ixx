@@ -295,8 +295,6 @@ export namespace NylteJ
 
 			fileData = newData;
 			formatter->OnStringUpdate(fileData);
-
-			//lineIndexPrinter();	// TODO
 		}
 
 		// 激活 “这个编辑器” 的光标
@@ -661,8 +659,7 @@ export namespace NylteJ
 		{
 			vector<size_t> ret;
 
-			// TODO: 性能优化
-			for (auto pos = leftTop; formatter->RestrictPosition(pos).y == pos.y; pos.y++)
+			for (auto pos = leftTop; formatter->FastRestrictPosition(pos).y == pos.y; pos.y++)
 				ret.emplace_back(formatter->LineIndexOf(pos));
 
 			return ret;
@@ -686,7 +683,11 @@ export namespace NylteJ
 			formatter->OnDrawRangeUpdate({ drawRange.leftTop, drawRange.rightBottom - ConsolePosition{1, 0} });
 
 			cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
-			ScrollToPosition(cursorPos + leftTop);
+
+			const auto lastLeftTop = leftTop;
+			if (ScrollToPosition(cursorPos + leftTop))
+				cursorPos = cursorPos + lastLeftTop - leftTop;
+
 			PrintData();
 			FlushCursor();
 
@@ -883,7 +884,25 @@ export namespace NylteJ
 
 			// TODO: 换用高级一点的 API
 			cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
-			ScrollToPosition(cursorPos + leftTop);
+
+			const auto lastLeftTop = leftTop;
+			if (ScrollToPosition(cursorPos + leftTop))
+				cursorPos = cursorPos + lastLeftTop - leftTop;
+
+			FlushCursor();
+		}
+
+		void OnSettingUpdate()
+		{
+			formatter->OnSettingUpdate();
+
+			// TODO: 重构
+			cursorPos = formatter->IndexToConsolePosition(cursorIndex) - leftTop;
+
+			const auto lastLeftTop = leftTop;
+			if (ScrollToPosition(cursorPos + leftTop))
+				cursorPos = cursorPos + lastLeftTop - leftTop;
+
 			FlushCursor();
 		}
 
@@ -913,7 +932,7 @@ export namespace NylteJ
 	class MainEditor final : public Editor
 	{
 	private:
-		ConsoleRect drawRange;
+		ConsoleRect drawRange;	// 用继承的结果就是 drawRange 变得乱七八糟... TODO: 未来肯定要改
 	private:
 		constexpr static auto GetRealLineIndexWidth(const SettingMap& settingMap, const ConsoleRect& drawRange)
 		{
@@ -935,7 +954,6 @@ export namespace NylteJ
 			constexpr auto color = BasicColors::brightCyan;
 
 			const auto lineIndexs = GetLineIndexs();
-			const auto drawHeight = min(static_cast<size_t>(console.GetConsoleSize().height - 2), lineIndexs.size());
 
 			const auto stringToLong = (views::repeat(u8'.', settingMap.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
 			const auto stringNull = (views::repeat(u8' ', settingMap.Get<SettingID::LineIndexWidth>()) | ranges::to<String>()) + u8"│"s;
@@ -944,28 +962,31 @@ export namespace NylteJ
 
 			size_t lastLineIndex = -1;	// 多行拥有同一个行号时, 只显示一次
 
-			for (size_t i = 0; i < drawHeight; i++)
+			for (auto&& [index, y] : views::enumerate(drawRange.EachY()))
 			{
-				String outputStr;
-
-				if (lastLineIndex == lineIndexs[i] + 1)
-					outputStr = stringNull;
-				else
+				if (index < lineIndexs.size())
 				{
-					lastLineIndex = lineIndexs[i] + 1;
-					outputStr = String::Format("{:>{}}│"sv, lineIndexs[i] + 1, settingMap.Get<SettingID::LineIndexWidth>());
+					String outputStr;
 
-					if (alreadyTooLong || outputStr.Size() > settingMap.Get<SettingID::LineIndexWidth>() + 1)
+					if (lastLineIndex == lineIndexs[index] + 1)
+						outputStr = stringNull;
+					else
 					{
-						outputStr = stringToLong;
-						alreadyTooLong = true;
-					}
-				}
+						lastLineIndex = lineIndexs[index] + 1;
+						outputStr = String::Format("{:>{}}│"sv, lineIndexs[index] + 1, settingMap.Get<SettingID::LineIndexWidth>());
 
-				console.Print(outputStr, { 0,i + 1 }, color);
+						if (alreadyTooLong || outputStr.Size() > settingMap.Get<SettingID::LineIndexWidth>() + 1)
+						{
+							outputStr = stringToLong;
+							alreadyTooLong = true;
+						}
+					}
+
+					console.Print(outputStr, { 0,y }, color);
+				}
+				else
+					console.Print(stringNull, { 0, y }, color);
 			}
-			for (size_t i = drawHeight; i < console.GetConsoleSize().height - 2; i++)
-				console.Print(stringNull, { 0,i + 1 }, color);
 
 			FlushCursor();
 		}

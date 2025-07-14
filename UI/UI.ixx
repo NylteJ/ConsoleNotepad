@@ -480,10 +480,19 @@ export namespace NylteJ
 										auto window = make_shared<SettingWindow>(handlers.console,
 																				 WindowDrawRangeLargeSize(),
 																				 settingMap,
-																				 [&]
+																				 [&,
+																				 lastTab = settingMap.Get<SettingID::TabWidth>(),
+																				 lastLineIndexWidth = settingMap.Get<SettingID::LineIndexWidth>()]
 																				 {
 																					 if (static_cast<bool>(settingMap.Get<SettingID::Wrap>()) xor (typeid(*editor->GetFormatter()) == typeid(DefaultWarpFormatter)))
 																						 editor->SetFormatter(GetFormatter());
+																					 else	// 修改 Formatter 隐含这些
+																					 {
+																						 if (lastLineIndexWidth != settingMap.Get<SettingID::LineIndexWidth>())	// TODO: 解耦
+																							 editor->SetDrawRange(editor->GetDrawRange());
+																						 else if (lastTab != settingMap.Get<SettingID::TabWidth>())		// 目前的 Formatter 只依赖 TabWidth (TODO: 解耦)
+																							 editor->OnSettingUpdate();
+																					 }
 																				 });
 										uiHandler.components.emplace(uiHandler.normalWindowDepth, window);
 										uiHandler.GiveFocusTo(window);

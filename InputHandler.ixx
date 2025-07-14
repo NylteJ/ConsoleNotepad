@@ -13,6 +13,8 @@ using namespace std;
 
 export namespace NylteJ
 {
+	// TODO: profile 表明这里的加锁解锁非常、非常耗费性能
+	// 试着改成无锁队列?
 	class InputHandler
 	{
 	private:
@@ -20,12 +22,8 @@ export namespace NylteJ
 		class MessageDatas
 		{
 		public:
-			deque<MessageType> messagesQueue;
-			mutex messagesMutex;
-
 			vector<function<void(const MessageType&, size_t)>> callbacks;
-			mutex callbacksMutex;
-		public:
+			shared_mutex callbacksMutex;
 		};
 	public:
 		class MessageWindowSizeChanged
@@ -171,91 +169,51 @@ export namespace NylteJ
 		MessageDatas<MessageWindowSizeChanged> windowSizeChangedMessages;
 		MessageDatas<MessageKeyboard> keyboardMessages;
 		MessageDatas<MessageMouse> mouseMessages;
-	private:
-		template<typename MessageType>
-		void DoDistribute(MessageDatas<MessageType>& messageDatas)
-		{
-			scoped_lock locker{ messageDatas.messagesMutex,messageDatas.callbacksMutex };	// 比起分成两个 lock_guard, 这样不会死锁
-
-			while (!messageDatas.messagesQueue.empty())
-			{
-				const auto firstNotSameIter = ranges::find_if(messageDatas.messagesQueue | views::drop(1),
-						[&](auto&& message) { return message != messageDatas.messagesQueue.front(); });
-
-				for (auto& func : messageDatas.callbacks)
-					func(messageDatas.messagesQueue.front(), firstNotSameIter - messageDatas.messagesQueue.begin());
-
-				messageDatas.messagesQueue.erase(messageDatas.messagesQueue.begin(), firstNotSameIter);
-			}
-		}
-
-		[[noreturn]] void DistributeMessages()
-		{
-			while (true)
-			{
-				DoDistribute(windowSizeChangedMessages);
-				DoDistribute(keyboardMessages);
-				DoDistribute(mouseMessages);
-			}
-		}
-
-		void SendMessageWithoutLock(const MessageWindowSizeChanged& message)
-		{
-			windowSizeChangedMessages.messagesQueue.emplace_back(message);
-		}
-		void SendMessageWithoutLock(const MessageKeyboard& message)
-		{
-			keyboardMessages.messagesQueue.emplace_back(message);
-		}
-		void SendMessageWithoutLock(const MessageMouse& message)
-		{
-			mouseMessages.messagesQueue.emplace_back(message);
-		}
 	public:
 		// TODO: 把这一堆复制粘贴用更优雅的方式实现
 		void SubscribeMessage(function<void(const MessageWindowSizeChanged&, size_t)> callback)
 		{
-			lock_guard callbackLock{ windowSizeChangedMessages.callbacksMutex };
-			windowSizeChangedMessages.callbacks.emplace_back(callback);
+			lock_guard _{ windowSizeChangedMessages.callbacksMutex };
+
+			windowSizeChangedMessages.callbacks.emplace_back(std::move(callback));
 		}
 		void SubscribeMessage(function<void(const MessageKeyboard&, size_t)> callback)
 		{
-			lock_guard callbackLock{ keyboardMessages.callbacksMutex };
-			keyboardMessages.callbacks.emplace_back(callback);
+			lock_guard _{ keyboardMessages.callbacksMutex };
+
+			keyboardMessages.callbacks.emplace_back(std::move(callback));
 		}
 		void SubscribeMessage(function<void(const MessageMouse&, size_t)> callback)
 		{
-			lock_guard callbackLock{ mouseMessages.callbacksMutex };
-			mouseMessages.callbacks.emplace_back(callback);
+			lock_guard _{ mouseMessages.callbacksMutex };
+
+			mouseMessages.callbacks.emplace_back(std::move(callback));
 		}
 
-		void SendMessage(const MessageWindowSizeChanged& message)
+		void SendMessage(const MessageWindowSizeChanged& message, size_t count = 1)
 		{
-			lock_guard messagesLock{ windowSizeChangedMessages.messagesMutex };
-			SendMessageWithoutLock(message);
-		}
-		void SendMessage(const MessageKeyboard& message)
-		{
-			lock_guard messagesLock{ keyboardMessages.messagesMutex };
-			SendMessageWithoutLock(message);
-		}
-		void SendMessage(const MessageMouse& message)
-		{
-			lock_guard messagesLock{ mouseMessages.messagesMutex };
-			SendMessageWithoutLock(message);
-		}
+			shared_lock _{ windowSizeChangedMessages.callbacksMutex };
 
-		void SendMessages(const auto&& messages)
+			for (auto&& callback : windowSizeChangedMessages.callbacks)
+				callback(message, count);
+		}
+		void SendMessage(const MessageKeyboard& message, size_t count = 1)
 		{
-			scoped_lock locker{ windowSizeChangedMessages.messagesMutex,keyboardMessages.messagesMutex,mouseMessages.messagesMutex };
+			shared_lock _{ keyboardMessages.callbacksMutex };
 
-			for (auto&& message : messages)
-				visit([&](auto&& msg) {SendMessageWithoutLock(msg); }, message);
+			for (auto&& callback : keyboardMessages.callbacks)
+				callback(message, count);
+		}
+		void SendMessage(const MessageMouse& message, size_t count = 1)
+		{
+			shared_lock _{ mouseMessages.callbacksMutex };
+
+			for (auto&& callback : mouseMessages.callbacks)
+				callback(message, count);
 		}
 
 		InputHandler()
 		{
-			thread{ bind(&InputHandler::DistributeMessages,this) }.detach();
 		}
 	};
 }

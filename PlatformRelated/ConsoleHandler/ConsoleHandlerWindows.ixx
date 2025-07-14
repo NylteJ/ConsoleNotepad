@@ -3,6 +3,7 @@
 // 一开始是想用虚拟终端序列实现的，但考虑到兼容性（Win10 以下的系统，以及传统 conhost 载体），最终还是使用了传统方案
 module;
 #include <unicode/utf16.h>
+#define NOMINMAX
 #include <Windows.h>
 export module ConsoleHandlerWindows;
 
@@ -33,23 +34,22 @@ export namespace NylteJ
 		HANDLE consoleInputHandle;
 	private:
 		// 特殊约定：RGB 分量都为 -1 时代表保持不变, 都为 -2 时代表反色, 具体的写在 BasicColors.ixx 里了
-		WORD ColorConvert(ConsoleColor color, WORD originalAttributes, WORD red, WORD green, WORD blue, WORD intensity) const
+		constexpr WORD ColorConvert(ConsoleColor color, WORD originalAttributes, WORD red, WORD green, WORD blue, WORD intensity) const
 		{
 			if (color == BasicColors::stayOldColor)
 				return originalAttributes;
 			if (color == BasicColors::inverseColor)
 				return originalAttributes xor (blue | green | red);
 
-			WORD newAttributes = originalAttributes
-				& (~(blue | green | red | intensity));
+			WORD newAttributes = originalAttributes & (~(blue | green | red | intensity));
 
 			const double maxRGB = max(max(color.R, color.G), color.B);
 
 			if (maxRGB >= 0.1)
 			{
-				const double	R = color.R / maxRGB,
-					G = color.G / maxRGB,
-					B = color.B / maxRGB;
+				const double R = color.R / maxRGB,
+				             G = color.G / maxRGB,
+				             B = color.B / maxRGB;
 				if (R >= 0.5)
 					newAttributes |= red;
 				if (G >= 0.5)
@@ -62,6 +62,62 @@ export namespace NylteJ
 			}
 
 			return newAttributes;
+		}
+
+		// 系统调用很慢(无论是打印还是改色), 足以成为性能瓶颈, 所以要尽可能减少相关调用
+		constexpr void ChangeColorAnd(const ConsoleColor& textColor, auto&& oper) const
+		{
+			if (textColor == BasicColors::stayOldColor)
+			{
+				oper();
+				return;
+			}
+
+			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
+
+			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
+
+			const auto originalAttributes = consoleBufferInfo.wAttributes;
+
+			const auto newAttributes = ColorConvert(textColor, originalAttributes, FOREGROUND_RED, FOREGROUND_GREEN, FOREGROUND_BLUE, FOREGROUND_INTENSITY);
+
+			if (newAttributes == originalAttributes)
+				oper();
+			else
+			{
+				SetConsoleTextAttribute(consoleOutputHandle, newAttributes);
+				oper();
+				SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			}
+		}
+		constexpr void ChangeColorAnd(const ConsoleColor& textColor, const ConsoleColor& backgroundColor, auto&& oper) const
+		{
+			if (textColor == BasicColors::stayOldColor && backgroundColor == BasicColors::stayOldColor)
+			{
+				oper();
+				return;
+			}
+
+			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
+
+			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
+
+			const auto originalAttributes = consoleBufferInfo.wAttributes;
+
+			const auto newAttributes = ColorConvert(
+				textColor,
+				ColorConvert(backgroundColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY),
+				FOREGROUND_RED, FOREGROUND_GREEN, FOREGROUND_BLUE, FOREGROUND_INTENSITY
+			);
+
+			if (newAttributes == originalAttributes)
+				oper();
+			else
+			{
+				SetConsoleTextAttribute(consoleOutputHandle, newAttributes);
+				oper();
+				SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			}
 		}
 	public:
 		ConsoleSize GetConsoleSize() const
@@ -108,55 +164,19 @@ export namespace NylteJ
 		}
 		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor) const
 		{
-			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
-
-			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
-
-			auto originalAttributes = consoleBufferInfo.wAttributes;
-
-			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(textColor, originalAttributes, FOREGROUND_RED, FOREGROUND_GREEN, FOREGROUND_BLUE, FOREGROUND_INTENSITY));
-			Print(text, pos);
-
-			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			ChangeColorAnd(textColor, [&] { Print(text, pos); });
 		}
-		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgrondColor) const
+		void Print(StringView text, ConsolePosition pos, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
-			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
-
-			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
-
-			auto originalAttributes = consoleBufferInfo.wAttributes;
-
-			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgrondColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
-			Print(text, pos, textColor);
-
-			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			ChangeColorAnd(textColor, backgroundColor, [&] { Print(text, pos); });
 		}
 		void Print(StringView text, ConsoleColor textColor) const
 		{
-			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
-
-			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
-
-			auto originalAttributes = consoleBufferInfo.wAttributes;
-
-			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(textColor, originalAttributes, FOREGROUND_RED, FOREGROUND_GREEN, FOREGROUND_BLUE, FOREGROUND_INTENSITY));
-			Print(text);
-
-			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			ChangeColorAnd(textColor, [&] { Print(text); });
 		}
 		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
-			CONSOLE_SCREEN_BUFFER_INFO consoleBufferInfo;
-
-			GetConsoleScreenBufferInfo(consoleOutputHandle, &consoleBufferInfo);
-
-			auto originalAttributes = consoleBufferInfo.wAttributes;
-
-			SetConsoleTextAttribute(consoleOutputHandle, ColorConvert(backgroundColor, originalAttributes, BACKGROUND_RED, BACKGROUND_GREEN, BACKGROUND_BLUE, BACKGROUND_INTENSITY));
-			Print(text, textColor);
-
-			SetConsoleTextAttribute(consoleOutputHandle, originalAttributes);
+			ChangeColorAnd(textColor, backgroundColor, [&] { Print(text); });
 		}
 
 		void ClearConsole() const
@@ -169,16 +189,22 @@ export namespace NylteJ
 			CONSOLE_CURSOR_INFO cur;
 
 			GetConsoleCursorInfo(consoleOutputHandle, &cur);
-			cur.bVisible = false;
-			SetConsoleCursorInfo(consoleOutputHandle, &cur);
+			if (cur.bVisible != false)
+			{
+				cur.bVisible = false;
+				SetConsoleCursorInfo(consoleOutputHandle, &cur);
+			}
 		}
 		void ShowCursor() const
 		{
 			CONSOLE_CURSOR_INFO cur;
 
 			GetConsoleCursorInfo(consoleOutputHandle, &cur);
-			cur.bVisible = true;
-			SetConsoleCursorInfo(consoleOutputHandle, &cur);
+			if (cur.bVisible != true)
+			{
+				cur.bVisible = true;
+				SetConsoleCursorInfo(consoleOutputHandle, &cur);
+			}
 		}
 
 		void SetConsoleMode(ConsoleMode mode) const
@@ -197,10 +223,27 @@ export namespace NylteJ
 			array<INPUT_RECORD, bufferSize> inputBuffer;	// 这里把 buffer 调大主要是处理滚轮用的, 其它时候 (包括脸滚键盘的时候) inputNum 几乎总是 1
 			DWORD inputNum;
 
-			array<variant<	InputHandler::MessageKeyboard,
-							InputHandler::MessageMouse,
-							InputHandler::MessageWindowSizeChanged>, bufferSize * 5> messageBuffer;		// *5 是因为 keyboardMessage 会有重复, 至多 5 次
-			size_t messageCount = 0;
+			// 另有一小缓冲区用于二次合并
+			variant<InputHandler::MessageKeyboard, InputHandler::MessageMouse, InputHandler::MessageWindowSizeChanged> lastMessage;
+			size_t lastMessageCount = 0;
+			const auto sendMsgCached = [&]<typename Message>(Message&& message, size_t count = 1)
+			{
+				if (lastMessageCount != 0)
+				{
+					const auto ptr = get_if<remove_cvref_t<Message>>(&lastMessage);
+
+					if (ptr != nullptr && *ptr == message)
+					{
+						lastMessageCount += count;
+						return;
+					}
+
+					visit([&](auto&& msg) { inputHandler.SendMessage(msg, lastMessageCount); }, lastMessage);
+				}
+
+				lastMessage = std::forward<Message>(message);
+				lastMessageCount = count;
+			};
 
 			wchar_t leadChar = 0;	// UTF-16 编码的字符可能会分两次输入, 此时其存储前半段
 
@@ -215,7 +258,7 @@ export namespace NylteJ
 				{
 					switch (input.EventType)
 					{
-					case FOCUS_EVENT:
+					case FOCUS_EVENT: [[fallthrough]];
 					case MENU_EVENT:break;
 					case KEY_EVENT:
 						if (input.Event.KeyEvent.bKeyDown)
@@ -240,13 +283,7 @@ export namespace NylteJ
 									leadChar = 0;
 								}
 
-							while (input.Event.KeyEvent.wRepeatCount > 0)
-							{
-								messageBuffer[messageCount] = message;
-
-								messageCount++;
-								input.Event.KeyEvent.wRepeatCount--;
-							}
+							sendMsgCached(message, input.Event.KeyEvent.wRepeatCount);
 						}
 						break;
 					case MOUSE_EVENT:
@@ -282,6 +319,8 @@ export namespace NylteJ
 							message.type = HWheeled;
 							message.wheelMove = (input.Event.MouseEvent.dwButtonState & 0x80000000) ? 1 : -1;
 							break;
+						default: break;		// 尽管官方文档说“是以下值之一”(is one of the following values), 实际上这里的值可以是上述枚举的组合
+											// 总之这么写有点问题, TODO: 后面改吧
 						}
 
 						lastButtonStatus = input.Event.MouseEvent.dwButtonState;
@@ -289,23 +328,27 @@ export namespace NylteJ
 						if (message.wheelMove != 0 && !(input.Event.MouseEvent.dwControlKeyState & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)))
 							message.wheelMove *= 3;
 
-						messageBuffer[messageCount] = message;
-						messageCount++;
+						sendMsgCached(message);
 					}
 						break;
 					case WINDOW_BUFFER_SIZE_EVENT:
-						messageBuffer[messageCount] = InputHandler::MessageWindowSizeChanged
-														{ .newSize = {	static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.X),
-																		static_cast<unsigned short>(input.Event.WindowBufferSizeEvent.dwSize.Y)} };
-						messageCount++;
+						inputHandler.SendMessage(InputHandler::MessageWindowSizeChanged
+							{
+								.newSize = {
+									static_cast<ConsoleWidth>(input.Event.WindowBufferSizeEvent.dwSize.X),
+									static_cast<ConsoleHeight>(input.Event.WindowBufferSizeEvent.dwSize.Y)
+								}
+							});		// 这个无需缓存, 直接发送即可
 						break;
 					default:break;
 					}
 				}
 
-				inputHandler.SendMessages(messageBuffer | views::take(messageCount));
-
-				messageCount = 0;
+				if (lastMessageCount != 0)
+				{
+					visit([&](auto&& msg) {inputHandler.SendMessage(msg, lastMessageCount); }, lastMessage);
+					lastMessageCount = 0;
+				}
 
 				//WaitForSingleObject(consoleInputHandle, INFINITE);	// 用不着等待, ReadConsoleInput 在读到足够的数据前不会返回
 

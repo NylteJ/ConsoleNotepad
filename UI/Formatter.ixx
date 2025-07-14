@@ -2,6 +2,8 @@
 // 用于原始字符串的格式化与双向定位
 // 简单来说, 就是负责将文件里读的字符串和屏幕上显示的位置一一对应的工具, 缩进的显示方式、自动换行等都是据此实现的
 // 原则上, 只有 Formatter 知道这一对应关系, 其它组件应当无法获取(因此不能施加任何假设, 只能通过 Formatter 获取相关信息)
+
+// 在 Debug 下容易莫名其妙报“间接呼叫临界检查检测到无效的控制传输”(非 Debug 模式下貌似不会), 很迷, 可能是 MSVC 的神必 bug (加一个默认实现的析构函数可以略微缓解, 但不能根治, 屋檐了)
 export module Formatter;
 
 import std;
@@ -73,6 +75,9 @@ export namespace NylteJ
 
 		// 规约指定坐标到正确的位置
 		virtual ConsolePosition RestrictPosition(ConsolePosition pos, Direction direction = Direction::None) = 0;
+		// 快速规约, 具体含义由实现定义
+		// TODO: 想个优雅点的方案 (这个函数是为了解决行号打印的性能问题而诞生的)
+		virtual ConsolePosition FastRestrictPosition(ConsolePosition pos, Direction direction = Direction::None) = 0;
 
 		// 获取该行的起始和终止下标
 		virtual pair<size_t, size_t> LineRangeOf(size_t lineIndex) = 0;
@@ -96,6 +101,9 @@ export namespace NylteJ
 		// (当然, 视 Formatter 不同, 也可能不会影响)
 		// 如果传入范围无法放下全部的格式化内容, 则具体行为由实现定义
 		virtual void OnDrawRangeUpdate(ConsoleRect newDrawRange) = 0;
+
+		// 表示绘图相关设置发生了改变, 如果内部缓存依赖于这些设置, 则需刷新内部缓存
+		virtual void OnSettingUpdate() = 0;
 
 		virtual ~Formatter() = default;
 	};
@@ -423,27 +431,7 @@ export namespace NylteJ
 		{
 			using enum Direction;
 
-			SplitLineUntilLine(pos.y);
-
-			pos.y = clamp(pos.y, 0, static_cast<ConsoleYPos>(cacheLine.size() - 1));
-
-			auto thisLineEndX = IndexToConsolePosition(cacheLine[pos.y].second).x;
-			if (pos.x > thisLineEndX)
-				if (direction != Right || pos.y == cacheLine.size() - 1)
-					pos.x = thisLineEndX;
-				else
-				{
-					pos.x = 0;
-					pos.y++;
-				}
-			else if (pos.x < 0)
-				if (direction != Left || pos.y == 0)
-					pos.x = 0;
-				else
-				{
-					pos.y--;
-					pos.x = IndexToConsolePosition(cacheLine[pos.y].second).x;
-				}
+			pos = FastRestrictPosition(pos, direction);
 
 			// ConsolePositionToIndex 在输入卡在字符中间时会返回下一个字符的下标, 比如 a\tb 中, (0,2) 对应 b 的下标
 			const auto nextIndex = ConsolePositionToIndex(pos);
@@ -469,6 +457,39 @@ export namespace NylteJ
 				else
 					pos = lastPosition;
 			}
+
+			return pos;
+		}
+		// 忽略位于字符中间的情况
+		ConsolePosition FastRestrictPosition(ConsolePosition pos, Direction direction) override
+		{
+			using enum Direction;
+
+			SplitLineUntilLine(pos.y);
+
+			pos.y = clamp(pos.y, 0, static_cast<ConsoleYPos>(cacheLine.size() - 1));
+
+			// 理论 pos.x == 0 时总是合法的, 为加速这里特判一下 (profile 表明(大概)值得)
+			if (pos.x == 0)
+				return pos;
+
+			auto thisLineEndX = IndexToConsolePosition(cacheLine[pos.y].second).x;
+			if (pos.x > thisLineEndX)
+				if (direction != Right || pos.y == cacheLine.size() - 1)
+					pos.x = thisLineEndX;
+				else
+				{
+					pos.x = 0;
+					pos.y++;
+				}
+			else if (pos.x < 0)
+				if (direction != Left || pos.y == 0)
+					pos.x = 0;
+				else
+				{
+					pos.y--;
+					pos.x = IndexToConsolePosition(cacheLine[pos.y].second).x;
+				}
 
 			return pos;
 		}
@@ -619,7 +640,6 @@ export namespace NylteJ
 
 			ret.data.reserve(range.Height());
 
-			ranges::subrange colors = colorMap;
 			for (int y = range.leftTop.y; y <= range.rightBottom.y; y++)
 				ret.data.emplace_back(DefaultFormatterHelper::FormatLogicLine(GetLine(y, range.rightBottom.x),	// [0, rightBottom.x] 的部分我们都需要
 																			  range,
@@ -658,11 +678,15 @@ export namespace NylteJ
 
 		void OnDrawRangeUpdate(ConsoleRect) override {}		// 我们不关心
 
+		void OnSettingUpdate() override
+		{
+			// 先不考虑太多
+			cacheLine.clear();
+		}
+
 		// 引用语义, 须保证 str 生命周期不短于 Formatter
 		DefaultFormatter(const String& str, const SettingMap& settingMap, ConsoleColor defaultTextColor = BasicColors::white, ConsoleColor defaultBackgroundColor = BasicColors::black)
 			:str(&str), settingMap(settingMap), defaultTextColor(defaultTextColor), defaultBackgroundColor(defaultBackgroundColor) {}
-
-		~DefaultFormatter() override {}	// 不知道为什么, 不加这行在 Debug 下容易莫名其妙报“间接呼叫临界检查检测到无效的控制传输”(而且非 Debug 模式下貌似不会), 很迷, 可能是 MSVC 的神必 bug
 	};
 
 	// 默认的自动换行 Formatter
@@ -888,37 +912,7 @@ export namespace NylteJ
 		{
 			using enum Direction;
 
-			SplitLineUntilLogicLine(pos.y);
-
-			const ConsoleHeight stringHeight = cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size();
-
-			pos.y = clamp(pos.y, 0, stringHeight - 1);
-
-			auto&& lineCache = cacheLine[LogicLineToPhyLine(pos.y)];
-			const size_t logicLineEnd = LogicLineEnd(pos.y);
-			const auto thisLineEndX = IndexToConsolePosition(logicLineEnd).x;
-			if (pos.x > thisLineEndX)
-				if (direction != Right || pos.y == stringHeight - 1)
-					pos.x = thisLineEndX;
-				else
-				{
-					if (pos.y == lineCache.logicLineIndex + lineCache.headIndexes.size())
-						pos.x = 0;
-					else
-						pos.x = IndexToConsolePosition(str->GetByteIndex(next(str->AtByteIndex(logicLineEnd)))).x;		// 光标移到第一个字符后面
-
-					pos.y++;
-				}
-			else if (pos.x < 0)
-				if (direction != Left || pos.y == 0)
-					pos.x = 0;
-				else
-				{
-					if (pos.y == lineCache.logicLineIndex)
-						pos.x = IndexToConsolePosition(LogicLineEnd(--pos.y)).x;
-					else
-						pos.x = IndexToConsolePosition(str->GetByteIndex(prev(str->AtByteIndex(LogicLineEnd(--pos.y))))).x;	// 光标移到最后一个字符前面
-				}
+			pos = FastRestrictPosition(pos, direction);
 
 			// ConsolePositionToIndex 在输入卡在字符中间时会返回下一个字符的下标, 比如 a\tb 中, (0,2) 对应 b 的下标
 			const auto nextIndex = ConsolePositionToIndex(pos);
@@ -950,6 +944,49 @@ export namespace NylteJ
 				else
 					pos = lastPosition;
 			}
+
+			return pos;
+		}
+		// 忽略位于字符中间的情况
+		ConsolePosition FastRestrictPosition(ConsolePosition pos, Direction direction) override
+		{
+			using enum Direction;
+
+			SplitLineUntilLogicLine(pos.y);
+
+			const ConsoleHeight stringHeight = cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size();
+
+			pos.y = clamp(pos.y, 0, stringHeight - 1);
+
+			// 理论 pos.x == 0 时总是合法的, 为加速这里特判一下 (profile 表明(大概)值得)
+			if (pos.x == 0)
+				return pos;
+
+			auto&& lineCache = cacheLine[LogicLineToPhyLine(pos.y)];
+			const size_t logicLineEnd = LogicLineEnd(pos.y);
+			const auto thisLineEndX = IndexToConsolePosition(logicLineEnd).x;
+			if (pos.x > thisLineEndX)
+				if (direction != Right || pos.y == stringHeight - 1)
+					pos.x = thisLineEndX;
+				else
+				{
+					if (pos.y == lineCache.logicLineIndex + lineCache.headIndexes.size() - 1)
+						pos.x = 0;
+					else
+						pos.x = IndexToConsolePosition(str->GetByteIndex(next(str->AtByteIndex(logicLineEnd)))).x;		// 光标移到第一个字符后面
+
+					pos.y++;
+				}
+			else if (pos.x < 0)
+				if (direction != Left || pos.y == 0)
+					pos.x = 0;
+				else
+				{
+					if (pos.y == lineCache.logicLineIndex)
+						pos.x = IndexToConsolePosition(LogicLineEnd(--pos.y)).x;
+					else
+						pos.x = IndexToConsolePosition(str->GetByteIndex(prev(str->AtByteIndex(LogicLineEnd(--pos.y))))).x;	// 光标移到最后一个字符前面
+				}
 
 			return pos;
 		}
@@ -1007,6 +1044,8 @@ export namespace NylteJ
 
 			ret.data.reserve(range.Height()); 
 
+			// 等 MSVC 适配 C++26 就可以用 views::concat 了, 现在先特殊处理最后一行, 凑合用着
+
 			const auto formatSingleLine = [&](auto&& beginIndex, auto&& endIndex)
 			{
 				ret.data.emplace_back(DefaultFormatterHelper::FormatLogicLine(str->View(beginIndex, endIndex),
@@ -1020,29 +1059,32 @@ export namespace NylteJ
 			};
 			const auto formatPhyLine = [&](auto&& headIndexes, auto&& endIndex)
 				{
-					// 等 MSVC 适配 C++26 就可以用 views::concat 了, 现在先特殊处理最后一行, 凑合用着
-
 					for (auto&& [beginIndex, endIndex] : views::pairwise(headIndexes))
 						formatSingleLine(beginIndex, endIndex);
 
 					formatSingleLine(headIndexes.back(), endIndex);
 				};
 
+			const size_t endIndex = (skipLastLogicLines == 0)
+				                        ? cacheLine[lastLineIndex].endIndex
+				                        : (cacheLine[lastLineIndex].headIndexes[cacheLine[lastLineIndex].headIndexes.size() - skipLastLogicLines]);
+
 			if (firstLineIndex != lastLineIndex)
 			{
 				formatPhyLine(cacheLine[firstLineIndex].headIndexes | views::drop(skipFirstLogicLines),
 							  cacheLine[firstLineIndex].endIndex);
+
 				for (auto&& physicLine : ranges::subrange{ cacheLine.begin() + firstLineIndex + 1, cacheLine.begin() + lastLineIndex })
-					formatPhyLine(physicLine.headIndexes,
-								  physicLine.endIndex);
+					formatPhyLine(physicLine.headIndexes, physicLine.endIndex);
+
 				formatPhyLine(cacheLine[lastLineIndex].headIndexes | views::take(cacheLine[lastLineIndex].headIndexes.size() - skipLastLogicLines),
-							  cacheLine[lastLineIndex].endIndex);
+							  endIndex);
 			}
 			else
-				formatPhyLine(cacheLine[firstLineIndex].headIndexes
-				              | views::take(cacheLine[firstLineIndex].headIndexes.size() - skipLastLogicLines)
-				              | views::drop(skipFirstLogicLines),
-				              cacheLine[firstLineIndex].endIndex);
+				formatPhyLine(cacheLine[lastLineIndex].headIndexes
+							 | views::take(cacheLine[lastLineIndex].headIndexes.size() - skipLastLogicLines)
+							 | views::drop(skipFirstLogicLines),
+							  endIndex);
 
 			return ret;
 		}
@@ -1090,10 +1132,24 @@ export namespace NylteJ
 			}
 		}
 
-		// 引用语义, 须保证 str 生命周期不短于 Formatter
-		DefaultWarpFormatter(const String& str, const SettingMap& settingMap, ConsoleRect drawRange, ConsoleColor defaultTextColor = BasicColors::white, ConsoleColor defaultBackgroundColor = BasicColors::black)
-			:str(&str), settingMap(settingMap), drawRange(drawRange), defaultTextColor(defaultTextColor), defaultBackgroundColor(defaultBackgroundColor) {}
+		void OnSettingUpdate() override
+		{
+			// 先不考虑太多
+			cacheLine.clear();
+		}
 
-		~DefaultWarpFormatter() override {}		// 同上
+		// 引用语义, 须保证 str 生命周期不短于 Formatter
+		DefaultWarpFormatter(const String& str,
+		                     const SettingMap& settingMap,
+		                     ConsoleRect drawRange,
+		                     ConsoleColor defaultTextColor       = BasicColors::stayOldColor,	// 用 stayOldColor 而不是固定色, 便于性能优化
+		                     ConsoleColor defaultBackgroundColor = BasicColors::stayOldColor)	// (反正我们的打印函数总会复位颜色, 不用担心出现奇奇怪怪的颜色)
+			: str(&str),
+			  settingMap(settingMap),
+			  drawRange(drawRange),
+			  defaultTextColor(defaultTextColor),
+			  defaultBackgroundColor(defaultBackgroundColor)
+		{
+		}
 	};
 }

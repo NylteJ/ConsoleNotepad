@@ -70,6 +70,9 @@ export namespace NylteJ
 				&& (pos.y >= leftTop.y && pos.y <= rightBottom.y);
 		}
 
+		constexpr auto EachX() const { return views::iota(leftTop.x, rightBottom.x + 1); }
+		constexpr auto EachY() const { return views::iota(leftTop.y, rightBottom.y + 1); }
+
 		constexpr ConsoleRect operator+(const ConsolePosition& right) const
 		{
 			return ConsoleRect{ leftTop + right, rightBottom + right };

@@ -45,11 +45,12 @@ export namespace NylteJ
 
 			if (OpenClipboard(NULL))
 			{
+				// VS 的堆分析貌似会一直计入这里分配的内存, 但根据 MS Learn, 这里应该没有内存泄漏
 				auto handler = GetClipboardData(CF_UNICODETEXT);
 
 				if (handler != NULL)
 				{
-					auto strPtr = reinterpret_cast<wchar_t*>(GlobalLock(handler));
+					auto strPtr = static_cast<wchar_t*>(GlobalLock(handler));
 
 					data = strPtr;
 

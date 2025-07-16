@@ -15,6 +15,8 @@ import InputHandler;
 import String;
 import UnionHandler;
 
+import Compose.Text;
+
 using namespace std;
 
 export namespace NylteJ
@@ -34,14 +36,12 @@ export namespace NylteJ
 			auto color = highLight ? BasicColors::inverseColor : BasicColors::stayOldColor;
 
 			console.Print(u8"<"sv, drawRange.leftTop, color, color);
-			console.Print(String(u8' ', drawRange.Width() - 2), color, color);
+			Compose::LineText(console,
+							  choices[nowChoose],
+							  drawRange.leftTop + ConsolePosition{ 1,0 }, drawRange.rightBottom.x - 1,
+							  Compose::Align::Center,
+							  { color, color });
 			console.Print(u8">"sv, color, color);
-
-			size_t beginX = 0;
-			if (GetDisplayLength(choices[nowChoose]) <= drawRange.Width())
-				beginX = (drawRange.Width() - GetDisplayLength(choices[nowChoose])) / 2;
-
-			console.Print(choices[nowChoose], { drawRange.leftTop.x + beginX,drawRange.leftTop.y }, color, color);
 		}
 
 		void ToLastChoice()

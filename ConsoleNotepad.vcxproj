@@ -237,6 +237,8 @@
     <ClCompile Include="InputHandler.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PlatformRelated\StringEncoder.ixx" />
+    <ClCompile Include="UI\Compose\ComposeBase.ixx" />
+    <ClCompile Include="UI\Compose\Text.ixx" />
     <ClCompile Include="UI\Editor.ixx" />
     <ClCompile Include="UI\Formatter.ixx" />
     <ClCompile Include="UI\Selector.ixx" />

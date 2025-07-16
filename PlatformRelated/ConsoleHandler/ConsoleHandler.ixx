@@ -58,6 +58,10 @@ export namespace NylteJ
 		{
 			handler.Print(text, pos, textColor, backgroundColor);
 		}
+		void Print(StringView text, ConsolePosition pos, Colors colors) const
+		{
+			handler.Print(text, pos, colors.textColor, colors.backgroundColor);
+		}
 		void Print(StringView text, ConsoleColor textColor) const
 		{
 			handler.Print(text, textColor);
@@ -65,6 +69,10 @@ export namespace NylteJ
 		void Print(StringView text, ConsoleColor textColor, ConsoleColor backgroundColor) const
 		{
 			handler.Print(text, textColor, backgroundColor);
+		}
+		void Print(StringView text, Colors colors) const
+		{
+			handler.Print(text, colors.textColor, colors.backgroundColor);
 		}
 
 		void ClearConsole() const

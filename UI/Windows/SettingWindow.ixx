@@ -20,12 +20,15 @@ import InputHandler;
 import UnionHandler;
 import ConsoleHandler;
 import String;
+import BasicColors;
+
+import Compose.Text;
 
 using namespace std;
 
 export namespace NylteJ
 {
-	class SettingWindow :public BasicWindow
+	class SettingWindow final : public BasicWindow
 	{
 	private:
 		constexpr static StringView titleText = u8"设置"sv;
@@ -53,22 +56,32 @@ export namespace NylteJ
 
 		void PrintSelf() const
 		{
-			console.Print(titleText, { drawRange.leftTop.x + (drawRange.Width() - 2 - GetDisplayLength(titleText)) / 2 + 1,
-				drawRange.leftTop.y + 1 });
-            console.Print(tipText, { drawRange.leftTop.x + (drawRange.Width() - 2 - GetDisplayLength(tipText)) / 2 + 1,
-                drawRange.rightBottom.y - 1 });
+			console.HideCursor();
+
+			Compose::LineText(console,
+							  titleText,
+							  drawRange.leftTop + ConsolePosition{ 1, 1 }, drawRange.rightBottom.x - 1,
+							  Compose::Align::Center);
+
+			Compose::LineText(console,
+							  tipText,
+							  { drawRange.leftTop.x + 1, drawRange.rightBottom.y - 1 }, drawRange.rightBottom.x - 1,
+							  Compose::Align::Center);
 
 			ConsolePosition nowPos = { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 };
 
 			for (auto&& settingItem : NowVisibleSettingList())
 			{
-				console.Print(views::repeat(u8' ', drawRange.Width() - 2) | ranges::to<String>(), nowPos);
-				console.Print(settingItem.tipText, nowPos);
+				Compose::LineText(console,
+								  settingItem.tipText,
+								  nowPos, drawRange.rightBottom.x - 1);
 				nowPos.y++;
 				settingItem.component->SetDrawRange({ nowPos,{drawRange.rightBottom.x - 1,nowPos.y} });
 				settingItem.component->Repaint();
 				nowPos.y++;
 			}
+
+			console.ShowCursor();
 		}
 
 		void ChangeFocusIndex(size_t newIndex)
@@ -207,13 +220,17 @@ export namespace NylteJ
 
 			PrintSelf();
 
-			settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
+			if (nowFocusedSettingIndex >= nowBeginSettingIndex
+				&& nowFocusedSettingIndex < nowBeginSettingIndex + MaxSettingInScreen())
+				settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 		}
 		void WhenRefocused() override
 		{
 			BasicWindow::WhenRefocused();
 
-			settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
+			if (nowFocusedSettingIndex >= nowBeginSettingIndex
+				&& nowFocusedSettingIndex < nowBeginSettingIndex + MaxSettingInScreen())
+				settings.settingList[nowFocusedSettingIndex].component->WhenRefocused();
 		}
 
 		SettingWindow(ConsoleHandler& console, const ConsoleRect& drawRange, SettingMap& settings, function<void()> onSettingsChanged)

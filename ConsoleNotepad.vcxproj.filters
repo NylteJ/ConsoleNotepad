@@ -37,6 +37,9 @@
     <Filter Include="头文件\UI\Windows">
       <UniqueIdentifier>{7f3ed2f3-8aad-4843-944c-11d7acb39079}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\UI\Compose">
+      <UniqueIdentifier>{1ba98966-bf64-4457-be8f-0db91ae72bfb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -120,8 +123,14 @@
     <ClCompile Include="Utils\String.ixx">
       <Filter>头文件\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="Utils\StringEncoder.ixx">
-      <Filter>头文件\Utils</Filter>
+    <ClCompile Include="PlatformRelated\StringEncoder.ixx">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\Compose\Text.ixx">
+      <Filter>头文件\UI\Compose</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\Compose\ComposeBase.ixx">
+      <Filter>头文件\UI\Compose</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

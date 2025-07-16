@@ -101,6 +101,13 @@ export namespace NylteJ
 		}
 	};
 
+	// TODO: 更多地使用这个类
+	struct Colors
+	{
+		ConsoleColor textColor;
+		ConsoleColor backgroundColor;
+	};
+
 	enum class Direction
 	{
 		Left, Right, Up, Down, None

@@ -16,6 +16,9 @@ import SettingMap;
 import UnionHandler;
 import String;
 import Utils;
+import ConsoleTypedef;
+
+import Compose.Text;
 
 import Exceptions;
 
@@ -78,7 +81,9 @@ export namespace NylteJ
 				title = titleReplace;
 				tip2 = tipText2Replace;
 
-				console.Print(tipText3Replace, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 4 });
+				Compose::LineText(console,
+								  tipText3Replace,
+								  drawRange.leftTop + ConsolePosition{ 1, 4 }, drawRange.rightBottom.x - 1);
 			}
 
 			if (MatchRegex())
@@ -86,9 +91,15 @@ export namespace NylteJ
 			else
 				tip1 = tipText1Normal;
 
-			console.Print(title, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
-			console.Print(tip1, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 2 });
-			console.Print(tip2, { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 });
+			Compose::LineText(console,
+							  title,
+							  drawRange.leftTop + ConsolePosition{ 1, 1 }, drawRange.rightBottom.x - 1);
+			Compose::LineText(console,
+							  tip1,
+							  drawRange.leftTop + ConsolePosition{ 1, 2 }, drawRange.rightBottom.x - 1);
+			Compose::LineText(console,
+							  tip2,
+							  { drawRange.leftTop.x + 1,drawRange.rightBottom.y - 1 }, drawRange.rightBottom.x - 1);
 		}
 
 		void MoveMainEditorPos(UnionHandler& handlers)

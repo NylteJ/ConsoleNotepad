@@ -24,6 +24,8 @@ import Exceptions;
 
 import Editor;
 
+import Compose.Text;
+
 // 兼容旧代码
 export import BasicWindow;
 export import FindReplaceWindow;
@@ -219,9 +221,13 @@ export namespace NylteJ
 			BasicWindow::WhenFocused();
 
 			if (drawRange.Height() >= 4)
-				console.Print(tipText, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+				Compose::LineText(console,
+								  tipText,
+								  { drawRange.leftTop + ConsolePosition{ 1, 1 } }, drawRange.rightBottom.x - 1);
 			else
-				console.Print(tipText, { drawRange.leftTop.x + 1,drawRange.leftTop.y });
+				Compose::LineText(console,
+								  tipText,
+								  { drawRange.leftTop + ConsolePosition{ 1, 1 } }, drawRange.rightBottom.x - 1);
 
 			editor.WhenFocused();
 		}
@@ -294,22 +300,15 @@ export namespace NylteJ
 
 			for (size_t i = beginChoice; i < choices.size() && (i - beginChoice) + 4 <= drawRange.Height(); i++)
 			{
-				if (i != nowChoose)
-				{
-					console.Print(choices[i], { drawRange.leftTop.x + 1 ,drawRange.leftTop.y + 2 + (i - beginChoice) });
+				Colors colors = { BasicColors::stayOldColor, BasicColors::stayOldColor };
+				if (i == nowChoose)
+					colors = { BasicColors::inverseColor, BasicColors::inverseColor };
 
-					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
-					if (restLength > 0)
-						console.Print(views::repeat(u8' ', restLength) | ranges::to<String>());
-				}
-				else
-				{
-					console.Print(choices[i], { drawRange.leftTop.x + 1 ,drawRange.leftTop.y + 2 + (i - beginChoice) }, BasicColors::inverseColor, BasicColors::inverseColor);
-
-					auto restLength = drawRange.rightBottom.x - console.GetCursorPos().x;
-					if (restLength > 0)
-						console.Print(views::repeat(u8' ', restLength) | ranges::to<String>(), BasicColors::inverseColor, BasicColors::inverseColor);
-				}
+				Compose::LineText(console,
+								  choices[i],
+								  { drawRange.leftTop + ConsolePosition{ 1, 2 + (i - beginChoice) } }, drawRange.rightBottom.x - 1,
+								  Compose::Align::Left,
+								  colors);
 			}
 		}
 
@@ -413,7 +412,9 @@ export namespace NylteJ
 
 			console.HideCursor();
 
-			console.Print(tipText, { drawRange.leftTop.x + 1,drawRange.leftTop.y + 1 });
+			Compose::LineText(console,
+							  tipText,
+							  { drawRange.leftTop + ConsolePosition{ 1, 1 } }, drawRange.rightBottom.x - 1);
 
 			PrintChoices();
 		}
@@ -604,45 +605,19 @@ export namespace NylteJ
 					| views::reverse
 					| views::drop_while([](auto&& chr) {return chr == '\n'; })
 					| views::reverse
-					| views::take(drawRange.Width() - 4)	// 考虑到目前的 DisplayLength 总是不短于 size, 直接先裁剪一次, 这样当字符串特别长时能显著优化性能 (非常显著)
+					| views::take(drawRange.Width())	// 考虑到目前的 DisplayLength 总是不短于 size, 直接先裁剪一次, 这样当字符串特别长时能显著优化性能 (非常显著) (不能裁多了, 否则无法触发 LineText 的省略号)
 					| ranges::to<String>();
 
 				// 只保留第一行
-                if (auto nextLineIter = find(nowOperationData.begin(), nowOperationData.end(), u8'\n');
+				static const u8string crlf = u8"\r\n";
+
+                if (auto nextLineIter = find_first_of(nowOperationData.begin(), nowOperationData.end(), crlf.begin(), crlf.end());
                     nextLineIter != nowOperationData.end())
-				{
-					nowOperationData.erase(nextLineIter, nowOperationData.end());
+					nowOperationData.replace_with_range(nextLineIter, nowOperationData.end(), u8"..."sv);
 
-					addEllipsis = true;
-				}
+				str += std::move(nowOperationData);
 
-				if (GetDisplayLength(nowOperationData) >= drawRange.Width() - 4)
-				{
-					size_t nowDisplayLength = 0;
-					auto endIter = nowOperationData.begin();
-
-					while (nowDisplayLength < drawRange.Width() - 7)
-					{
-						if (IsWideChar(*endIter))
-							nowDisplayLength += 2;
-						else
-							nowDisplayLength++;
-
-						++endIter;
-					}
-					if (nowDisplayLength > drawRange.Width() - 7)
-						--endIter;
-
-					str += StringView{ nowOperationData.begin(), endIter };
-					addEllipsis = true;
-				}
-				else
-					str += nowOperationData;
-
-				if (addEllipsis)
-					str += u8"..."sv;
-
-				choices.emplace_back(move(str));
+				choices.emplace_back(std::move(str));
 			}
 		}
 	public:

@@ -108,6 +108,11 @@ export namespace NylteJ
 			EditOperation(EditOperation&&) noexcept = default;
 			EditOperation() = default;
 		};
+
+		enum class NewLineType
+		{
+			LF, CR, CRLF
+		};
 	protected:
 		ConsoleHandler& console;
 
@@ -116,6 +121,8 @@ export namespace NylteJ
 		ConsolePosition leftTop = { 0,0 };	// 当前编辑器视口左上角在 Formatter 的虚拟坐标系中的坐标
 
 		unique_ptr<ColorfulFormatter> formatter;
+
+		NewLineType newLineType;	// 换行符类型, 只影响新增换行符
 
 		ConsolePosition cursorPos = { 0,0 };	// 当前编辑器的光标位置, 是相对 drawRange 左上角而言的坐标, 可以超出屏幕 (当然此时不显示)
 		size_t cursorIndex = 0;		// 对应的 fileData 中的下标, 也能现场算但缓存一个会更简单
@@ -695,6 +702,9 @@ export namespace NylteJ
 		}
 		const ColorfulFormatter* GetFormatter() const { return formatter.get(); }
 
+		void SetNewLineType(NewLineType type) { newLineType = type; }
+		NewLineType GetNewLineType() const { return newLineType; }
+
 		void ManageInput(const InputHandler::MessageWindowSizeChanged& message, UnionHandler& handlers) override {}		// 不在这里处理
 		void ManageInput(const InputHandler::MessageKeyboard& message, UnionHandler& handlers) override
 		{
@@ -745,7 +755,14 @@ export namespace NylteJ
 				}
 				return;
 			case Enter:
-				Insert(u8"\n"sv);
+				switch (newLineType)
+				{
+					using enum NewLineType;
+
+				case CR: Insert(u8"\r"sv); break;
+				case LF: Insert(u8"\n"sv); break;
+				case CRLF: Insert(u8"\r\n"sv); break;
+				}
 				return;
 			case Delete:
 				if (cursorIndex != fileData.ByteSize())
@@ -910,11 +927,13 @@ export namespace NylteJ
 			   const String& fileData,
 			   const ConsoleRect& drawRange,
 			   const SettingMap& settingMap,
-			   unique_ptr<ColorfulFormatter> formatter = nullptr)
+			   unique_ptr<ColorfulFormatter> formatter = nullptr,
+			   const NewLineType& newLineType = NewLineType::LF)
 			:UIComponent(drawRange),
 			console(console),
 			fileData(fileData),
 			formatter(std::move(formatter)),
+			newLineType(newLineType),
 			settingMap(settingMap)
 		{
 			if (this->formatter == nullptr)
@@ -1006,12 +1025,14 @@ export namespace NylteJ
 				   const String& fileData,
 				   const ConsoleRect& drawRange,
 				   const SettingMap& settingMap,
-				   unique_ptr<ColorfulFormatter> formatter)
+				   unique_ptr<ColorfulFormatter> formatter,
+				   const NewLineType& newLineType)
 			: Editor(console,
 					 fileData,
 					 {drawRange.leftTop + ConsolePosition{GetRealLineIndexWidth(settingMap, drawRange), 0}, drawRange.rightBottom},
 					 settingMap,
-					 std::move(formatter)),
+					 std::move(formatter),
+					 newLineType),
 			  drawRange(drawRange)
 		{}
 	};

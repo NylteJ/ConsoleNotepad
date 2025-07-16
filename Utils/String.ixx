@@ -20,18 +20,284 @@ namespace NylteJ
 {
 	export using Codepoint = char32_t;
 
+	export class String;
 	export class StringView;
 
 	class MatchAllASCIICaseFuncClass {};
 
-	//TODO: 整合一部分 String 和 StringView 共用的代码
+	// 不在 String 类内定义, 以合并部分相同代码
+	// (不过因为其本身不导出, 外界还是只能通过 String::Iterator 访问)
+	class StringIterator
+	{
+		friend class String;
+		friend class StringView;
+		friend class StringBase;
+		
+
+		// 按 C++ STL 的设计哲学, 算法和数据结构应当分离
+		// 所以这里选择新建非成员 search 函数, 通过 ADL 查找到此特化(但只能写成 StringIterator 的 friend, 看起来有点奇怪...)
+		// 实际上就用 STL 里的版本也是没问题的(按码点匹配), 但这种按字节匹配的算法效率高得多(可以做很多优化, 码点因为对应关系不明确基本只能老实匹配)
+
+		// 对 String / StringView 的搜索特化
+		// 不带谓词的版本效率可能更高
+		friend constexpr StringIterator search(StringIterator haystackBegin,
+											   StringIterator hayStackEnd,
+											   StringIterator needleBegin,
+											   StringIterator needleEnd)
+		{
+			// 同样, 因 UTF-8 特性, 逐字节查找即可
+			// TODO: benchmark 以找寻更好的分界点
+			if (needleEnd.str - needleBegin.str <= 16)
+				return StringIterator{ std::search(haystackBegin.str,
+											hayStackEnd.str,
+											needleBegin.str,
+											needleEnd.str) };
+			else
+			{
+				const boyer_moore_horspool_searcher searcher{ needleBegin.str, needleEnd.str };
+
+				return StringIterator{ std::search(haystackBegin.str, hayStackEnd.str, searcher) };
+			}
+		}
+
+		template<typename Func>
+		friend constexpr StringIterator search(StringIterator haystackBegin,
+										 StringIterator hayStackEnd,
+										 StringIterator needleBegin,
+										 StringIterator needleEnd,
+										 Func&& equalPred)
+		{
+			if constexpr (is_same_v<remove_cvref_t<Func>, MatchAllASCIICaseFuncClass>)
+			{
+				// ASCII 字符串的模糊大小写搜索有更快的解决方案(应该更快, 大概)
+				constexpr static auto pred = [](auto left, auto right)
+					{
+						if (left >= 'a' && left <= 'z')
+							left = left - 'a' + 'A';
+						if (right >= 'a' && right <= 'z')
+							right = right - 'a' + 'A';
+						return left == right;
+					};
+
+				// TODO: 把这一段和上面那一段合并
+				if (needleEnd.str - needleBegin.str <= 16)
+					return StringIterator{ std::search(haystackBegin.str,
+												hayStackEnd.str,
+												needleBegin.str,
+												needleEnd.str,
+												 pred) };
+				else
+				{
+					const boyer_moore_horspool_searcher searcher{ needleBegin.str, needleEnd.str, hash<char8_t>{}, pred };
+
+					return StringIterator{ std::search(haystackBegin.str, hayStackEnd.str, searcher) };
+				}
+			}
+			else
+			{
+				// BMH / BM 算法要求随机访问迭代器, 这里只能使用原始算法搜索
+				return StringIterator{ std::search(haystackBegin.str,
+											 hayStackEnd.str,
+											 needleBegin.str,
+											 needleEnd.str,
+											 forward<Func>(equalPred)) };
+			}
+		}
+
+		friend constexpr StringIterator find(StringIterator strBegin,
+									   StringIterator strEnd,
+									   char8_t chr)
+		{
+			return StringIterator{ std::find(strBegin.str,
+							 strEnd.str,
+							 chr) };
+		}
+
+		// 不能区分 Iter 和 Sentinel, 否则 MSVC 会报重载不明确(std 里的版本也没做区分)
+		template<typename U8Iter>
+			requires(is_same_v<iter_value_t<U8Iter>, char8_t>)
+		friend constexpr StringIterator find_first_of(StringIterator strBegin,
+													  StringIterator strEnd,
+													  U8Iter&& chrBegin,
+													  U8Iter&& chrEnd);
+
+		friend constexpr auto count(StringIterator strBegin,
+									StringIterator strEnd,
+									char8_t chr)
+		{
+			return std::count(strBegin.str, strEnd.str, chr);
+		}
+
+	public:
+		// STL 兼容
+		using difference_type = std::ptrdiff_t;
+		using value_type = Codepoint;
+	private:
+		const char8_t* str;
+	public:
+		constexpr auto&& operator++()
+		{
+			int32_t temp = 0;
+
+			U8_FWD_1_UNSAFE(str, temp);
+			str += temp;
+
+			return *this;
+		}
+		constexpr auto operator++(int)
+		{
+			auto ret = *this;
+			++*this;
+			return ret;
+		}
+
+		constexpr auto&& operator--()
+		{
+			// 负数下标是被允许的(E1[E2] 与表达式 *(E1 + E2) 在除值类别和求值顺序外的部分完全相同)
+			int32_t temp = 0;
+
+			U8_BACK_1_UNSAFE(str, temp);
+			str += temp;
+
+			return *this;
+		}
+		constexpr auto operator--(int)
+		{
+			auto ret = *this;
+			--*this;
+			return ret;
+		}
+
+		constexpr Codepoint operator*() const
+		{
+			Codepoint ret;
+
+			U8_GET_UNSAFE(str, 0, ret);
+
+			assert(U8_LENGTH(ret) != 0);
+
+			return ret;
+		}
+
+		constexpr auto operator<=>(const StringIterator&) const = default;
+		constexpr bool operator==(const StringIterator&) const = default;
+
+		constexpr explicit StringIterator(const char8_t* str) noexcept
+			: str(str)
+		{}
+
+		// STL 要求迭代器可默认构造
+		constexpr explicit StringIterator() noexcept
+			: str(nullptr)
+		{}
+	};
+
+	// String 和 StringView 共用的部分代码
+	// deducing this 是好文明 (而且 Resharper 能(不太完美地)识别, 赞美脑浆喷射! (好歹比某微软的好多了, IntelliSense 会直接挂掉))
+	class StringBase
+	{
+	private:
+		using Iterator = StringIterator;
+	private:
+		// 下面的 friend operator 无法访问到子类的 private 成员, 所以加一个接口
+		template<typename T>
+		static constexpr auto&& GetData(T&& str)
+		{
+			return forward_like<T>(str.data);
+		}
+	public:
+		// 注意, 所有函数都得是模板函数, 这样才能延迟实例化
+		// 不过大多数函数都无所谓左值右值 (因为大部分都是只读的), 所以基本摆烂 auto&& 就行
+		// 其实因为 SFINAE, 全塞里面也不会有啥问题, 但那就太怪了
+
+		constexpr Iterator begin(this auto&& self)	{ return Iterator{ self.data.data() }; }
+		constexpr Iterator cbegin(this auto&& self) { return self.begin(); }
+		constexpr Iterator end(this auto&& self)	{ return Iterator{ self.data.data() + self.data.size() }; }
+		constexpr Iterator cend(this auto&& self)	{ return self.end(); }
+
+		constexpr Codepoint front(this auto&& self) { return *self.begin(); }
+		constexpr Codepoint back(this auto&& self)	{ return *prev(self.end()); }
+
+		constexpr bool empty(this auto&& self)		{ return self.begin() == self.end(); }
+
+		constexpr bool contains(this auto&& self, char8_t chr)
+		{
+			// 由于 UTF-8 的特性, 单字符时逐字节查找即可
+			return self.data.contains(chr);
+		}
+
+		constexpr bool starts_with(this auto&& self, u8string_view str) { return self.data.starts_with(str); }
+		template<typename StringType>	// 甚至可以通过 template<same_as<StringView> StringViewType> 达到使用不完整类型的效果, 模板, 很神奇吧?
+			requires is_base_of_v<StringBase, StringType>
+		constexpr bool starts_with(this auto&& self, const StringType& str)
+		{
+			return self.data.starts_with(str.data);
+		}
+
+		constexpr bool ends_with(this auto&& self, u8string_view str) { return self.data.ends_with(str); }
+		template<typename StringType>
+			requires is_base_of_v<StringBase, StringType>
+		constexpr bool ends_with(this auto&& self, const StringType& str)
+		{
+			return self.data.ends_with(str.data);
+		}
+
+		// 逻辑上的 size(), 表示字符数
+		// 时间复杂度为 O(N)
+		constexpr size_t Size(this auto&& self)
+		{
+			return distance(self.begin(), self.end());
+		}
+
+		constexpr size_t ByteSize(this auto&& self) { return self.data.size(); }
+
+		constexpr Iterator AtByteIndex(this auto&& self, size_t index)
+		{
+			assert(index <= self.ByteSize());
+
+			return Iterator{ self.data.data() + index };
+		}
+
+		constexpr size_t GetByteIndex(this auto&& self, Iterator iter)
+		{
+			const auto diff = iter.str - self.data.data();
+
+			assert(diff >= 0 && diff <= self.ByteSize());
+
+			return static_cast<size_t>(diff);
+		}
+
+		template<typename Self>
+		operator filesystem::path(this Self&& self) { return forward_like<Self>(self.data); }
+
+		template<typename Self>
+		constexpr auto ToUTF8(this Self&& self) -> remove_cvref_t<decltype(self.data)>	// u8string / u8string_view
+		{
+			return forward_like<Self>(self.data);
+		}
+
+		template<typename LeftStrType, typename RightStrType>
+			requires (is_base_of_v<StringBase, LeftStrType> && is_base_of_v<StringBase, RightStrType>)
+		constexpr friend auto operator<=>(const LeftStrType& left, const RightStrType& right)
+		{
+			return StringBase::GetData(left) <=> StringBase::GetData(right);
+		}
+		template<typename LeftStrType, typename RightStrType>
+			requires (is_base_of_v<StringBase, LeftStrType> && is_base_of_v<StringBase, RightStrType>)
+		constexpr friend auto operator==(const LeftStrType& left, const RightStrType& right)
+		{
+			return StringBase::GetData(left) == StringBase::GetData(right);
+		}
+	};
 
 	// 字符串
 	// 任何读取操作都不会使迭代器失效, 任何写入操作都可能使所有迭代器失效
 	// 需要使用特殊的 ByteSize, ByteIndex 等来获取可用于随机访问的下标, 该下标和普通 string 的下标类似, 但只在其前面元素没有任何改变时才能保证有效
 	// 返回值是 4 字节 Unicode 码点 (UCS-4)
-	export class String
+	class String : public StringBase
 	{
+		friend class StringBase;
+
 		friend class StringView;
 
 		// 内部使用 UTF-8 存储
@@ -40,198 +306,10 @@ namespace NylteJ
 	public:
 		constexpr static MatchAllASCIICaseFuncClass matchAllASCIICase;	// 用于 search 算法特化的占位符, 能优化性能
 	public:
-		class Iterator
-		{
-			friend class String;
-			friend class StringView;
-
-			// 按 C++ STL 的设计哲学, 算法和数据结构应当分离
-			// 所以这里选择新建非成员 search 函数, 通过 ADL 查找到此特化(但只能写成 Iterator 的 friend, 看起来有点奇怪...)
-			// 实际上就用 STL 里的版本也是没问题的(按码点匹配), 但这种按字节匹配的算法效率高得多(可以做很多优化, 码点因为对应关系不明确基本只能老实匹配)
-
-			// 对 String / StringView 的搜索特化
-			// 不带谓词的版本效率可能更高
-			friend constexpr Iterator search(Iterator haystackBegin,
-											 Iterator hayStackEnd,
-											 Iterator needleBegin,
-											 Iterator needleEnd)
-			{
-				// 同样, 因 UTF-8 特性, 逐字节查找即可
-				// TODO: benchmark 以找寻更好的分界点
-				if (needleEnd.str - needleBegin.str <= 16)
-					return Iterator{ std::search(haystackBegin.str,
-												hayStackEnd.str,
-												needleBegin.str,
-												needleEnd.str) };
-				else
-				{
-					const boyer_moore_horspool_searcher searcher{ needleBegin.str, needleEnd.str };
-
-					return Iterator{ std::search(haystackBegin.str, hayStackEnd.str, searcher) };
-				}
-			}
-
-			template<typename Func>
-			friend constexpr Iterator search(Iterator haystackBegin,
-											 Iterator hayStackEnd,
-											 Iterator needleBegin,
-											 Iterator needleEnd,
-											 Func&& equalPred)
-			{
-				if constexpr (is_same_v<remove_cvref_t<Func>, MatchAllASCIICaseFuncClass>)
-				{
-					// ASCII 字符串的模糊大小写搜索有更快的解决方案(应该更快, 大概)
-					constexpr static auto pred = [](auto left, auto right)
-						{
-							if (left >= 'a' && left <= 'z')
-								left = left - 'a' + 'A';
-							if (right >= 'a' && right <= 'z')
-								right = right - 'a' + 'A';
-							return left == right;
-						};
-
-					// TODO: 把这一段和上面那一段合并
-					if (needleEnd.str - needleBegin.str <= 16)
-						return Iterator{ std::search(haystackBegin.str,
-													hayStackEnd.str,
-													needleBegin.str,
-													needleEnd.str,
-													 pred) };
-					else
-					{
-						const boyer_moore_horspool_searcher searcher{ needleBegin.str, needleEnd.str, hash<char8_t>{}, pred };
-
-						return Iterator{ std::search(haystackBegin.str, hayStackEnd.str, searcher) };
-					}
-				}
-				else
-				{
-					// BMH / BM 算法要求随机访问迭代器, 这里只能使用原始算法搜索
-					return Iterator{ std::search(haystackBegin.str,
-												 hayStackEnd.str,
-												 needleBegin.str,
-												 needleEnd.str,
-												 forward<Func>(equalPred)) };
-				}
-			}
-
-			friend constexpr Iterator find(Iterator strBegin,
-										   Iterator strEnd,
-										   char8_t chr)
-			{
-				return Iterator{ std::find(strBegin.str,
-								 strEnd.str,
-								 chr) };
-			}
-
-			// 不能区分 Iter 和 Sentinel, 否则 MSVC 会报重载不明确(std 里的版本也没做区分)
-			template<typename U8Iter>
-				requires(is_same_v<iter_value_t<U8Iter>, char8_t>)
-			friend constexpr Iterator find_first_of(Iterator strBegin,
-													Iterator strEnd,
-													U8Iter&& chrBegin,
-													U8Iter&& chrEnd)
-			{
-				return Iterator{ std::find_first_of(strBegin.str,
-													strEnd.str,
-													chrBegin,
-													chrEnd) };
-			}
-
-			friend constexpr auto count(Iterator strBegin,
-										Iterator strEnd,
-										char8_t chr)
-			{
-				return std::count(strBegin.str, strEnd.str, chr);
-			}
-
-		public:
-			// STL 兼容
-			using difference_type = std::ptrdiff_t;
-			using value_type = Codepoint;
-		private:
-			const char8_t* str;
-		public:
-			constexpr auto&& operator++()
-			{
-				int32_t temp = 0;
-
-				U8_FWD_1_UNSAFE(str, temp);
-				str += temp;
-
-				return *this;
-			}
-			constexpr auto operator++(int)
-			{
-				auto ret = *this;
-				++*this;
-				return ret;
-			}
-
-			constexpr auto&& operator--()
-			{
-				// 负数下标是被允许的(E1[E2] 与表达式 *(E1 + E2) 在除值类别和求值顺序外的部分完全相同)
-				int32_t temp = 0;
-
-				U8_BACK_1_UNSAFE(str, temp);
-				str += temp;
-
-				return *this;
-			}
-			constexpr auto operator--(int)
-			{
-				auto ret = *this;
-				--*this;
-				return ret;
-			}
-
-			constexpr Codepoint operator*() const
-			{
-				Codepoint ret;
-
-				U8_GET_UNSAFE(str, 0, ret);
-
-				assert(U8_LENGTH(ret) != 0);
-
-				return ret;
-			}
-
-			constexpr auto operator<=>(const Iterator&) const = default;
-			constexpr bool operator==(const Iterator&) const = default;
-
-			constexpr explicit Iterator(const char8_t* str) noexcept
-				: str(str)
-			{}
-
-			// STL 要求迭代器可默认构造
-			constexpr explicit Iterator() noexcept
-				: str(nullptr)
-			{}
-		};
+		using Iterator = StringIterator;
 	private:
 		u8string data;
 	public:
-		constexpr Iterator begin() const { return Iterator{ data.data() }; }
-		constexpr Iterator cbegin() const { return begin(); }
-		constexpr Iterator end() const { return Iterator{ data.data() + data.size() }; }
-		constexpr Iterator cend() const { return end(); }
-
-		constexpr Codepoint front() const { return *begin(); }
-		constexpr Codepoint back() const { return *prev(end()); }
-
-		constexpr bool empty() const { return begin() == end(); }
-
-		constexpr bool contains(char8_t chr) const
-		{
-			// 由于 UTF-8 的特性, 单字符时逐字节查找即可
-			return data.contains(chr);
-		}
-
-		constexpr bool starts_with(u8string_view str) const { return data.starts_with(str); }
-		constexpr bool starts_with(StringView str) const;
-		constexpr bool ends_with(u8string_view str) const { return data.ends_with(str); }
-		constexpr bool ends_with(StringView str) const;
-
 		constexpr void clear() { data.clear(); }
 
 		template<ranges::input_range Range>
@@ -298,26 +376,6 @@ namespace NylteJ
 		}
 		constexpr void push_back(Codepoint codepoint) { emplace_back(codepoint); }
 
-		// 逻辑上的 size(), 表示字符数
-		// 时间复杂度为 O(N)
-		constexpr size_t Size() const
-		{
-			return distance(begin(), end());
-		}
-
-		constexpr size_t ByteSize() const { return data.size(); }
-		constexpr Iterator AtByteIndex(size_t index) const
-		{
-			return Iterator{ data.data() + index };
-		}
-
-		size_t GetByteIndex(Iterator iter) const
-		{
-			return static_cast<size_t>(iter.str - data.data());
-		}
-
-		constexpr auto ToUTF8() const { return data; }
-
 		template<typename... Args>
         static constexpr String Format(format_string<Args...> fmt, Args&&... args)
 		{
@@ -342,22 +400,17 @@ namespace NylteJ
 			return *this;
 		}
 
-		template<ranges::input_range Range>
-		constexpr String operator+(Range&& range)
+		template<ranges::input_range Range, typename Self>
+		constexpr String operator+(this Self&& self, Range&& range)
 		{
-			return { data + forward<Range>(range) };
+			return { forward_like<Self>(self.data) + forward<Range>(range) };
 		}
-		template<ranges::input_range Range>
-			requires(!is_same_v<remove_cvref_t<Range>, String>)
-		friend constexpr String operator+(Range&& left, const String& right)
+		template<ranges::input_range Range, typename StringType>
+			requires (!is_same_v<remove_cvref_t<Range>, String> && is_same_v<remove_cvref_t<StringType>, String>)
+		friend constexpr String operator+(Range&& left, StringType&& right)
 		{
-			return { forward<Range>(left) + right.data };
+			return { forward<Range>(left) + forward_like<StringType>(right.data) };
 		}
-
-		constexpr auto operator<=>(const String&) const = default;
-		constexpr bool operator==(const String&) const = default;
-
-		operator filesystem::path() const { return data; }
 
 		String(char8_t chr, size_t count)
 			: data(count, chr)
@@ -394,7 +447,7 @@ namespace NylteJ
 		}
 
 		explicit String(initializer_list<Codepoint> codepoints)
-			:String(from_range_t{}, codepoints) {}
+			:String(from_range, codepoints) {}
 
 		constexpr String(const StringView& src);
 
@@ -472,6 +525,9 @@ namespace NylteJ
 		constexpr String(U8String&& str)
 			: data(ranges::begin(str), ranges::end(str))
 		{}
+		constexpr String(u8string&& str) noexcept	// 特化移动, 减少复制
+			: data(std::move(str))
+		{}
 
 		constexpr String(const filesystem::path& src)
 			: String(src.u8string())
@@ -484,66 +540,26 @@ namespace NylteJ
 		constexpr String() = default;
 	};
 
-	class StringView
+	class StringView : public StringBase
 	{
+		friend class StringBase;
+
 		friend class String;
 
 	private:
 		u8string_view data;
 	public:
-		constexpr String::Iterator begin() const { return String::Iterator{ data.data() }; }
-		constexpr String::Iterator cbegin() const { return begin(); }
-		constexpr String::Iterator end() const { return String::Iterator{ data.data() + data.size() }; }
-		constexpr String::Iterator cend() const { return end(); }
-
-		constexpr Codepoint front() const { return *begin(); }
-		constexpr Codepoint back() const { return *prev(end()); }
-
-		constexpr bool empty() const { return begin() == end(); }
-
-		constexpr bool contains(char8_t chr) const
+		constexpr StringView View(size_t beginIndex, size_t endIndex) const
 		{
-			// 由于 UTF-8 的特性, 单字符时逐字节查找即可
-			return data.contains(chr);
+			assert(beginIndex <= endIndex && endIndex <= ByteSize());
+			return StringView{ AtByteIndex(beginIndex), AtByteIndex(endIndex) };
 		}
-
-		constexpr bool starts_with(u8string_view str) const { return data.starts_with(str); }
-		constexpr bool starts_with(StringView str) const { return data.starts_with(str.data); }
-		constexpr bool ends_with(u8string_view str) const { return data.ends_with(str); }
-		constexpr bool ends_with(StringView str) const { return data.ends_with(str.data); }
-
-		// 逻辑上的 size(), 表示字符数
-		// 时间复杂度为 O(N)
-		constexpr size_t Size() const
-		{
-			return distance(begin(), end());
-		}
-
-		constexpr size_t ByteSize() const { return data.size(); }
-		constexpr String::Iterator AtByteIndex(size_t index) const
-		{
-			return String::Iterator{ data.data() + index };
-		}
-
-		// 根据迭代器获取可用于随机访问的下标
-		// 首迭代器的该下标永远是 0
-		size_t GetByteIndex(String::Iterator iter) const
-		{
-			return static_cast<size_t>(iter.str - data.data());
-		}
-
-		constexpr auto ToUTF8() const { return data; }
-
-		constexpr auto operator<=>(const StringView&) const = default;
-		constexpr bool operator==(const StringView&) const = default;
-
-		operator filesystem::path() const { return data; }
 
 		constexpr StringView(u8string_view str)
-			: data(str.begin(), str.end())
+			: data(str)
 		{}
-        constexpr StringView(const u8string& str)
-            : data(str.begin(), str.end())
+        constexpr StringView(const u8string& str)	// 隐式转换会导致歧义, 所以得多定义几个版本
+            : data(str)
         {}
 
 		constexpr StringView(const String& str)
@@ -559,8 +575,20 @@ namespace NylteJ
 		constexpr StringView() = default;
 	};
 
-	constexpr bool String::starts_with(StringView str) const { return data.starts_with(str.data); }
-	constexpr bool String::ends_with(StringView str) const { return data.ends_with(str.data); }
+	template <typename U8Iter> requires (is_same_v<iter_value_t<U8Iter>, char8_t>)
+	constexpr StringIterator find_first_of(StringIterator strBegin,
+										   StringIterator strEnd,
+										   U8Iter&& chrBegin,
+										   U8Iter&& chrEnd)
+	{
+		// 因为语义是寻找“第一个字符”, 所以全为单字节字符时才能直接用 u8string 搜索
+		if (all_of(chrBegin, chrEnd, [](auto&& chr) {return U8_IS_SINGLE(chr); }))
+			return StringIterator{ std::find_first_of(strBegin.str, strEnd.str, chrBegin, chrEnd) };
+
+		String target{ ranges::subrange{ chrBegin, chrEnd } };
+
+		return std::find_first_of(strBegin, strEnd, target.begin(), target.end());
+	}
 
 	constexpr StringView String::View(size_t beginIndex, size_t endIndex) const
 	{
@@ -573,6 +601,7 @@ namespace NylteJ
 	{}
 
 	// 静态类
+	// TODO: 重构
 	export class WordSelector
 	{
 	private:
@@ -689,4 +718,4 @@ struct std::hash<NylteJ::StringView>
 };
 export template<>
 struct std::hash<NylteJ::String> : std::hash<NylteJ::StringView>
-{};
+{};	// 有意让 String 隐式转化为 StringView, 否则难免涉及 friend 或者巨大复制开销

@@ -44,8 +44,9 @@ export namespace NylteJ
 			LineIndexWidth                   = 11,
 			TabWidth                         = 12,
 			Wrap                             = 13,
+			DefaultNewLine                   = 14,
 
-			_MaxEnum                         = 13,	// 这个值应当总是所有枚举值中最大的, 且应当尽可能地小
+			_MaxEnum                         = 14,	// 这个值应当总是所有枚举值中最大的, 且应当尽可能地小
 		};
 		using enum ID;
 	private:
@@ -74,6 +75,7 @@ export namespace NylteJ
 		ID_TYPE(LineIndexWidth, uint16_t)
 		ID_TYPE(TabWidth, uint16_t)
 		ID_TYPE(Wrap, uint8_t)
+		ID_TYPE(DefaultNewLine, uint8_t)
 
 #undef ID_TYPE
 
@@ -129,7 +131,10 @@ export namespace NylteJ
 			LineIndexWidth,
 			TabWidth,
 			Wrap,
+			DefaultNewLine,
 		};
+
+		static_assert(ranges::all_of(allValidID, [](auto&& id) {return id <= _MaxEnum; }));	// 防呆检测
 	private:
 		static constexpr bool IsValidID(ID id)
 		{
@@ -157,6 +162,7 @@ export namespace NylteJ
 				SET_DEFAULT_VALUE(LineIndexWidth, 3)
 				SET_DEFAULT_VALUE(TabWidth, 4)
 				SET_DEFAULT_VALUE(Wrap, false)
+				SET_DEFAULT_VALUE(DefaultNewLine, 0)
 					
 #undef SET_DEFAULT_VALUE
 			}

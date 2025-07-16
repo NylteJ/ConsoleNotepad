@@ -57,6 +57,39 @@ export namespace NylteJ
 								{handlers.console.GetConsoleSize().width * 0.85,handlers.console.GetConsoleSize().height * 0.85} };
 		}
 
+		// 快速检测换行符类型, 不能检测时返回空值
+		// 只返回检测到的第一个换行符的类型
+		static optional<Editor::NewLineType> FastDetectNewLineType(StringView data, size_t maxByteLength = 1024)
+		{
+			auto&& shortData = data.View(0, min(data.ByteSize(), maxByteLength));
+
+			static const String crlf = u8"\r\n";
+
+			const auto iter = find_first_of(shortData.begin(), shortData.end(),
+											crlf.begin(), crlf.end());
+
+			if (iter == shortData.end())
+				return nullopt;
+
+			if (*iter == '\n')
+				return Editor::NewLineType::LF;
+
+			// 否则就是 '\r' (CR)
+			auto nextIter = next(iter);
+			if (nextIter == shortData.end())
+			{
+				if (data.ByteSize() > shortData.GetByteIndex(nextIter))
+					nextIter = data.AtByteIndex(shortData.GetByteIndex(nextIter));
+				else
+					return Editor::NewLineType::CR;
+			}
+
+			if (*nextIter == '\n')
+				return Editor::NewLineType::CRLF;
+
+			return Editor::NewLineType::CR;
+		}
+
 		unique_ptr<ColorfulFormatter> GetFormatter(const ConsoleRect& drawRange) const
 		{
 			if (handlers.settings.Get<SettingID::Wrap>())
@@ -84,7 +117,8 @@ export namespace NylteJ
 										   editorData,
 										   drawRange,
 										   handlers.settings,
-										   GetFormatter(drawRange));
+										   GetFormatter(drawRange),
+										   FastDetectNewLineType(editorData).value_or(static_cast<Editor::NewLineType>(handlers.settings.Get<SettingID::DefaultNewLine>())));	// 二者等价性由编译期检查保证
 		}
 
 		void WhenFileSaved(bool reSave = false)
@@ -110,12 +144,14 @@ export namespace NylteJ
 
 			ManageAutoSaveFile();
 
+			editor->SetNewLineType(FastDetectNewLineType(editor->GetData()).value_or(static_cast<Editor::NewLineType>(handlers.settings.Get<SettingID::DefaultNewLine>())));
+
 			PrintFooter(String::Format("已打开 {} !"sv, filename));
 		}
 
 		bool IsFileSaved()
 		{
-			return hash<u8string_view>{}(editor->GetData().ToUTF8()) == lastSaveDataHash;
+			return hash<StringView>{}(editor->GetData()) == lastSaveDataHash;
 		}
 
 		void OpenFile(Encoding encoding = Encoding::UTF8)
@@ -257,9 +293,21 @@ export namespace NylteJ
 
 			if (extraText.empty())	// 改为显示光标位置、文件名等
 			{
-				String cursorInfos = String::Format("   光标位置: ({},{})  行字符: {}"sv,
+				String newLineTypeStr;
+				switch (editor->GetNewLineType())
+				{
+					using enum Editor::NewLineType;
+
+				case CR:newLineTypeStr = u8"CR"s; break;
+				case LF:newLineTypeStr = u8"LF"s; break;
+				case CRLF:newLineTypeStr = u8"CRLF"s; break;
+				default:unreachable();
+				}
+
+				String cursorInfos = String::Format("   光标位置: ({},{})  行字符: {}  行尾: {}"sv,
 					editor->GetAbsCursorPos().x, editor->GetAbsCursorPos().y + 1,
-					editor->GetNowLineCharCount());
+					editor->GetNowLineCharCount(),
+					newLineTypeStr);
 
 				if (!handlers.file.nowFilePath.empty())
 				{
@@ -304,18 +352,44 @@ export namespace NylteJ
 
 			const size_t leftTextLen = GetDisplayLength(extraText);
 
-			if (rightTextLen + leftTextLen < handlers.console.GetConsoleSize().width)
-				handlers.console.Print(views::repeat(u8' ', handlers.console.GetConsoleSize().width - rightTextLen - leftTextLen) | ranges::to<String>(),
-					{ leftTextLen,handlers.console.GetConsoleSize().height - 1 },
-					BasicColors::black, BasicColors::yellow);
+			// 简单惰性优化, 因为这个位置只会被 PrintFooter 重写, 所以不必每次都重新打印
+			static String lastExtraText, lastRightText;
+			static ConsoleSize lastConsoleSize = handlers.console.GetConsoleSize();
 
-			handlers.console.Print(extraText, { 0,handlers.console.GetConsoleSize().height - 1 }, BasicColors::black, BasicColors::yellow);
+			// 但有时必须重绘, 比如窗口大小改变时
+			// TODO: 优化
+			if (lastConsoleSize != handlers.console.GetConsoleSize())
+			{
+				lastExtraText.clear();
+				lastRightText.clear();
+				lastConsoleSize = handlers.console.GetConsoleSize();
+			}
 
-			if (rightTextLen <= handlers.console.GetConsoleSize().width)
+			if (lastExtraText != extraText)
+			{
+				handlers.console.Print(extraText,
+									   { 0,lastConsoleSize.height - 1 },
+									   BasicColors::black, BasicColors::yellow);
+
+				if (rightTextLen + leftTextLen < lastConsoleSize.width)
+					handlers.console.Print(views::repeat(u8' ', lastConsoleSize.width - rightTextLen - leftTextLen) | ranges::to<String>(),
+										   BasicColors::black, BasicColors::yellow);
+				else if (rightTextLen + leftTextLen > lastConsoleSize.width && leftTextLen < lastConsoleSize.width)
+					handlers.console.Print(views::repeat(u8' ', lastConsoleSize.width - leftTextLen) | ranges::to<String>(),
+										   BasicColors::black, BasicColors::yellow);
+
+				lastExtraText = std::move(extraText);
+			}
+
+
+			if (lastRightText != rightText && rightTextLen + leftTextLen <= lastConsoleSize.width)	// 无法全放下时优先保左边 TODO: 适当截断
+			{
 				handlers.console.Print(rightText,
-					{ handlers.console.GetConsoleSize().width - rightTextLen,handlers.console.GetConsoleSize().height - 1 },
-					BasicColors::black,
-					BasicColors::yellow);
+				   { lastConsoleSize.width - rightTextLen,lastConsoleSize.height - 1 },
+				   BasicColors::black, BasicColors::yellow);
+
+				lastRightText = std::move(rightText);
+			}
 
 			uiHandler.Refocus();
 		}

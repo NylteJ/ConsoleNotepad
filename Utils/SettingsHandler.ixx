@@ -54,6 +54,7 @@ export namespace NylteJ
 						NORMAL_CASE(SplitUndoStrWhenEnter)
 						NORMAL_CASE(NormalExitWhenDoubleEsc)
 						NORMAL_CASE(Wrap)
+						NORMAL_CASE(DefaultNewLine)
 
 #undef NORMAL_CASE
 					}
@@ -123,6 +124,7 @@ export namespace NylteJ
 						NORMAL_CASE(SplitUndoStrWhenEnter)
 						NORMAL_CASE(NormalExitWhenDoubleEsc)
 						NORMAL_CASE(Wrap)
+						NORMAL_CASE(DefaultNewLine)
 
 #undef NORMAL_CASE
 					}
@@ -207,6 +209,16 @@ export namespace NylteJ
 			EDITOR_CASE(LineIndexWidth, "行号宽度 (不含竖线, 设置为 0 以关闭行号显示):");
 			EDITOR_CASE(TabWidth, "Tab 宽度 (至少为 1):");
 			SELECTOR_CASE(Wrap, "自动换行:", u8"关闭"s, u8"开启 (实验性)"s);
+			{
+				SELECTOR_CASE(DefaultNewLine, "默认换行类型:", u8"LF"s, u8"CR"s, u8"CRLF"s);
+
+				// 凑合一下, 防呆
+				using enum Editor::NewLineType;
+				using Int = underlying_type_t<Editor::NewLineType>;
+				static_assert(static_cast<Int>(LF) == 0);
+				static_assert(static_cast<Int>(CR) == 1);
+				static_assert(static_cast<Int>(CRLF) == 2);
+			}
 
 #undef SELECTOR_CASE
 #undef EDITOR_CASE

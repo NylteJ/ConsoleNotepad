@@ -9,6 +9,7 @@ import std;
 import StringEncoder;
 import Exceptions;
 import String;
+import Utils;
 
 using namespace std;
 
@@ -83,13 +84,18 @@ export namespace NylteJ
 			string buffer;
 
 			if (fileSizeByte >= 1024LL * 1024LL * 1024LL * 1024LL)	// 1TB
-				throw "TODO: Large File Input";
+				TODO(u8"大文件输入"sv);
 
+			static_assert(sizeof(ranges::range_value_t<decltype(buffer)>) == 1);
 			buffer.resize(fileSizeByte);
 
 			DWORD temp;
 
-			ReadFile(fileHandle, buffer.data(), buffer.size() * sizeof(buffer[0]), &temp, NULL);
+			ReadFile(fileHandle,
+					 buffer.data(),
+					 SafeStaticCast<DWORD>(fileSizeByte),
+					 &temp,
+					 NULL);
 
 			return buffer;
 		}
@@ -111,7 +117,11 @@ export namespace NylteJ
 			SetFilePointer(fileHandle, 0, 0, FILE_BEGIN);
 
 			DWORD temp;
-			WriteFile(fileHandle, bytes.data(), bytes.size_bytes(), &temp, NULL);
+			WriteFile(fileHandle,
+					  bytes.data(),
+					  SafeStaticCast<DWORD>(bytes.size_bytes()),
+					  &temp,
+					  NULL);
 
 			SetEndOfFile(fileHandle);	// 以上只是单纯的覆写, 如果新文件长度短于原文件长度, 后面的部分会保留, 所以要截断
 
@@ -120,7 +130,7 @@ export namespace NylteJ
 		void Write(StringView data, Encoding encoding)
 		{
 			if (encoding != Encoding::UTF8)
-				throw logic_error{ "TODO" };		// TODO
+				TODO(u8"重新实现编码部分"sv);
 			
             auto u8str = data.ToUTF8();
 			auto bytes = span{ reinterpret_cast<const std::byte*>(u8str.data()), u8str.size() };

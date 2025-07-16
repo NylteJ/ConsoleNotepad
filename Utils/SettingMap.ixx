@@ -251,12 +251,19 @@ export namespace NylteJ
 			{
 				auto&& data = datas.at(id);
 
-				SizeDataType dataSize = VariantSize(id);
+				static_assert(in_range<SizeDataType>(sizeof(StoreType)));	// 只要 variant 的大小不超, VariantSize 就不会超
+				SizeDataType dataSize = static_cast<SizeDataType>(VariantSize(id));
+
 				const char* dataPtr = reinterpret_cast<const char*>(&data);
 
 				if (auto ptr = get_if<u8string>(&data); ptr != nullptr)
 				{
-					dataSize = static_cast<SizeDataType>(ptr->size() * sizeof(char8_t));
+					const auto size = SafeStaticCast<SizeDataType>(ptr->size() * sizeof(char8_t), nothrow);
+
+					if (!size.has_value())
+						throw Exception{ u8"字符串设置项过大!" };
+
+					dataSize = size.value();
 					dataPtr = reinterpret_cast<const char*>(ptr->data());
 				}
 

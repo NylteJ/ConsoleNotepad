@@ -304,7 +304,7 @@ export namespace NylteJ
 				default:unreachable();
 				}
 
-				String cursorInfos = String::Format("   光标位置: ({},{})  行字符: {}  行尾: {}"sv,
+				String cursorInfos = String::Format("光标位置: ({},{})  行字符: {}  行尾: {}"sv,
 					editor->GetAbsCursorPos().x, editor->GetAbsCursorPos().y + 1,
 					editor->GetNowLineCharCount(),
 					newLineTypeStr);
@@ -347,7 +347,10 @@ export namespace NylteJ
 				else
 					extraText = u8"当前文件: (未命名新文件)"s;
 
-				extraText += cursorInfos;
+				if (!extraText.empty())
+					extraText += u8"   " + std::move(cursorInfos);
+				else
+					extraText = std::move(cursorInfos);
 			}
 
 			const size_t leftTextLen = GetDisplayLength(extraText);
@@ -612,7 +615,8 @@ export namespace NylteJ
 						if (message.type == VWheeled && count > 1)
 						{
 							auto newMessage = message;
-							newMessage.wheelMove *= count;
+
+							newMessage.wheelMove *= static_cast<decltype(newMessage.wheelMove)>(count);		// 不考虑溢出(能滚出 int 上限的用户应当能理解的)
 
 							nowFocusPtr->ManageInput(newMessage, handlers);
 						}

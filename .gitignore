@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /vcpkg_installed/x64-windows
 /ConsoleNotepad.config
+*.autosave

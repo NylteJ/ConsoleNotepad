@@ -153,7 +153,7 @@ export namespace NylteJ
 
 			WriteConsoleW(consoleOutputHandle,
 						  wText.data(),
-						  wText.size(),
+						  static_cast<DWORD>(wText.size()),	// in_range 在 U8StrToWStr 中检查过了
 						  nullptr,
 						  nullptr);
 		}
@@ -189,7 +189,7 @@ export namespace NylteJ
 			CONSOLE_CURSOR_INFO cur;
 
 			GetConsoleCursorInfo(consoleOutputHandle, &cur);
-			if (cur.bVisible != false)
+			if (cur.bVisible)
 			{
 				cur.bVisible = false;
 				SetConsoleCursorInfo(consoleOutputHandle, &cur);
@@ -200,7 +200,7 @@ export namespace NylteJ
 			CONSOLE_CURSOR_INFO cur;
 
 			GetConsoleCursorInfo(consoleOutputHandle, &cur);
-			if (cur.bVisible != true)
+			if (!cur.bVisible)
 			{
 				cur.bVisible = true;
 				SetConsoleCursorInfo(consoleOutputHandle, &cur);
@@ -249,7 +249,12 @@ export namespace NylteJ
 
 			while (true)
 			{
-				bool success = ReadConsoleInput(consoleInputHandle, inputBuffer.data(), inputBuffer.size(), &inputNum);
+				static_assert(in_range<DWORD>(inputBuffer.size()));
+
+				bool success = ReadConsoleInput(consoleInputHandle,
+												inputBuffer.data(),
+												static_cast<DWORD>(inputBuffer.size()),	// 只是为了消除 Warning
+												&inputNum);
 
 				if (!success)
 					continue;

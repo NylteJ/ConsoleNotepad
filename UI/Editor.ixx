@@ -983,7 +983,10 @@ export namespace NylteJ
 
 			for (auto&& [index, y] : views::enumerate(drawRange.EachY()))
 			{
-				if (index < lineIndexs.size())
+				if (index < 0)	// views::enumerate 的下标是有符号的, 意义不明的设计...
+					unreachable();	// 等 MSVC 支持 assume 了可以简化
+
+				if (static_cast<size_t>(index) < lineIndexs.size())
 				{
 					String outputStr;
 

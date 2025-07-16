@@ -592,9 +592,9 @@ export namespace NylteJ
 				bool addEllipsis = false;
 
 				if ((operation.type == Editor::EditOperation::Type::Insert) xor inverse)
-					str += L"+ "s;
+					str += u8"+ "s;
 				else if ((operation.type == Editor::EditOperation::Type::Erase) xor inverse)
-					str += L"- "s;
+					str += u8"- "s;
 
 				// 制表符直接删掉. 历史记录需要的是具体信息, 只要能从短短的几个字符中看出这次操作都做了什么就可以了, 制表符不用留
 				// 开头和结尾的换行同理
@@ -640,7 +640,7 @@ export namespace NylteJ
 					str += nowOperationData;
 
 				if (addEllipsis)
-					str += L"..."sv;
+					str += u8"..."sv;
 
 				choices.emplace_back(move(str));
 			}

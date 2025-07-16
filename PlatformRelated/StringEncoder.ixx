@@ -75,21 +75,21 @@ export namespace NylteJ
 			throw Exception{ u8"字符串过长!"s };	// 大约 2 GB, 貌似还挺可能达到的
 		const int sizeInt = static_cast<int>(str.size());
 
-		size_t retSize = MultiByteToWideChar(encodingUINT,
-											 flag,
-											 reinterpret_cast<LPCCH>(str.data()),
-											 sizeInt,
-											 nullptr,
-											 0);
+		const int retSize = MultiByteToWideChar(encodingUINT,
+												flag,
+												reinterpret_cast<LPCCH>(str.data()),
+												sizeInt,
+												nullptr,
+												0);
 
 		ret.resize(retSize);
 
-		bool success = MultiByteToWideChar(encodingUINT,
-										   flag,
-										   reinterpret_cast<LPCCH>(str.data()),
-										   sizeInt,
-										   ret.data(),
-										   retSize);
+		const bool success = MultiByteToWideChar(encodingUINT,
+												 flag,
+												 reinterpret_cast<LPCCH>(str.data()),
+												 sizeInt,
+												 ret.data(),
+												 retSize);
 
 		if (!success && GetLastError() == ERROR_NO_UNICODE_TRANSLATION)
 			throw WrongEncodingException{ u8"错误的文件编码!"s };
@@ -109,14 +109,14 @@ export namespace NylteJ
 			throw Exception{ u8"字符串过长!"s };	// 大约 2 GB, 貌似还挺可能达到的
 		const int sizeInt = static_cast<int>(str.size());
 
-		size_t retSize = WideCharToMultiByte(encodingUINT,
-											 flag,
-											 str.data(),
-											 sizeInt,
-											 nullptr,
-											 0,
-											 nullptr,
-											 NULL);
+		const int retSize = WideCharToMultiByte(encodingUINT,
+												flag,
+												str.data(),
+												sizeInt,
+												nullptr,
+												0,
+												nullptr,
+												NULL);
 
 		ret.resize(retSize);
 
@@ -125,7 +125,7 @@ export namespace NylteJ
 										   str.data(),
 										   sizeInt,
 										   reinterpret_cast<LPSTR>(ret.data()),
-										   ret.size(),
+										   retSize,
 										   nullptr,
 										   NULL);
 

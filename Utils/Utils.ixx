@@ -1,6 +1,7 @@
 // Utils.ixx
 // 一些杂七杂八的函数
 module;
+#include <typeinfo>
 #include <unicode/uchar.h>
 export module Utils;
 
@@ -100,6 +101,37 @@ export namespace NylteJ
 			written.reset();
 		}
 	};
+
+	// 安全转换, 失败则返回空值
+	template<integral To, typename From>
+		requires is_integral_v<remove_cvref_t<From>>
+	constexpr optional<To> SafeStaticCast(From&& from, nothrow_t) noexcept
+	{
+		using FromType = remove_cvref_t<From>;
+
+		if constexpr (is_same_v<To, FromType>
+					 || (cmp_less_equal(numeric_limits<FromType>::max(), numeric_limits<To>::max()) && cmp_greater_equal(numeric_limits<FromType>::min(), numeric_limits<To>::min())))
+			return static_cast<To>(forward<From>(from));
+		else
+		{
+			if (!in_range<To>(from))
+				return nullopt;
+
+			return static_cast<To>(forward<From>(from));
+		}
+	}
+	// 安全转换, 失败则抛出异常
+	template<integral To, typename From>
+		requires is_integral_v<remove_cvref_t<From>>
+	constexpr To SafeStaticCast(From&& from)
+	{
+		const auto temp = SafeStaticCast<To>(forward<From>(from), nothrow);
+
+		if (!temp.has_value())
+			throw Exception{ String::Format("数值无法安全转换: {} -> {}", from, typeid(To).name()) };
+
+		return temp.value();
+	}
 }
 
 namespace NylteJ
@@ -119,6 +151,15 @@ namespace NylteJ
 		const TODO_T& operator()(const source_location & location = source_location::current()) const
 		{
 			throw Exception{ String::Format("功能(位于文件 {} 中的函数 {}, 第 {} 行)暂未实现!",
+											location.file_name(),
+											location.function_name(),
+											location.line()) };
+		}
+		[[noreturn]]
+		const TODO_T& operator()(StringView message, const source_location& location = source_location::current()) const
+		{
+			throw Exception{ String::Format("TODO: {} (位于文件 {} 中的函数 {}, 第 {} 行)",
+											message,
 											location.file_name(),
 											location.function_name(),
 											location.line()) };

@@ -262,7 +262,7 @@ namespace NylteJ
 		{
 			const auto diff = iter.str - self.data.data();
 
-			assert(diff >= 0 && diff <= self.ByteSize());
+			assert(diff >= 0 && cmp_less_equal(diff, self.ByteSize()));
 
 			return static_cast<size_t>(diff);
 		}
@@ -368,7 +368,11 @@ namespace NylteJ
 
 		constexpr void emplace_back(Codepoint codepoint)
 		{
-			int32_t index = data.size();
+			// ICU 只支持 32 位 int 的大小, 下同
+			// TODO: 处理更大字符串的情况 (节选一部分等)
+			if (!in_range<int32_t>(data.size()))
+				throw runtime_error{ "Byte size out of range for ICU" };
+			int32_t index = static_cast<int32_t>(data.size());
 
 			data.resize(data.size() + U8_MAX_LENGTH);
 			U8_APPEND_UNSAFE(data.data(), index, codepoint);
@@ -555,12 +559,11 @@ namespace NylteJ
 			return StringView{ AtByteIndex(beginIndex), AtByteIndex(endIndex) };
 		}
 
-		constexpr StringView(u8string_view str)
-			: data(str)
+		template<typename U8StringSource>
+			requires is_constructible_v<u8string_view, U8StringSource>
+		constexpr StringView(U8StringSource&& str)
+			: data(forward<U8StringSource>(str))
 		{}
-        constexpr StringView(const u8string& str)	// 隐式转换会导致歧义, 所以得多定义几个版本
-            : data(str)
-        {}
 
 		constexpr StringView(const String& str)
 			: data(str.data)
@@ -641,9 +644,18 @@ namespace NylteJ
 		{
 			SetText(str);
 
-			auto next = iter->following(byteIndex);
+			if (!in_range<int32_t>(byteIndex))
+				throw runtime_error{ "Byte index out of range for ICU BreakIterator" };
+			const int32_t byteIndex32 = static_cast<int32_t>(byteIndex);
+
+			auto next = iter->following(byteIndex32);
 			if (next == BreakIterator::DONE)
-				next = str.ByteSize();
+			{
+				if (!in_range<int32_t>(str.ByteSize()))
+					throw runtime_error{ "Byte size out of range for ICU BreakIterator" };
+
+				next = static_cast<int32_t>(str.ByteSize());
+			}
 
 			return next;
 		}
@@ -656,7 +668,11 @@ namespace NylteJ
 		{
 			SetText(str);
 
-			auto next = iter->preceding(byteIndex);
+			if (!in_range<int32_t>(byteIndex))
+				throw runtime_error{ "Byte index out of range for ICU BreakIterator" };
+			const int32_t byteIndex32 = static_cast<int32_t>(byteIndex);
+
+			auto next = iter->preceding(byteIndex32);
 			if (next == BreakIterator::DONE)
 				next = 0;
 
@@ -674,12 +690,22 @@ namespace NylteJ
 			auto byteIndex = str.GetByteIndex(where);
 			if (byteIndex != str.ByteSize())
 				byteIndex++;
-			auto begin = iter->preceding(byteIndex);
+
+			if (!in_range<int32_t>(byteIndex))
+				throw runtime_error{ "Byte index out of range for ICU BreakIterator" };
+			const int32_t byteIndex32 = static_cast<int32_t>(byteIndex);
+
+			auto begin = iter->preceding(byteIndex32);
 			if (begin == BreakIterator::DONE)
 				begin = 0;
 			auto end = iter->next();
 			if (end == BreakIterator::DONE)
-				end = str.ByteSize();
+			{
+				if (!in_range<int32_t>(str.ByteSize()))
+					throw runtime_error{ "Byte size out of range for ICU BreakIterator" };
+
+				end = static_cast<int32_t>(str.ByteSize());
+			}
 
 			return ranges::subrange{ str.AtByteIndex(begin), str.AtByteIndex(end) };
 		}

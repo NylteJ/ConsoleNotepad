@@ -14,6 +14,7 @@ import SettingMap;
 import String;
 import StringEncoder;
 import BasicColors;
+import Exceptions;
 
 using namespace std;
 
@@ -528,7 +529,7 @@ export namespace NylteJ
 			if (cacheLine.size() <= range.leftTop.y)
 				return ret;
 			if (cacheLine.size() <= range.rightBottom.y)
-				range.rightBottom.y = cacheLine.size() - 1;
+				range.rightBottom.y = SafeStaticCast<ConsoleYPos>(cacheLine.size() - 1);
 
 			ret.data.reserve(range.Height());
 
@@ -636,7 +637,7 @@ export namespace NylteJ
 			if (cacheLine.size() <= range.leftTop.y)
 				return ret;
 			if (cacheLine.size() <= range.rightBottom.y)
-				range.rightBottom.y = cacheLine.size() - 1;
+				range.rightBottom.y = SafeStaticCast<ConsoleYPos>(cacheLine.size() - 1);
 
 			ret.data.reserve(range.Height());
 
@@ -954,7 +955,7 @@ export namespace NylteJ
 
 			SplitLineUntilLogicLine(pos.y);
 
-			const ConsoleHeight stringHeight = cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size();
+			const auto stringHeight = SafeStaticCast<ConsoleHeight>(cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size());
 
 			pos.y = clamp(pos.y, 0, stringHeight - 1);
 
@@ -1027,7 +1028,7 @@ export namespace NylteJ
 
 			{
 				// 逻辑行区间 : [0, stringHeight)
-				const auto stringHeight = cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size();
+				const auto stringHeight = SafeStaticCast<ConsoleHeight>(cacheLine.back().logicLineIndex + cacheLine.back().headIndexes.size());
 				if (stringHeight <= range.leftTop.y)
 					return ret;
 				if (stringHeight <= range.rightBottom.y)
